@@ -1,0 +1,360 @@
+import { useEffect, useRef, useCallback, useState } from 'react'
+import { GameState } from '../types/GameTypes'
+import { debugLog } from '../utils/DebugUtils'
+
+interface UseGameConnectionProps {
+  roomId: string
+  playerName: string
+  onScoreResult: (result: any) => void
+  onFinalResults: (results: any[] | null) => void
+  setAutoNextTimer: (timerId: number | null) => void
+}
+
+export function useGameConnection({
+  roomId,
+  playerName,
+  onScoreResult,
+  onFinalResults,
+  setAutoNextTimer,
+}: UseGameConnectionProps) {
+  const [gameState, setGameState] = useState<GameState | null>(null)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [userId, setUserId] = useState('')
+  const wsRef = useRef<WebSocket | null>(null)
+  const connectionAttempted = useRef(false)
+
+  const handleMessage = useCallback((data: any) => {
+    const { type, payload } = data
+    debugLog(`📨 Received ${type} message`)
+    console.log('📨 Received message:', { type, payload })
+
+    switch (type) {
+      case 'joined':
+        debugLog(`✅ Successfully joined room with userId=${payload.userId}`)
+        console.log('✅ Successfully joined room - setting states now')
+        console.log('Payload:', payload)
+        setUserId(payload.userId)
+        
+        // Save to localStorage for reconnection
+        const sessionData = {
+          userId: payload.userId,
+          roomId: payload.roomId,
+          playerName: payload.playerName,
+          timestamp: Date.now(),
+        }
+        console.log('💾 Attempting to save session to localStorage:', sessionData)
+        try {
+          localStorage.setItem('mahjong-session', JSON.stringify(sessionData))
+          console.log('✅ Successfully saved to localStorage')
+          // Verify it was saved
+          const verification = localStorage.getItem('mahjong-session')
+          console.log('🔍 Verification - data in localStorage:', verification ? 'FOUND' : 'NOT FOUND')
+          if (verification) {
+            console.log('🔍 Verification - parsed data:', JSON.parse(verification))
+          }
+        } catch (err) {
+          console.error('❌ Failed to save to localStorage:', err)
+        }
+        
+        const initialState: GameState = {
+          status: payload.gameState?.status || 'waiting',
+          players: payload.players || [],
+          currentTurn: payload.gameState?.currentTurn,
+          tiles: payload.gameState?.tiles,
+          wall: payload.gameState?.wall,
+          discards: payload.gameState?.discards,
+        }
+        debugLog(`Setting gameState to status=${initialState.status}`)
+        console.log('Game state initialized:', initialState)
+        setGameState(initialState)
+        debugLog(`✅ setGameState called`)
+        console.log('✅ setGameState called with initialState')
+        
+        if (payload.isReconnecting) {
+          setMessage('ゲームに再接続しました')
+        } else {
+          setMessage(
+            `${payload.playerName}はゲームに参加しました（${payload.players.length}/2）`
+          )
+        }
+        break
+      case 'playerJoined':
+        debugLog(`✅ Another player joined`)
+        console.log('✅ Another player joined')
+        setGameState((prev) => {
+          debugLog(`In setGameState callback - prev gameState=${prev?.status || 'null'}`)
+          console.log('In setGameState callback - prev:', prev)
+          if (!prev) return prev
+          return {
+            ...prev,
+            players: payload.players,
+          }
+        })
+        setMessage(`プレイヤーが参加しました（${payload.players.length}/2）`)
+        break
+      case 'playerReconnected':
+        debugLog(`🔄 Another player reconnected`)
+        console.log('🔄 Another player reconnected')
+        setGameState((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            players: payload.players,
+          }
+        })
+        setMessage(`${payload.playerName}が再接続しました`)
+        break
+      case 'gameStarted':
+        debugLog(`🎮 Game started with status=${payload.status}, players=${payload.players.length}`)
+        console.log('🎮 Game started with payload:', payload)
+        console.log(`🎮 [DEBUG] tiles data:`, JSON.stringify(payload.tiles, null, 2))
+        if (!payload.players || payload.players.length < 2) {
+          debugLog(`❌ REJECTED: gameStarted received but only ${payload.players?.length || 0} player(s) - waiting for 2 players`)
+          console.warn('⚠️ gameStarted rejected - fewer than 2 players:', payload)
+          break
+        }
+        onScoreResult(null)
+        setGameState(payload)
+        debugLog(`✅ gameState updated to status=${payload.status}`)
+        setMessage('ゲームが始まりました！')
+        break
+      case 'gameStateUpdate':
+        debugLog(`♻️ Game state updated`)
+        console.log('♻️ Game state updated', payload)
+        console.log(`  canWinFor=${payload.canWinFor}, currentTurn=${payload.currentTurn}, status=${payload.status}`)
+        setGameState((prevState) => {
+          return {
+            ...payload,
+            currentRound: payload.currentRound ?? prevState?.currentRound,
+            nextRoundReadyCount: payload.nextRoundReadyCount ?? prevState?.nextRoundReadyCount,
+            totalPlayers: payload.totalPlayers ?? prevState?.totalPlayers,
+          }
+        })
+        break
+      case 'gameFinished':
+        debugLog(`🏁 Game finished`)
+        console.log('🏁 Game finished', payload)
+        
+        const noYaku =
+          payload?.scoreResult?.valid === false ||
+          (typeof payload?.scoreResult?.error === 'string' && payload.scoreResult.error.includes('役がありません'))
+        if (noYaku) {
+          setError(payload?.scoreResult?.error || '役がありません')
+          setAutoNextTimer(null)
+          break
+        }
+        
+        if (payload.gameOver) {
+          onFinalResults(payload.finalResults)
+          setMessage('ゲーム終了（誰かの点数がマイナスになりました）')
+          // Clear session on game over
+          localStorage.removeItem('mahjong-session')
+          console.log('🗑️ Cleared session on game over')
+        } else {
+          onScoreResult(payload.scoreResult)
+          const timerId = window.setTimeout(() => {
+            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: 'action',
+                  payload: { type: 'nextRound' },
+                })
+              )
+            }
+          }, 5000)
+          setAutoNextTimer(timerId)
+        }
+        
+        setGameState((prevState) => {
+          const winnerName = prevState?.players?.find((p: any) => p.userId === payload.winner)?.playerName || payload.winner
+          if (!payload.gameOver) {
+            setMessage(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`)
+          }
+          return prevState ? { 
+            ...prevState, 
+            status: payload.gameOver ? 'gameOver' : 'finished',
+            currentRound: payload.currentRound,
+            nextRoundReadyCount: payload.nextRoundReadyCount,
+            totalPlayers: payload.totalPlayers,
+          } : prevState
+        })
+        break
+      case 'actionResponse':
+        debugLog(`✅ Action response received`)
+        console.log('✅ Action response:', payload)
+        if (payload.success === false) {
+          setError(payload.message || 'アクションに失敗しました')
+          if (payload.message && payload.message.includes('役がありません')) {
+            setAutoNextTimer(null)
+          }
+          setTimeout(() => setError(''), 4000)
+        } else if (payload.riichi) {
+          setMessage(payload.message || 'リーチ宣言しました！')
+          setTimeout(() => setMessage(''), 5000)
+        }
+        break
+      case 'error':
+        debugLog(`❌ Server error: ${payload.message}`)
+        console.error('❌ Server error:', payload.message)
+        setError(payload.message || 'エラーが発生しました')
+        
+        // If room not found or reconnection failed, clear the saved session
+        if (payload.message && (payload.message.includes('Room not found') || payload.message.includes('found'))) {
+          console.log('🗑️ Clearing invalid session due to room not found')
+          localStorage.removeItem('mahjong-session')
+          // Optionally redirect back to home after a delay
+          setTimeout(() => {
+            if (window.confirm('ルームが見つかりません。ホーム画面に戻りますか？')) {
+              window.location.reload()
+            }
+          }, 1000)
+        }
+        break
+      default:
+        debugLog(`⚠️ Unknown message type: ${type}`)
+        console.log('⚠️ Unknown message type:', type)
+    }
+  }, [onScoreResult, onFinalResults, setAutoNextTimer])
+
+  useEffect(() => {
+    console.log('🔵 useGameConnection useEffect running, connectionAttempted:', connectionAttempted.current)
+    
+    if (connectionAttempted.current) {
+      debugLog(`⚠️ Connection already attempted, skipping duplicate connection`)
+      console.log('⚠️ Connection already attempted during this mount, skipping')
+      // Still return cleanup function
+      return () => {
+        console.log('🧹 Cleanup from skipped connection')
+        connectionAttempted.current = false
+      }
+    }
+    
+    debugLog('🔵 useEffect running - initializing WebSocket connection')
+    console.log('🔵 useEffect running - initializing WebSocket connection')
+    connectionAttempted.current = true
+    
+    // Check for existing session in localStorage
+    let savedSession = null
+    try {
+      const savedData = localStorage.getItem('mahjong-session')
+      if (savedData) {
+        savedSession = JSON.parse(savedData)
+        console.log('📂 Found saved session:', savedSession)
+        
+        // Check if session is for the same room
+        if (savedSession.roomId === roomId && savedSession.playerName === playerName) {
+          // Check if session is not too old (e.g., within 24 hours)
+          const sessionAge = Date.now() - (savedSession.timestamp || 0)
+          const maxAge = 24 * 60 * 60 * 1000 // 24 hours
+          
+          if (sessionAge < maxAge) {
+            console.log('✅ Valid session found, will attempt reconnection')
+          } else {
+            console.log('⏰ Session expired, starting fresh')
+            localStorage.removeItem('mahjong-session')
+            savedSession = null
+          }
+        } else {
+          console.log('🔄 Session is for different room/player, starting fresh')
+          savedSession = null
+        }
+      }
+    } catch (err) {
+      console.error('Error loading saved session:', err)
+      savedSession = null
+    }
+    
+    const wsUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'ws://localhost:3001'
+    debugLog(`🔌 Attempting WebSocket connection to: ${wsUrl}`)
+    console.log('🔌 Attempting WebSocket connection to:', wsUrl)
+    
+    const ws = new WebSocket(wsUrl)
+
+    ws.onopen = () => {
+      debugLog('✅ WebSocket connected successfully')
+      console.log('✅ WebSocket connected successfully')
+      setError('')
+      
+      const joinPayload: any = {
+        roomId,
+        playerName,
+      }
+      
+      // If we have a saved session, include the userId for reconnection
+      if (savedSession && savedSession.userId) {
+        joinPayload.userId = savedSession.userId
+        debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
+        console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
+      }
+      
+      debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
+      console.log('📤 Sending join message:', joinPayload)
+      ws.send(
+        JSON.stringify({
+          type: 'join',
+          payload: joinPayload,
+        })
+      )
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        debugLog(`📥 Raw message received (${event.data.length} bytes)`)
+        console.log('📥 Raw WebSocket message received:', event.data)
+        const data = JSON.parse(event.data)
+        debugLog(`📨 Parsed message type: ${data.type}`)
+        handleMessage(data)
+      } catch (err) {
+        debugLog(`🔴 Error parsing message: ${err}`)
+        console.error('🔴 Error parsing message:', err)
+      }
+    }
+
+    ws.onerror = (event) => {
+      debugLog(`❌ WebSocket error: ${event}`)
+      console.error('❌ WebSocket error:', event)
+      setError(`接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）`)
+    }
+
+    ws.onclose = () => {
+      debugLog('🔌 WebSocket disconnected')
+      console.log('🔌 WebSocket disconnected')
+      connectionAttempted.current = false
+    }
+
+    wsRef.current = ws
+
+    return () => {
+      debugLog('🧹 Cleanup: closing WebSocket')
+      console.log('🧹 Cleanup: closing WebSocket')
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close()
+      }
+      connectionAttempted.current = false
+    }
+  }, [roomId, playerName])
+
+  const sendAction = useCallback((action: any) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'action',
+          payload: action,
+        })
+      )
+    }
+  }, [])
+
+  return {
+    gameState,
+    setGameState,
+    error,
+    setError,
+    message,
+    setMessage,
+    userId,
+    wsRef,
+    sendAction,
+  }
+}

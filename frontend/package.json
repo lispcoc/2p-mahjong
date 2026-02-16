@@ -1,0 +1,25 @@
+{
+  "name": "mahjong-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for two-player mahjong game",
+  "scripts": {
+    "dev": "next dev",
+    "generate-tiles": "node scripts/generate-tiles.js",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/node": "25.2.2",
+    "@types/react": "19.2.13",
+    "eslint": "^8.50.0",
+    "eslint-config-next": "^14.0.0",
+    "sharp": "^0.33.5"
+  }
+}

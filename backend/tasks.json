@@ -1,0 +1,193 @@
+{
+  "metadata": {
+    "lastUpdated": "2026-02-13T00:00:00Z",
+    "version": "1.0.0"
+  },
+  "phases": [
+    {
+      "name": "Phase 1",
+      "title": "最短実装・MVP",
+      "priority": 1,
+      "tasks": [
+        {
+          "id": "phase1-task1",
+          "title": "ドラシステムの実装",
+          "category": "コアゲームロジック",
+          "section": "ドラ（Dora）システム",
+          "completed": true,
+          "completedDate": "2026-02-13T08:13:46.859Z",
+          "dependencies": []
+        },
+        {
+          "id": "phase1-task2",
+          "title": "役の完全な実装と検証",
+          "category": "コアゲームロジック",
+          "section": "役（ヤク）関連",
+          "completed": true,
+          "completedDate": "2026-02-13T08:13:50.812Z",
+          "dependencies": []
+        },
+        {
+          "id": "phase1-task3",
+          "title": "UI 改善（視認性向上）",
+          "category": "フロントエンド",
+          "section": "ゲーム画面",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        },
+        {
+          "id": "phase1-task4",
+          "title": "エラーハンドリング強化",
+          "category": "バックエンド",
+          "section": "通信・同期",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "name": "Phase 2",
+      "title": "基本機能の完成",
+      "priority": 2,
+      "tasks": [
+        {
+          "id": "phase2-task1",
+          "title": "チー（吃）の実装",
+          "category": "コアゲームロジック",
+          "section": "鳴き（副露）",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task1"
+          ]
+        },
+        {
+          "id": "phase2-task2",
+          "title": "槓（カン）の完全実装",
+          "category": "コアゲームロジック",
+          "section": "槓（カン）システム",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task1"
+          ]
+        },
+        {
+          "id": "phase2-task3",
+          "title": "本場・供託点の正確な実装",
+          "category": "ゲーム状態管理",
+          "section": "スコア・ポイント管理",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task1"
+          ]
+        },
+        {
+          "id": "phase2-task4",
+          "title": "ネットワークの堅牢化",
+          "category": "バックエンド",
+          "section": "通信・同期",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task4"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 3",
+      "title": "拡張機能",
+      "priority": 3,
+      "tasks": [
+        {
+          "id": "phase3-task1",
+          "title": "複数人対応（3人、4人麻雀）",
+          "category": "マルチプレイ",
+          "section": "複数プレイヤー対応",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task1",
+            "phase2-task2"
+          ]
+        },
+        {
+          "id": "phase3-task2",
+          "title": "AI プレイヤーの実装",
+          "category": "AI・コンピュータ対戦",
+          "section": "AI・コンピュータ対戦",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": [
+            "phase1-task2"
+          ]
+        },
+        {
+          "id": "phase3-task3",
+          "title": "ゲーム統計・分析",
+          "category": "統計・分析",
+          "section": "統計・分析",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        },
+        {
+          "id": "phase3-task4",
+          "title": "ユーザーシステム",
+          "category": "マルチプレイ",
+          "section": "プレイヤー管理",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        }
+      ]
+    },
+    {
+      "name": "Phase 4",
+      "title": "ポーランド・最適化",
+      "priority": 4,
+      "tasks": [
+        {
+          "id": "phase4-task1",
+          "title": "グラフィックス・サウンド向上",
+          "category": "ビジュアル・サウンド",
+          "section": "グラフィックス",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        },
+        {
+          "id": "phase4-task2",
+          "title": "パフォーマンス最適化",
+          "category": "デプロイ・運用",
+          "section": "本番環境",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        },
+        {
+          "id": "phase4-task3",
+          "title": "セキュリティ強化",
+          "category": "セキュリティ",
+          "section": "ゲーム整合性",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        },
+        {
+          "id": "phase4-task4",
+          "title": "デプロイメント自動化",
+          "category": "デプロイ・運用",
+          "section": "CI/CD",
+          "completed": false,
+          "completedDate": null,
+          "dependencies": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalStorage Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            border-left-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 LocalStorage テストツール</h1>
+    
+    <div>
+        <button onclick="checkStorage()">📦 LocalStorageを確認</button>
+        <button onclick="clearStorage()">🗑️ LocalStorageをクリア</button>
+        <button onclick="saveTestData()">💾 テストデータを保存</button>
+    </div>
+
+    <div id="result"></div>
+
+    <script>
+        function checkStorage() {
+            const resultDiv = document.getElementById('result');
+            const data = localStorage.getItem('mahjong-session');
+            
+            if (data) {
+                try {
+                    const parsed = JSON.parse(data);
+                    const sessionAge = Date.now() - (parsed.timestamp || 0);
+                    const ageInMinutes = Math.floor(sessionAge / 1000 / 60);
+                    
+                    resultDiv.className = 'result';
+                    resultDiv.innerHTML = `
+                        <h2>✅ セッションデータが見つかりました</h2>
+                        <pre>${JSON.stringify(parsed, null, 2)}</pre>
+                        <p><strong>経過時間:</strong> ${ageInMinutes} 分前に作成</p>
+                        <p><strong>有効期限:</strong> ${24 * 60 - ageInMinutes} 分後に期限切れ (24時間)</p>
+                    `;
+                } catch (err) {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h2>❌ データの解析に失敗</h2>
+                        <p>エラー: ${err.message}</p>
+                        <p>生データ: <code>${data}</code></p>
+                    `;
+                }
+            } else {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+                    <h2>❌ セッションデータが見つかりません</h2>
+                    <p>localStorage['mahjong-session'] は空です</p>
+                `;
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem('mahjong-session');
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = `
+                <h2>🗑️ LocalStorageをクリアしました</h2>
+                <p>mahjong-sessionデータを削除しました</p>
+            `;
+        }
+
+        function saveTestData() {
+            const testData = {
+                userId: 'test-user-' + Date.now(),
+                roomId: 'TEST-ROOM',
+                playerName: 'TestPlayer',
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('mahjong-session', JSON.stringify(testData));
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = `
+                <h2>💾 テストデータを保存しました</h2>
+                <pre>${JSON.stringify(testData, null, 2)}</pre>
+                <p>「LocalStorageを確認」ボタンで確認してください</p>
+            `;
+        }
+
+        // ページ読み込み時に自動チェック
+        window.onload = function() {
+            checkStorage();
+        };
+    </script>
+</body>
+</html>

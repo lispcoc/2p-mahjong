@@ -1,0 +1,25 @@
+{
+  "name": "mahjong-backend",
+  "version": "1.0.0",
+  "description": "Backend for two-player mahjong game",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "task:complete": "node task-manager.js complete",
+    "task:uncomplete": "node task-manager.js uncomplete",
+    "task:progress": "node task-manager.js progress",
+    "task:list": "node task-manager.js list",
+    "task:generate": "node task-manager.js generate",
+    "task:help": "node task-manager.js help"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "uuid": "^9.0.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

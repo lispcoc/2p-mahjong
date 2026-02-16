@@ -1,0 +1,280 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #2d5016 0%, #1a2e0a 100%);
+  padding: 20px;
+}
+
+.card {
+  background: #2d5016;
+  border: 3px solid #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 40px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #eee;
+}
+
+.title {
+  font-size: 32px;
+  color: #ffffff;
+  font-weight: bold;
+  margin: 0;
+}
+
+.playerInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.playerInfo strong {
+  color: #ffffff;
+  font-size: 16px;
+}
+
+.logoutBtn {
+  padding: 6px 12px;
+  background-color: #1a2e0a;
+  border: 2px solid #ffffff;
+  border-radius: 0px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #ffffff;
+  transition: all 0.3s;
+}
+
+.logoutBtn:hover {
+  background-color: #0f1a06;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  color: #ffffff;
+  margin: 0;
+  font-weight: 600;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.description {
+  color: #e0e0e0;
+  font-size: 14px;
+  margin: 0;
+}
+
+.divider {
+  text-align: center;
+  color: #a0a0a0;
+  font-size: 14px;
+  position: relative;
+  margin: 10px 0;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background-color: #ffffff;
+}
+
+.divider::before {
+  right: 50%;
+  margin-right: 10px;
+}
+
+.divider::after {
+  left: 50%;
+  margin-left: 10px;
+}
+
+.form {
+  display: flex;
+  gap: 10px;
+}
+
+.formRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inputLabel {
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #ffffff;
+  border-radius: 0px;
+  font-size: 16px;
+  background-color: #ffffff;
+  transition: border-color 0.3s;
+  text-transform: uppercase;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1a2e0a;
+  box-shadow: 0 0 0 2px rgba(29, 80, 22, 0.3);
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 12px 24px;
+  border: 2px solid #ffffff;
+  border-radius: 0px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.primaryButton {
+  background-color: #1a2e0a;
+  color: white;
+  width: 100%;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background-color: #0f1a06;
+}
+
+.primaryButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background-color: #3d6b20;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  flex: 1;
+}
+
+.secondaryButton:hover {
+  background-color: #2d5016;
+}
+
+.refreshButton {
+  padding: 6px 12px;
+  border: 2px solid #ffffff;
+  border-radius: 0px;
+  background: #1a2e0a;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: #0f1a06;
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.roomList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roomItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 2px solid #ffffff;
+  border-radius: 0px;
+  background: #3d6b20;
+}
+
+.roomMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.roomId {
+  font-weight: 700;
+  color: #ffffff;
+  font-size: 14px;
+}
+
+.roomStatus {
+  font-size: 12px;
+  color: #e0e0e0;
+}
+
+.joinButton {
+  padding: 6px 12px;
+  border-radius: 0px;
+  border: 2px solid #ffffff;
+  background: #1a2e0a;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.joinButton:hover:not(:disabled) {
+  background: #0f1a06;
+}
+
+.joinButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ff6b6b;
+  font-size: 14px;
+  text-align: center;
+  padding: 12px;
+  background-color: #2d1a1a;
+  border: 2px solid #ff6b6b;
+  border-radius: 0px;
+  margin-top: 20px;
+}
