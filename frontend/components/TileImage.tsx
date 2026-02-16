@@ -10,6 +10,7 @@ interface TileImageProps {
   onMouseLeave?: () => void
   isHovered?: boolean
   faceDown?: boolean
+  isRotated?: boolean
 }
 
 export function TileImage({ 
@@ -20,6 +21,7 @@ export function TileImage({
   onMouseLeave,
   isHovered = false,
   faceDown = false,
+  isRotated = false,
 }: TileImageProps) {
   const src = faceDown ? '/tiles/pai.gif' : `/tiles/${getTileKey(tile)}.gif`
 
@@ -39,7 +41,7 @@ export function TileImage({
         cursor: onClick ? 'pointer' : 'default',
         filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? 'drop-shadow(0 0 10px #4CAF50)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
         transition: 'all 0.2s',
-        transform: isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)'),
+        transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
         borderRadius: '0px',
       }}
     />

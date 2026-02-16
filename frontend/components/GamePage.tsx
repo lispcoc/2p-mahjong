@@ -1134,7 +1134,7 @@ export default function GamePage({
             </p>
 
             {/* Opponent's Hand */}
-            <div className="w-full mb-3 bg-green-100 rounded-lg p-3 border border-green-300">
+            <div className="w-full mb-3 rounded-lg p-3 border-0">
               <div className="flex justify-between items-center mb-2">
                 {/* CPUの手牌を見るボタン */}
                 {otherPlayer?.isCPU && (
@@ -1146,26 +1146,24 @@ export default function GamePage({
                   </button>
                 )}
               </div>
-              <div className="flex items-start gap-px overflow-x-auto">
+              <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
                 {otherMelds.length > 0 && (
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-4">
                     {otherMelds.map((meld, meldIdx) => (
-                      <div key={`meld-${meldIdx}`} className="flex gap-1 p-1 bg-white bg-opacity-70 rounded border border-green-400">
+                      <div key={`meld-${meldIdx}`} className="flex gap-px p-1 bg-white bg-opacity-70 rounded border border-green-400">
                         {meld.map((tile, tileIdx) => (
                           <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
                             <TileImage tile={tile} />
                           </div>
                         ))}
-                        {/* スペーサー */}
-                        {otherMelds.length > 0 && <div className="flex-shrink-0" style={{ width: '24px' }} />}
                       </div>
                     ))}
                   </div>
                 )}
 
                 {/* 手牌（裏向きまたは表示） */}
-                <div className="flex gap-1 flex-wrap">
+                <div className="flex gap-px flex-wrap">
                   {otherHand.map((tile, idx) => (
                     <div key={`other-hand-${idx}`} className="inline-block">
                       <TileImage
@@ -1179,9 +1177,9 @@ export default function GamePage({
             </div>
 
             {/* Opponent's Discards (Kawa) */}
-            <div className="w-full mb-3 bg-gray-100 rounded-lg p-3 border border-gray-300">
+            <div className="w-full mb-3 rounded-lg p-3 border border-gray-300">
               <div className="flex items-center gap-3">
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-px">
                   {otherDiscards.length === 0 ? (
                     <span className="text-gray-400 text-xs">なし</span>
                   ) : (
@@ -1190,12 +1188,12 @@ export default function GamePage({
                       return (
                         <div
                           key={`od-${idx}`}
-                          className={`inline-block ${isRiichiDiscard ? 'rotate-90' : ''}`}
-                          style={{
-                            margin: isRiichiDiscard ? '8px 0' : '0'
-                          }}
+                          className="inline-block"
                         >
-                          <TileImage tile={tile} />
+                          <TileImage 
+                            tile={tile}
+                            isRotated={isRiichiDiscard}
+                          />
                         </div>
                       );
                     })
@@ -1207,8 +1205,7 @@ export default function GamePage({
                 const otherPlayer = gameState.players.find(p => p.userId !== userId);
                 const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId];
                 return isOtherRiichi ? (
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-xs text-gray-600 font-bold">リーチ:</span>
+                  <div className="w-full mt-2 flex items-center gap-2">
                     <img
                       src="/tiles/1000.gif"
                       alt="リーチ棒"
@@ -1223,7 +1220,7 @@ export default function GamePage({
 
             {/* Game Info Center */}
             {/* Game Info Center */}
-            <div className="w-full mb-3 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-3 flex-wrap">
+            <div className="w-full mb-1 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-2 flex-wrap">
               {/* Current Round */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
@@ -1241,14 +1238,14 @@ export default function GamePage({
               </div>
 
               {/* Auto-discard countdown */}
-              {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
-                <div className={`text-center px-4 py-2 rounded-lg border-2 flex-1 min-w-24 flex flex-col justify-center ${autoDiscardTimeLeft <= 3 ? 'bg-red-50 border-red-500 animate-pulse' : 'bg-orange-50 border-orange-400'}`}>
-                  <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
+              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
+                <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
+                {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
                   <div className={`text-2xl font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
                     {autoDiscardTimeLeft}秒
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Pending pung auto-draw countdown */}
               {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 && (
@@ -1278,16 +1275,6 @@ export default function GamePage({
                   </div>
                 </div>
               </div>
-
-              {/* Riichi Deposits - Only show if > 0 */}
-              {(gameState.riichiDeposits ?? 0) > 0 && (
-                <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
-                  <div className="text-xs text-gray-500 mb-1">供託</div>
-                  <div className="text-base font-bold text-yellow-700">
-                    {(gameState.riichiDeposits ?? 0).toLocaleString()}点
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Dora and Kanning Wall */}
@@ -1323,13 +1310,12 @@ export default function GamePage({
             </div>
 
             {/* Your Discards (Kawa) */}
-            <div className="w-full mb-3 bg-gray-100 rounded-lg p-3 border border-gray-300">
+            <div className="w-full mb-3 rounded-lg p-3 border border-gray-300">
               {/* 自分のリーチ棒表示 */}
               {(() => {
                 const isPlayerRiichi = gameState.riichi && gameState.riichi[userId];
                 return isPlayerRiichi ? (
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xs text-gray-600 font-bold">リーチ:</span>
                     <img
                       src="/tiles/1000.gif"
                       alt="リーチ棒"
@@ -1341,8 +1327,7 @@ export default function GamePage({
                 ) : null;
               })()}
               <div className="flex items-center gap-3">
-                <strong className="min-w-20 text-gray-700">あなたの河</strong>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-px">
                   {yourDiscards.length === 0 ? (
                     <span className="text-gray-400 text-xs">なし</span>
                   ) : (
@@ -1351,12 +1336,12 @@ export default function GamePage({
                       return (
                         <div
                           key={`yd-${idx}`}
-                          className={`inline-block ${isRiichiDiscard ? 'rotate-90' : ''}`}
-                          style={{
-                            margin: isRiichiDiscard ? '8px 0' : '0'
-                          }}
+                          className="inline-block"
                         >
-                          <TileImage tile={tile} />
+                          <TileImage 
+                            tile={tile}
+                            isRotated={isRiichiDiscard}
+                          />
                         </div>
                       );
                     })
