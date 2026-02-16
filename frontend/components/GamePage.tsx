@@ -1151,7 +1151,7 @@ export default function GamePage({
                 {otherMelds.length > 0 && (
                   <div className="flex gap-4">
                     {otherMelds.map((meld, meldIdx) => (
-                      <div key={`meld-${meldIdx}`} className="flex gap-px p-1 bg-white bg-opacity-70 rounded border border-green-400">
+                      <div key={`meld-${meldIdx}`} className="flex gap-px">
                         {meld.map((tile, tileIdx) => (
                           <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
                             <TileImage tile={tile} />
