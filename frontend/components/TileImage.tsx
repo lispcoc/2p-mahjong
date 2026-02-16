@@ -25,25 +25,40 @@ export function TileImage({
 }: TileImageProps) {
   const src = faceDown ? '/tiles/pai.gif' : `/tiles/${getTileKey(tile)}.gif`
 
+  // 回転時は占有スペースを入れ替える
+  const containerWidth = isRotated ? 47 : 33
+  const containerHeight = isRotated ? 33 : 47
+
   return (
-    <img
-      src={src}
-      alt={tile.display}
-      width={33}
-      height={47}
-      onClick={onClick}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      onError={(event) => {
-        event.currentTarget.src = '/tiles/missing.png'
-      }}
+    <div
       style={{
-        cursor: onClick ? 'pointer' : 'default',
-        filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? 'drop-shadow(0 0 10px #4CAF50)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
-        transition: 'all 0.2s',
-        transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
-        borderRadius: '0px',
+        width: containerWidth,
+        height: containerHeight,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
-    />
+    >
+      <img
+        src={src}
+        alt={tile.display}
+        width={33}
+        height={47}
+        onClick={onClick}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        onError={(event) => {
+          event.currentTarget.src = '/tiles/missing.png'
+        }}
+        style={{
+          cursor: onClick ? 'pointer' : 'default',
+          filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? 'drop-shadow(0 0 10px #4CAF50)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
+          transition: 'all 0.2s',
+          transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
+          borderRadius: '0px',
+          transformOrigin: 'center',
+        }}
+      />
+    </div>
   )
 }
