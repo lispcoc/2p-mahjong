@@ -140,10 +140,10 @@ export default function GamePage({
     setError('')
     setMessage('')
   }, [])
-  
+
   // Get the other player
   const otherPlayer = gameState?.players?.find(p => p.userId !== userId)
-  
+
   const handleMessage = React.useCallback((data: any) => {
     const { type, payload } = data
     debugLog(`📨 Received ${type} message`)
@@ -154,20 +154,20 @@ export default function GamePage({
         debugLog(`✅ Successfully joined room with userId=${payload.userId}`)
         console.log('✅ Successfully joined room - setting states now')
         console.log('Payload:', payload)
-        
+
         // Check if reconnection was attempted but failed
-        if (attemptedReconnectUserId.current && 
-            attemptedReconnectUserId.current !== payload.userId && 
-            !payload.isReconnecting) {
+        if (attemptedReconnectUserId.current &&
+          attemptedReconnectUserId.current !== payload.userId &&
+          !payload.isReconnecting) {
           console.warn('⚠️ Reconnection failed - userId changed from', attemptedReconnectUserId.current, 'to', payload.userId)
           console.warn('⚠️ Session expired or room restarted. Clearing old session.')
           clearInvalidSession()
           attemptedReconnectUserId.current = null
         }
-        
+
         setUserId(payload.userId)
         attemptedReconnectUserId.current = null  // Clear the reconnection attempt
-        
+
         // Save to localStorage for reconnection
         const sessionData = {
           userId: payload.userId,
@@ -188,7 +188,7 @@ export default function GamePage({
         } catch (err) {
           console.error('❌ Failed to save to localStorage:', err)
         }
-        
+
         const initialState: GameState = {
           status: payload.gameState?.status || 'waiting',
           players: payload.players || [],
@@ -202,7 +202,7 @@ export default function GamePage({
         setGameState(initialState)
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
-        
+
         if (payload.isReconnecting) {
           setMessage('ゲームに再接続しました')
         } else {
@@ -293,7 +293,7 @@ export default function GamePage({
           const winTypeText = getOpponentWinText(payload.winType || '', winnerName)
           triggerOpponentActionModal(winTypeText)
         }
-        
+
         const noYaku =
           payload?.scoreResult?.valid === false ||
           (typeof payload?.scoreResult?.error === 'string' && payload.scoreResult.error.includes('役がありません'))
@@ -305,7 +305,7 @@ export default function GamePage({
           }
           break
         }
-        
+
         // 最終結果（ゲームオーバー）かどうかをチェック
         console.log('🏁 [DEBUG] gameFinished - payload.gameOver:', payload.gameOver)
         console.log('🏁 [DEBUG] gameFinished - payload.finalResults:', payload.finalResults)
@@ -358,7 +358,7 @@ export default function GamePage({
           }
           // 自動進行はバックエンドに任せる（両プレイヤーが準備完了したら自動的にgameStartedが来る）
         }
-        
+
         // gameStateを使って勝者名を取得してからメッセージを設定
         setGameState((prevState) => {
           if (winnerId && prevState?.tiles?.[winnerId]) {
@@ -379,8 +379,8 @@ export default function GamePage({
             setMessage(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`)
           }
           // gameStateはそのまま保持（finished状態を維持）
-          return prevState ? { 
-            ...prevState, 
+          return prevState ? {
+            ...prevState,
             status: payload.gameOver ? 'gameOver' : 'finished',
             currentRound: payload.currentRound,
             nextRoundReadyCount: payload.nextRoundReadyCount,
@@ -468,7 +468,7 @@ export default function GamePage({
       debugLog(`⚠️ Connection already attempted, skipping duplicate connection`)
       return
     }
-    
+
     // Check for existing session in localStorage
     let savedSession = null
     try {
@@ -476,13 +476,13 @@ export default function GamePage({
       if (savedData) {
         savedSession = JSON.parse(savedData)
         console.log('📂 Found saved session:', savedSession)
-        
+
         // Check if session is for the same room
         if (savedSession.roomId === roomId && savedSession.playerName === playerName) {
           // Check if session is not too old (e.g., within 24 hours)
           const sessionAge = Date.now() - (savedSession.timestamp || 0)
           const maxAge = 24 * 60 * 60 * 1000 // 24 hours
-          
+
           if (sessionAge < maxAge) {
             console.log('✅ Valid session found, will attempt reconnection')
           } else {
@@ -499,12 +499,12 @@ export default function GamePage({
       console.error('Error loading saved session:', err)
       savedSession = null
     }
-    
+
     // Connect to WebSocket
     const wsUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'ws://localhost:3001'
     debugLog(`🔌 Attempting WebSocket connection to: ${wsUrl}`)
     console.log('🔌 Attempting WebSocket connection to:', wsUrl)
-    
+
     const ws = new WebSocket(wsUrl)
     connectionAttempted.current = true
 
@@ -512,12 +512,12 @@ export default function GamePage({
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
       setError('')
-      
+
       const joinPayload: any = {
         roomId,
         playerName,
       }
-      
+
       // If we have a saved session, include the userId for reconnection
       if (savedSession && savedSession.userId) {
         joinPayload.userId = savedSession.userId
@@ -525,7 +525,7 @@ export default function GamePage({
         debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
         console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
       }
-      
+
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
       console.log('📤 Sending join message:', joinPayload)
       // Send join message
@@ -598,12 +598,12 @@ export default function GamePage({
     const melds = gameState?.tiles?.[userId]?.melds || []
     console.log(`  Current hand:`, hand)
     console.log(`  Current melds:`, melds)
-    
+
     if (hand.length === 0) {
       setTenpaiInfo({ isTenpai: false, winningTiles: [] })
       return
     }
-    
+
     // クライアント側で聴牌判定を実行
     const result = TenpaiChecker.checkTenpaiAfterDiscard(hand, tileIndex, melds)
     console.log(`  Tenpai result:`, result)
@@ -614,13 +614,13 @@ export default function GamePage({
   React.useEffect(() => {
     setRiichiMode(false)
     setTenpaiInfoMap({})
-    
+
     // 自分のターンでリーチしていない場合、全牌の聴牌チェックをローカルで実行
     const isMyTurn = gameState?.currentTurn === userId
     if (isMyTurn && !gameState?.riichi?.[userId] && gameState?.status === 'playing') {
       const hand = gameState?.tiles?.[userId]?.hand || []
       const melds = gameState?.tiles?.[userId]?.melds || []
-      
+
       if (hand.length > 0) {
         console.log('🔍 Computing all tenpai checks locally...')
         console.log('  Hand:', hand.map((t: any, i: number) => `[${i}]${t.display}`).join(' '))
@@ -680,7 +680,7 @@ export default function GamePage({
           currentSuit = tile.suit
           currentNumbers = ''
         }
-        
+
         if (tile.suit === 'honor') {
           const honorNames = ['', '東', '南', '西', '北', '白', '發', '中']
           result += honorNames[tile.number]
@@ -697,7 +697,7 @@ export default function GamePage({
     }
 
     const handStr = formatHand(hand)
-    const meldsStr = melds.length > 0 
+    const meldsStr = melds.length > 0
       ? ' +ポン×' + melds.length + '(' + melds.map(m => formatHand(m)).join(',') + ')'
       : ''
 
@@ -708,7 +708,7 @@ export default function GamePage({
 
     // Check tenpai for each tile synchronously using server check
     let hasTenpai = false
-    
+
     info += `※ 聴牌情報を取得中...\n`
     info += `\nゲーム内で各牌にマウスを乗せると当たり牌が表示されます。\n`
     info += `システムログで詳細を確認できます。\n`
@@ -725,20 +725,20 @@ export default function GamePage({
   // CPU追加処理
   const handleAddCPU = React.useCallback(async () => {
     if (isAddingCPU) return
-    
+
     setIsAddingCPU(true)
     setError('')
-    
+
     try {
       const response = await fetch(`http://localhost:3001/api/rooms/${roomId}/add-cpu`, {
         method: 'POST',
       })
-      
+
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || 'CPU追加に失敗しました')
       }
-      
+
       const data = await response.json()
       setMessage(`${data.cpuName}が参加しました`)
       setTimeout(() => setMessage(''), 3000)
@@ -772,7 +772,7 @@ export default function GamePage({
     const lastOpponentDiscard = otherDiscards.length > 0 ? otherDiscards[otherDiscards.length - 1] : null;
     const pendingPungFor = gameState.pendingPungFor;
     const isNoMeldMode = gameState.noMeldMode?.[userId] === true;
-    
+
     // Auto-draw immediately when no-meld mode is active and pung is pending
     const shouldAutoDrawDueToNoMeldMode = isYourTurn && pendingPungFor === userId && isNoMeldMode && drawnTileIndex < 0;
     if (shouldAutoDrawDueToNoMeldMode) {
@@ -784,17 +784,17 @@ export default function GamePage({
       }
       return;
     }
-    
+
     // Reset no-meld auto-draw state when conditions are no longer met
     if (!shouldAutoDrawDueToNoMeldMode) {
       noMeldAutoDrawRef.current = null;
     }
-    
+
     // Check if player can pung
     const canPung = isYourTurn && pendingPungFor === userId && !!lastOpponentDiscard && !isNoMeldMode && fullHand.filter(
       (tile) => tile.suit === lastOpponentDiscard.suit && tile.number === lastOpponentDiscard.number
     ).length >= 2;
-    
+
     // Check if player needs to discard
     const canDiscard = isYourTurn && fullHand.length % 3 === 2;
 
@@ -802,7 +802,7 @@ export default function GamePage({
     if (canPung && !isNoMeldMode) {
       // Start countdown from 10 seconds
       setPendingPungTimeLeft(10);
-      
+
       // Update countdown every second
       const interval = window.setInterval(() => {
         setPendingPungTimeLeft((prev) => {
@@ -812,9 +812,9 @@ export default function GamePage({
           return prev - 1;
         });
       }, 1000);
-      
+
       pendingPungIntervalRef.current = interval;
-      
+
       const timer = setTimeout(() => {
         // Auto-draw after 10 seconds of pung waiting
         console.log('⏱️ Auto-drawing after pending pung timeout');
@@ -870,7 +870,7 @@ export default function GamePage({
     if (!autoDrawMode && canDiscard && drawnTileIndex >= 0) {
       // Start countdown from 10 seconds
       setAutoDiscardTimeLeft(10);
-      
+
       // Update countdown every second
       const interval = window.setInterval(() => {
         setAutoDiscardTimeLeft((prev) => {
@@ -880,9 +880,9 @@ export default function GamePage({
           return prev - 1;
         });
       }, 1000);
-      
+
       autoDiscardIntervalRef.current = interval;
-      
+
       const timer = setTimeout(() => {
         // Auto-discard the drawn tile after 10 seconds
         const drawnTile = fullHand[drawnTileIndex];
@@ -912,7 +912,7 @@ export default function GamePage({
   if (!gameState) {
     const debugLogs = JSON.parse(localStorage.getItem('debugLogs') || '[]')
     const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
-    
+
     return (
       <div className={styles.container}>
         <div className={styles.card}>
@@ -921,9 +921,9 @@ export default function GamePage({
             <div style={{ marginBottom: '15px', fontSize: '14px', fontWeight: 'bold', color: '#2c5f2d' }}>
               最新イベント: {lastLog}
             </div>
-            <div style={{ 
-              textAlign: 'left', 
-              color: '#666', 
+            <div style={{
+              textAlign: 'left',
+              color: '#666',
               fontSize: '12px',
               background: '#f5f5f5',
               padding: '10px',
@@ -1007,12 +1007,12 @@ export default function GamePage({
   const canRon = isYourTurn && ronPossibleFor === userId
   // ポン後で牌をまだ引いていない状態（fullHand.length % 3 === 2）では牌を引けない
   const canDraw = isYourTurn && drawnTileIndex < 0 && !canRon && !isRiichi && fullHand.length % 3 !== 2
-  
+
   // 聴牌可能な牌が1つでもあるかチェック
   // 重要: すべての牌の聴牌情報が取得されているか確認してから判定
   const allTenpaiChecked = fullHand.length > 0 && Object.keys(tenpaiInfoMap).length === fullHand.length
   const tenpaiCount = Object.values(tenpaiInfoMap).filter(info => info?.isTenpai).length
-  const canDeclareRiichi = allTenpaiChecked && !isRiichi && melds.length === 0 && ((gameState?.scores?.[userId] ?? 0) >= 1000) && 
+  const canDeclareRiichi = allTenpaiChecked && !isRiichi && melds.length === 0 && ((gameState?.scores?.[userId] ?? 0) >= 1000) &&
     tenpaiCount > 0
 
   // デバッグログ
@@ -1127,128 +1127,71 @@ export default function GamePage({
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
           <div className={styles.gameContent}>
             <p className={isYourTurn ? styles.yourTurn : styles.waitingTurn}>
-              {gameState.status === 'finished' 
-                ? 'ゲーム終了' 
+              {gameState.status === 'finished'
+                ? 'ゲーム終了'
                 : (isYourTurn ? 'あなたの番です' : '相手の番です')
               }
             </p>
 
             {/* Opponent's Hand */}
-            <div style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: '#e8f5e9',
-              borderRadius: '8px',
-              padding: '12px',
-              border: '1px solid #c8e6c9'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div className="w-full mb-3 bg-green-100 rounded-lg p-3 border border-green-300">
+              <div className="flex justify-between items-center mb-2">
                 {/* CPUの手牌を見るボタン */}
                 {otherPlayer?.isCPU && (
                   <button
                     onClick={() => setShowOpponentHand(!showOpponentHand)}
-                    style={{
-                      padding: '4px 12px',
-                      backgroundColor: showOpponentHand ? '#4CAF50' : '#FFC107',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      transition: 'background-color 0.2s'
-                    }}
+                    className={`px-3 py-1 text-white border-none rounded text-xs font-bold transition-colors ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
                   >
                     {showOpponentHand ? '👁️ 手牌を隠す' : '👁️ 手牌を見る'}
                   </button>
                 )}
               </div>
-              <div style={{
-                display: 'flex',
-                gap: '15px',
-                alignItems: 'flex-start',
-                flexWrap: 'wrap'
-              }}>
+              <div className="flex items-start gap-px overflow-x-auto">
                 {/* 副露（オープンの牌） */}
                 {otherMelds.length > 0 && (
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <div className="flex gap-2 flex-shrink-0">
                     {otherMelds.map((meld, meldIdx) => (
-                      <div key={`meld-${meldIdx}`} style={{
-                        display: 'flex',
-                        gap: '1px',
-                        padding: '4px 8px',
-                        background: 'rgba(255, 255, 255, 0.7)',
-                        borderRadius: '4px',
-                        border: '1px solid #a5d6a7'
-                      }}>
+                      <div key={`meld-${meldIdx}`} className="flex gap-1 p-1 bg-white bg-opacity-70 rounded border border-green-400">
                         {meld.map((tile, tileIdx) => (
-                          <TileImage key={`meld-${meldIdx}-${tileIdx}`} tile={tile} />
+                          <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
+                            <TileImage tile={tile} />
+                          </div>
                         ))}
+                        {/* スペーサー */}
+                        {otherMelds.length > 0 && <div className="flex-shrink-0" style={{ width: '24px' }} />}
                       </div>
                     ))}
                   </div>
                 )}
-                
+
                 {/* 手牌（裏向きまたは表示） */}
-                <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap' }}>
+                <div className="flex gap-1 flex-wrap">
                   {otherHand.map((tile, idx) => (
-                    <TileImage 
-                      key={`other-hand-${idx}`} 
-                      tile={tile} 
-                      faceDown={!showOpponentHand || !otherPlayer?.isCPU} 
-                    />
+                    <div key={`other-hand-${idx}`} className="inline-block">
+                      <TileImage
+                        tile={tile}
+                        faceDown={!showOpponentHand || !otherPlayer?.isCPU}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
             </div>
 
             {/* Opponent's Discards (Kawa) */}
-            <div style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: '#f7f7f7',
-              borderRadius: '8px',
-              padding: '12px',
-              border: '1px solid #e0e0e0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ minWidth: '70px', color: '#555' }}>相手の河</strong>
-                {/* 相手のリーチ状態表示 */}
-                {gameState.players && gameState.players.length > 0 && (() => {
-                  const otherPlayer = gameState.players.find(p => p.userId !== userId);
-                  const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId];
-                  return isOtherRiichi ? (
-                    <div style={{
-                      backgroundColor: '#ff4444',
-                      color: 'white',
-                      padding: '4px 12px',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      boxShadow: '0 2px 6px rgba(255,68,68,0.4)',
-                      animation: 'pulse 2s infinite'
-                    }}>
-                      🔴 リーチ中
-                    </div>
-                  ) : null;
-                })()}
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '1px'
-                }}>
+            <div className="w-full mb-3 bg-gray-100 rounded-lg p-3 border border-gray-300">
+              <div className="flex items-center gap-3">
+                <div className="flex flex-wrap gap-1">
                   {otherDiscards.length === 0 ? (
-                    <span style={{ color: '#999', fontSize: '12px' }}>なし</span>
+                    <span className="text-gray-400 text-xs">なし</span>
                   ) : (
                     otherDiscards.map((tile, idx) => {
                       const isRiichiDiscard = (gameState?.riichiDiscards?.[otherUserId ?? ''] ?? -1) === idx;
                       return (
-                        <div 
-                          key={`od-${idx}`} 
+                        <div
+                          key={`od-${idx}`}
+                          className={`inline-block ${isRiichiDiscard ? 'rotate-90' : ''}`}
                           style={{
-                            display: 'inline-block',
-                            transform: isRiichiDiscard ? 'rotate(90deg)' : 'none',
-                            transformOrigin: 'center',
                             margin: isRiichiDiscard ? '8px 0' : '0'
                           }}
                         >
@@ -1259,69 +1202,49 @@ export default function GamePage({
                   )}
                 </div>
               </div>
+              {/* 相手のリーチ棒表示 */}
+              {gameState.players && gameState.players.length > 0 && (() => {
+                const otherPlayer = gameState.players.find(p => p.userId !== userId);
+                const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId];
+                return isOtherRiichi ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-600 font-bold">リーチ:</span>
+                    <img
+                      src="/tiles/1000.gif"
+                      alt="リーチ棒"
+                      style={{
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                      }}
+                    />
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* Game Info Center */}
-            <div style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: 'linear-gradient(135deg, #fff9e6 0%, #fffdf7 100%)',
-              borderRadius: '12px',
-              padding: '16px',
-              border: '2px solid #FFD700',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-              display: 'flex',
-              justifyContent: 'space-around',
-              alignItems: 'center',
-              gap: '20px'
-            }}>
+            {/* Game Info Center */}
+            <div className="w-full mb-3 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-3 flex-wrap">
               {/* Current Round */}
-              <div style={{
-                textAlign: 'center',
-                padding: '8px 16px',
-                background: '#fff',
-                borderRadius: '8px',
-                border: '1px solid #ddd',
-                minWidth: '120px'
-              }}>
-                <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>局数</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2d5016' }}>
+              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
+                <div className="text-xs text-gray-500 mb-1">局数</div>
+                <div className="text-lg font-bold text-green-900">
                   {gameState.currentRound || 1}局目
                 </div>
               </div>
 
               {/* Wall Remaining */}
-              <div style={{
-                textAlign: 'center',
-                padding: '8px 16px',
-                background: '#fff',
-                borderRadius: '8px',
-                border: '1px solid #ddd',
-                minWidth: '120px'
-              }}>
-                <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>壁牌</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#2d5016' }}>
+              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
+                <div className="text-xs text-gray-500 mb-1">壁牌</div>
+                <div className="text-lg font-bold text-green-900">
                   残り {gameState.wall || 0}枚
                 </div>
               </div>
 
               {/* Auto-discard countdown */}
               {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '8px 16px',
-                  background: autoDiscardTimeLeft <= 3 ? '#ffebee' : '#fff3e0',
-                  borderRadius: '8px',
-                  border: `2px solid ${autoDiscardTimeLeft <= 3 ? '#f44336' : '#ff9800'}`,
-                  minWidth: '120px',
-                  animation: autoDiscardTimeLeft <= 3 ? 'pulse 1s infinite' : 'none'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>自動ツモ切り</div>
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: autoDiscardTimeLeft <= 3 ? '#f44336' : '#ff9800'
-                  }}>
+                <div className={`text-center px-4 py-2 rounded-lg border-2 flex-1 min-w-24 flex flex-col justify-center ${autoDiscardTimeLeft <= 3 ? 'bg-red-50 border-red-500 animate-pulse' : 'bg-orange-50 border-orange-400'}`}>
+                  <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
+                  <div className={`text-2xl font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
                     {autoDiscardTimeLeft}秒
                   </div>
                 </div>
@@ -1329,46 +1252,27 @@ export default function GamePage({
 
               {/* Pending pung auto-draw countdown */}
               {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '8px 16px',
-                  background: pendingPungTimeLeft <= 3 ? '#e3f2fd' : '#f3e5f5',
-                  borderRadius: '8px',
-                  border: `2px solid ${pendingPungTimeLeft <= 3 ? '#2196f3' : '#9c27b0'}`,
-                  minWidth: '120px',
-                  animation: pendingPungTimeLeft <= 3 ? 'pulse 1s infinite' : 'none'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>自動ツモ</div>
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: pendingPungTimeLeft <= 3 ? '#2196f3' : '#9c27b0'
-                  }}>
+                <div className={`text-center px-4 py-2 rounded-lg border-2 flex-1 min-w-24 flex flex-col justify-center ${pendingPungTimeLeft <= 3 ? 'bg-blue-50 border-blue-500 animate-pulse' : 'bg-purple-50 border-purple-500'}`}>
+                  <div className="text-xs text-gray-500 mb-1">自動ツモ</div>
+                  <div className={`text-2xl font-bold ${pendingPungTimeLeft <= 3 ? 'text-blue-500' : 'text-purple-500'}`}>
                     {pendingPungTimeLeft}秒
                   </div>
                 </div>
               )}
 
               {/* Scores */}
-              <div style={{
-                textAlign: 'center',
-                padding: '8px 16px',
-                background: '#fff',
-                borderRadius: '8px',
-                border: '1px solid #ddd',
-                minWidth: '200px'
-              }}>
-                <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>得点</div>
-                <div style={{ fontSize: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-around', gap: '15px' }}>
+              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-48 flex flex-col justify-center">
+                <div className="text-xs text-gray-500 mb-1">得点</div>
+                <div className="text-sm font-bold flex justify-around gap-4">
                   <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>あなた ({playerName})</div>
-                    <div style={{ color: '#4CAF50' }}>
+                    <div className="text-xs text-gray-600">あなた ({playerName})</div>
+                    <div className="text-green-600">
                       {((gameState?.scores?.[userId]) ?? 25000)?.toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: '#666' }}>相手 ({otherPlayer?.playerName || '---'})</div>
-                    <div style={{ color: '#f44336' }}>
+                    <div className="text-xs text-gray-600">相手 ({otherPlayer?.playerName || '---'})</div>
+                    <div className="text-red-500">
                       {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                     </div>
                   </div>
@@ -1377,55 +1281,25 @@ export default function GamePage({
 
               {/* Riichi Deposits - Only show if > 0 */}
               {(gameState.riichiDeposits ?? 0) > 0 && (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '8px 16px',
-                  background: '#fff',
-                  borderRadius: '8px',
-                  border: '1px solid #ddd',
-                  minWidth: '100px'
-                }}>
-                  <div style={{ fontSize: '12px', color: '#888', marginBottom: '4px' }}>供託</div>
-                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#d4a574' }}>
+                <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
+                  <div className="text-xs text-gray-500 mb-1">供託</div>
+                  <div className="text-base font-bold text-yellow-700">
                     {(gameState.riichiDeposits ?? 0).toLocaleString()}点
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Dora and Kanning Wall - Single Row Layout */}
-            <div style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: 'linear-gradient(135deg, #fff9e6 0%, #fffdf7 100%)',
-              borderRadius: '12px',
-              padding: '16px',
-              border: '2px solid #FFD700',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              gap: '60px',
-              flexWrap: 'wrap'
-            }}>
+            {/* Dora and Kanning Wall */}
+            <div className="w-full mb-3 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-center items-center gap-16 flex-wrap">
               {/* Dora Indicator */}
               {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}>
-                  <div style={{ fontSize: '13px', color: '#888', fontWeight: 'bold', minWidth: '70px' }}>ドラ表示牌</div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1">
                     {gameState.dora.indicators.map((tile, idx) => (
-                      <img
+                      <TileImage
                         key={idx}
-                        src={`/tiles/${getTileKey(tile)}.gif`}
-                        alt={tile.display}
-                        style={{
-                          height: '60px',
-                          objectFit: 'contain'
-                        }}
+                        tile={tile}
                       />
                     ))}
                   </div>
@@ -1434,60 +1308,51 @@ export default function GamePage({
 
               {/* Kanning Wall (嶺上牌) - Only show if remaining > 0 */}
               {gameState.kanningWall && gameState.kanningWall.remaining > 0 && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
-                }}>
-                  <div style={{ fontSize: '13px', color: '#888', fontWeight: 'bold', minWidth: '70px' }}>嶺上牌</div>
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-px items-center">
                     {Array.from({ length: gameState.kanningWall.remaining }).map((_, idx) => (
-                      <img
+                      <TileImage
                         key={idx}
-                        src="/tiles/pai.gif"
-                        alt="牌の裏"
-                        style={{
-                          height: '60px',
-                          objectFit: 'contain'
-                        }}
+                        tile={{ suit: 'honor', number: 0, display: '牌の裏' } as Tile}
+                        faceDown={true}
                       />
                     ))}
-                    <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>
-                      {gameState.kanningWall.remaining}枚
-                    </span>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Your Discards (Kawa) */}
-            <div style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: '#f7f7f7',
-              borderRadius: '8px',
-              padding: '12px',
-              border: '1px solid #e0e0e0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <strong style={{ minWidth: '70px', color: '#555' }}>あなたの河</strong>
-                <div style={{
-                  display: 'flex',
-                  flexWrap: 'wrap',
-                  gap: '1px'
-                }}>
+            <div className="w-full mb-3 bg-gray-100 rounded-lg p-3 border border-gray-300">
+              {/* 自分のリーチ棒表示 */}
+              {(() => {
+                const isPlayerRiichi = gameState.riichi && gameState.riichi[userId];
+                return isPlayerRiichi ? (
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-600 font-bold">リーチ:</span>
+                    <img
+                      src="/tiles/1000.gif"
+                      alt="リーチ棒"
+                      style={{
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                      }}
+                    />
+                  </div>
+                ) : null;
+              })()}
+              <div className="flex items-center gap-3">
+                <strong className="min-w-20 text-gray-700">あなたの河</strong>
+                <div className="flex flex-wrap gap-1">
                   {yourDiscards.length === 0 ? (
-                    <span style={{ color: '#999', fontSize: '12px' }}>なし</span>
+                    <span className="text-gray-400 text-xs">なし</span>
                   ) : (
                     yourDiscards.map((tile, idx) => {
                       const isRiichiDiscard = gameState.riichiDiscards?.[userId] === idx;
                       return (
-                        <div 
-                          key={`yd-${idx}`} 
+                        <div
+                          key={`yd-${idx}`}
+                          className={`inline-block ${isRiichiDiscard ? 'rotate-90' : ''}`}
                           style={{
-                            display: 'inline-block',
-                            transform: isRiichiDiscard ? 'rotate(90deg)' : 'none',
-                            transformOrigin: 'center',
                             margin: isRiichiDiscard ? '8px 0' : '0'
                           }}
                         >
@@ -1502,37 +1367,18 @@ export default function GamePage({
 
             {/* Hand display with tile images and actions - unified horizontal layout */}
             <div className={styles.playerHandDock}>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'row',
-                gap: '15px',
-                alignItems: 'flex-start',
-                minHeight: '100px'
-              }}>
+              <div className="flex flex-row gap-4 items-start min-h-24">
                 {/* Hand tiles section */}
-                <div style={{
-                  display: 'flex',
-                  gap: '12px',
-                  flex: 1,
-                  flexWrap: 'wrap',
-                  alignContent: 'flex-start',
-                  justifyContent: 'flex-start'
-                }}>
+                <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
                   {gameState.tiles && gameState.tiles[userId]?.hand && gameState.tiles[userId].hand.length > 0 ? (
                     <>
-                      <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '1px'
-                      }}>
+                      <div className="flex flex-wrap gap-px">
                         {displayHandIndices.map((idx: number) => (
                           <div
                             key={idx}
+                            className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : ''}`}
                             style={{
                               opacity: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 0.3 : (idx === drawnTileIndex ? 1 : 0.9),
-                              position: 'relative',
-                              filter: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'grayscale(100%)' : 'none',
-                              cursor: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'not-allowed' : 'pointer',
                             }}
                           >
                             <TileImage
@@ -1552,7 +1398,7 @@ export default function GamePage({
                                     // リーチ宣言
                                     const tileToRiichi = fullHand[idx];
                                     console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${tileToRiichi?.suit}_${tileToRiichi?.number}`);
-                                    sendAction({ 
+                                    sendAction({
                                       type: 'riichi',
                                       tileId: `${tileToRiichi.suit}_${tileToRiichi.number}`
                                     });
@@ -1567,8 +1413,8 @@ export default function GamePage({
                                   console.log(`   fullHand[${idx}]: suit=${tileToDiscard?.suit}, number=${tileToDiscard?.number}`);
                                   console.log(`   Sending tileId: ${tileId}`);
                                   console.log(`   Full hand: ${fullHand.map((t, i) => `[${i}]${t.suit}${t.number}`).join(' ')}`);
-                                  sendAction({ 
-                                    type: 'discard', 
+                                  sendAction({
+                                    type: 'discard',
                                     tileId: tileId
                                   });
                                 }
@@ -1671,24 +1517,24 @@ export default function GamePage({
                           </div>
                         ))}
                       </div>
-                      
+
                       {/* Highlight drawn tile on the right - always reserve space */}
-                        {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                          <>
-                            <TileImage
-                              tile={fullHand[drawnTileIndex]}
-                              onClick={() => {
-                                if (isYourTurn && gameState.status === 'playing') {
-                                  sendAction({ 
-                                    type: 'discard', 
-                                    tileIndex: drawnTileIndex 
-                                  });
-                                }
-                              }}
-                              isDrawn={true}
-                            />
-                          </>
-                        )}
+                      {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
+                        <>
+                          <TileImage
+                            tile={fullHand[drawnTileIndex]}
+                            onClick={() => {
+                              if (isYourTurn && gameState.status === 'playing') {
+                                sendAction({
+                                  type: 'discard',
+                                  tileIndex: drawnTileIndex
+                                });
+                              }
+                            }}
+                            isDrawn={true}
+                          />
+                        </>
+                      )}
                     </>
                   ) : (
                     <p style={{ color: '#666', fontStyle: 'italic' }}>手札を読み込み中...</p>
@@ -1713,8 +1559,8 @@ export default function GamePage({
                             sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
                           }
                         }}
-                        style={{ 
-                          backgroundColor: '#ff6b6b', 
+                        style={{
+                          backgroundColor: '#ff6b6b',
                           borderColor: '#c92a2a',
                           fontSize: '13px',
                           fontWeight: 'bold',
@@ -1731,33 +1577,14 @@ export default function GamePage({
                     )}
                     {/* リーチ中で和了できない場合は自動でツモ切りされる（ボタン不要） */}
                     {isRiichi && drawnTileIndex >= 0 && !canWin && (
-                      <div style={{
-                        padding: '8px 12px',
-                        backgroundColor: '#e3f2fd',
-                        border: '2px solid #2196f3',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        color: '#1976d2',
-                        textAlign: 'center'
-                      }}>
+                      <div className="px-3 py-2 bg-blue-50 border-2 border-blue-500 rounded text-xs text-blue-700 text-center">
                         自動ツモ切り中
                       </div>
                     )}
                     {canDraw && (
                       <button
                         onClick={() => sendAction({ type: 'draw' })}
-                        style={{
-                          backgroundColor: '#6c757d',
-                          borderColor: '#5a6268',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          padding: '8px 12px',
-                          border: '2px solid',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          color: 'white',
-                          transition: 'all 0.2s'
-                        }}
+                        className="px-3 py-2 bg-gray-500 text-white text-xs font-bold border-2 border-gray-600 rounded cursor-pointer transition-all hover:bg-gray-600"
                       >
                         牌を引く
                       </button>
@@ -1765,18 +1592,7 @@ export default function GamePage({
                     {canPung && (
                       <button
                         onClick={() => sendAction({ type: 'pung' })}
-                        style={{
-                          backgroundColor: '#17a2b8',
-                          borderColor: '#117a8b',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          padding: '8px 12px',
-                          border: '2px solid',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          color: 'white',
-                          transition: 'all 0.2s'
-                        }}
+                        className="px-3 py-2 bg-cyan-600 text-white text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
                       >
                         ポン
                       </button>
@@ -1784,18 +1600,7 @@ export default function GamePage({
                     {canRon && (
                       <button
                         onClick={() => sendAction({ type: 'ron' })}
-                        style={{ 
-                          backgroundColor: '#d4a574', 
-                          borderColor: '#8b6f47',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          padding: '8px 12px',
-                          border: '2px solid',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          color: 'white',
-                          transition: 'all 0.2s'
-                        }}
+                        className="px-3 py-2 bg-yellow-600 text-white text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
                       >
                         ロン
                       </button>
@@ -1803,18 +1608,7 @@ export default function GamePage({
                     {canWin && (
                       <button
                         onClick={() => sendAction({ type: 'win' })}
-                        style={{
-                          backgroundColor: '#28a745',
-                          borderColor: '#1e7e34',
-                          fontSize: '13px',
-                          fontWeight: 'bold',
-                          padding: '8px 12px',
-                          border: '2px solid',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          color: 'white',
-                          transition: 'all 0.2s'
-                        }}
+                        className="px-3 py-2 bg-green-600 text-white text-xs font-bold border-2 border-green-700 rounded cursor-pointer transition-all hover:bg-green-700"
                       >
                         ツモ
                       </button>
@@ -1830,8 +1624,8 @@ export default function GamePage({
                             setTimeout(() => setMessage(''), 5000);
                           }
                         }}
-                        style={{ 
-                          backgroundColor: riichiMode ? '#4CAF50' : '#ff4444', 
+                        style={{
+                          backgroundColor: riichiMode ? '#4CAF50' : '#ff4444',
                           borderColor: riichiMode ? '#388E3C' : '#cc0000',
                           fontWeight: 'bold',
                           fontSize: '13px',
@@ -1869,37 +1663,10 @@ export default function GamePage({
 
                 {/* Melds display - positioned to the right */}
                 {melds.length > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    flexShrink: 0,
-                    gap: '8px',
-                    minWidth: 'max-content'
-                  }}>
-                    <div style={{
-                      fontSize: '12px',
-                      color: '#5a7a3a',
-                      fontWeight: 'bold',
-                      textAlign: 'right'
-                    }}>
-                      🔗 副露
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      gap: '8px',
-                      flexWrap: 'wrap',
-                      justifyContent: 'flex-end'
-                    }}>
+                  <div className="flex flex-col items-end flex-shrink-0 gap-2 min-w-max">
+                    <div className="flex gap-2 flex-wrap justify-end">
                       {melds.map((meld: Tile[], idx: number) => (
-                        <div key={idx} style={{
-                          display: 'flex',
-                          gap: '1px',
-                          padding: '6px',
-                          backgroundColor: '#e8f0d8',
-                          borderRadius: '4px',
-                          border: '1px solid #b8d8a0'
-                        }}>
+                        <div key={idx} className="flex gap-px p-1 bg-green-50 rounded border border-green-300">
                           {meld.map((tile: Tile, tileIdx: number) => (
                             <TileImage key={tileIdx} tile={tile} />
                           ))}
@@ -1909,43 +1676,16 @@ export default function GamePage({
                   </div>
                 )}
               </div>
-              <div style={{
-                marginTop: '10px',
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexWrap: 'wrap'
-              }}>
+              <div className="mt-2 flex gap-3 items-center justify-center flex-wrap">
                 <button
                   onClick={() => toggleAutoDrawMode(!autoDrawMode)}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    border: '2px solid #4a7c59',
-                    borderRadius: '6px',
-                    backgroundColor: autoDrawMode ? '#4a7c59' : '#fff',
-                    color: autoDrawMode ? '#fff' : '#4a7c59',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-white border-green-800' : 'bg-white text-green-700 border-green-700'}`}
                 >
                   自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
                 </button>
                 <button
                   onClick={() => toggleNoMeldMode(!noMeldMode)}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 'bold',
-                    border: '2px solid #d4735f',
-                    borderRadius: '6px',
-                    backgroundColor: noMeldMode ? '#d4735f' : '#fff',
-                    color: noMeldMode ? '#fff' : '#d4735f',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
+                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-white border-red-700' : 'bg-white text-red-600 border-red-600'}`}
                 >
                   鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
                 </button>
@@ -1953,32 +1693,14 @@ export default function GamePage({
             </div>
 
             {/* Copy hand info button */}
-            <div style={{
-              marginTop: '15px',
-              padding: '12px',
-              border: '2px solid #5a7a9a',
-              borderRadius: '8px',
-              backgroundColor: '#f0f4f7',
-              textAlign: 'center'
-            }}>
+            <div className="mt-4 p-3 border-2 border-blue-700 rounded-lg bg-blue-50 text-center">
               <button
                 onClick={copyHandInfoToClipboard}
-                style={{
-                  padding: '10px 20px',
-                  fontSize: '14px',
-                  fontWeight: 'bold',
-                  border: '2px solid #5a7a9a',
-                  borderRadius: '6px',
-                  backgroundColor: '#fff',
-                  color: '#5a7a9a',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  width: '100%'
-                }}
+                className="px-5 py-2 text-sm font-bold border-2 border-blue-700 rounded bg-white text-blue-700 cursor-pointer transition-all hover:bg-blue-50 w-full"
               >
                 📋 手牌情報をコピー
               </button>
-              <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#666' }}>
+              <p className="mt-2 text-xs text-gray-600">
                 現在の手牌と聴牌情報をクリップボードにコピーします
               </p>
             </div>
@@ -2039,8 +1761,8 @@ export default function GamePage({
             overflow: 'auto',
             boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
           }}>
-            <h2 style={{ 
-              marginTop: 0, 
+            <h2 style={{
+              marginTop: 0,
               color: '#d32f2f',
               textAlign: 'center',
               fontSize: '24px',
@@ -2101,7 +1823,7 @@ export default function GamePage({
                         scoreChanges[userId] = currentScore - prevScore;
                       });
                     }
-                    
+
                     return (
                       <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#f9f9f9' }}>
                         <td style={{
@@ -2138,7 +1860,7 @@ export default function GamePage({
                     );
                   })}
                   {/* Final Score Row */}
-                  <tr style={{ 
+                  <tr style={{
                     backgroundColor: '#fff9e6',
                     borderTop: '3px solid #FFD700',
                   }}>
