@@ -15,6 +15,32 @@ import { FinalResultModal } from './Modals/FinalResultModal'
 // Utilities and components are now imported from separate files
 import { debugLog } from '../utils/DebugUtils'
 
+const windNames: Record<number, string> = {
+  1: '東',
+  2: '南',
+  3: '西',
+  4: '北',
+}
+
+const getRoundLabel = (state: GameState | null) => {
+  if (!state) return '東1局'
+  if (state.roundName) return state.roundName
+  const wind = windNames[state.roundWind ?? 1] || '東'
+  const number = state.roundNumber ?? state.currentRound ?? 1
+  return `${wind}${number}局`
+}
+
+const getRoundWindLabel = (state: GameState | null) => {
+  if (!state) return '東'
+  return windNames[state.roundWind ?? 1] || '東'
+}
+
+const getSeatWindLabel = (state: GameState | null, userId: string) => {
+  if (!state || !userId) return '不明'
+  const seatWind = state.seatWinds?.[userId]
+  return windNames[seatWind ?? 0] || '不明'
+}
+
 
 export default function GamePage({
   playerName,
@@ -341,6 +367,11 @@ export default function GamePage({
             ...payload,
             // payloadに含まれていない可能性があるフィールドは前の状態から引き継ぐ
             currentRound: payload.currentRound ?? prevState?.currentRound,
+            roundWind: payload.roundWind ?? prevState?.roundWind,
+            roundNumber: payload.roundNumber ?? prevState?.roundNumber,
+            roundName: payload.roundName ?? prevState?.roundName,
+            dealerId: payload.dealerId ?? prevState?.dealerId,
+            seatWinds: payload.seatWinds ?? prevState?.seatWinds,
             nextRoundReadyCount: payload.nextRoundReadyCount ?? prevState?.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers ?? prevState?.totalPlayers,
           }
@@ -452,6 +483,11 @@ export default function GamePage({
             ...prevState,
             status: payload.gameOver ? 'gameOver' : 'finished',
             currentRound: payload.currentRound,
+            roundWind: payload.roundWind ?? prevState.roundWind,
+            roundNumber: payload.roundNumber ?? prevState.roundNumber,
+            roundName: payload.roundName ?? prevState.roundName,
+            dealerId: payload.dealerId ?? prevState.dealerId,
+            seatWinds: payload.seatWinds ?? prevState.seatWinds,
             nextRoundReadyCount: payload.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers,
           } : prevState
@@ -1252,7 +1288,15 @@ export default function GamePage({
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
                 <div className="text-lg font-bold text-green-900">
-                  {gameState.currentRound || 1}局目
+                  {getRoundLabel(gameState)}
+                </div>
+              </div>
+
+              {/* Round/Seat Wind */}
+              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-28 flex flex-col justify-center">
+                <div className="text-xs text-gray-500 mb-1">場/自風</div>
+                <div className="text-sm font-bold text-green-900">
+                  場風 {getRoundWindLabel(gameState)} / 自風 {getSeatWindLabel(gameState, userId)}
                 </div>
               </div>
 
@@ -1846,7 +1890,7 @@ export default function GamePage({
                           textAlign: 'center',
                           fontWeight: 'bold',
                         }}>
-                          {round.round}局
+                          {round.roundName || `${round.round}局`}
                         </td>
                         {gameState?.players && gameState.players.map((player: any) => {
                           const change = scoreChanges[player.userId] ?? 0;

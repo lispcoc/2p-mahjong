@@ -10,6 +10,11 @@ class GameRoom {
     this.roundHistory = []; // 局の履歴
     this.nextRoundReady = new Set(); // 次の局への準備完了プレイヤー
     this.currentRound = 0; // 現在の局数
+    this.roundWindIndex = 0; // 0=東, 1=南
+    this.roundNumber = 1; // 東1局から開始
+    this.dealerIndex = 0; // 0=最初の参加者が親
+    this.nextRoundState = null; // 次局の状態（親・場風・局数）
+    this.playerOrder = []; // 局開始時のプレイヤー順
     this.aiPlayers = new Map(); // userId -> AIPlayer instance
     this.testMode = options.testMode || false; // テストモード時は遅延をスキップ
     this.autoReadyTimerId = null; // 自動準備完了タイマーID
@@ -129,8 +134,23 @@ class GameRoom {
     }
     
     this.status = 'playing';
-    this.currentRound++;
     this.nextRoundReady.clear(); // 準備状態をクリア
+    // Prevent stale timers from firing during an active round.
+    this.clearAutoReadyTimer();
+    this.clearGameOverTimer();
+
+    if (this.nextRoundState) {
+      this.roundWindIndex = this.nextRoundState.roundWindIndex;
+      this.roundNumber = this.nextRoundState.roundNumber;
+      this.dealerIndex = this.nextRoundState.dealerIndex;
+      this.nextRoundState = null;
+    }
+
+    this.playerOrder = Array.from(this.players.keys());
+    if (this.dealerIndex >= this.playerOrder.length) {
+      this.dealerIndex = 0;
+    }
+    this.currentRound = this.getRoundIndex();
     
     // 初期持ち点を取得
     const playerScores = {};
@@ -145,11 +165,17 @@ class GameRoom {
       return player?.noMeldMode || false;
     };
     
+    const seatWinds = this.buildSeatWinds(this.playerOrder);
     this.gameLogic = new MahjongLogic(
-      Array.from(this.players.keys()),
+      this.playerOrder,
       playerScores,
       isPlayerInNoMeldMode,
-      { wallTiles: this.wallTiles }
+      {
+        wallTiles: this.wallTiles,
+        dealerIndex: this.dealerIndex,
+        roundWindNumber: this.getRoundWindNumber(),
+        seatWinds: seatWinds,
+      }
     );
     this.gameLogic.initialize();
     
@@ -228,14 +254,21 @@ class GameRoom {
       
       try {
         // 局の結果を履歴に保存
+        const tenpaiStatus = result.isDraw === true ? this.gameLogic.getTenpaiStatus() : null;
         const roundResult = {
           round: this.currentRound,
+          roundName: this.getRoundName(),
+          roundWind: this.getRoundWindNumber(),
+          roundNumber: this.roundNumber,
+          dealerId: this.getDealerId(),
+          seatWinds: this.buildSeatWinds(this.playerOrder),
           winner: this.gameLogic.getWinner(),
           winType: result.message,
           scoreResult: result.scoreResult,
           scores: {},
           previousScores: {},
           isDraw: result.isDraw === true,
+          tenpai: tenpaiStatus,
         };
         
         // 各プレイヤーの前回点数を保存
@@ -252,6 +285,8 @@ class GameRoom {
         
         this.roundHistory.push(roundResult);
         console.log(`[GameRoom.handlePlayerAction] ✅ Round history saved: ${roundResult.winType}, winner: ${roundResult.winner || 'none (draw)'}`);
+
+        this.nextRoundState = this.computeNextRoundState(roundResult);
         
         // 誰かの点数がマイナスになったかチェック
         let hasNegativeScore = false;
@@ -281,6 +316,11 @@ class GameRoom {
         status: this.status,
         players: this.getPlayers(),
         currentRound: this.currentRound,
+        roundWind: this.getRoundWindNumber(),
+        roundNumber: this.roundNumber,
+        roundName: this.getRoundName(),
+        dealerId: this.getDealerId(),
+        seatWinds: this.buildSeatWinds(this.playerOrder),
         nextRoundReadyCount: this.nextRoundReady.size,
         totalPlayers: this.players.size,
       };
@@ -303,6 +343,11 @@ class GameRoom {
       kanningWall: this.gameLogic.getKanningWall(), // 嶺上牌情報
       tiles: {},
       currentRound: this.currentRound, // 現在の局数
+      roundWind: this.getRoundWindNumber(),
+      roundNumber: this.roundNumber,
+      roundName: this.getRoundName(),
+      dealerId: this.getDealerId(),
+      seatWinds: this.buildSeatWinds(this.playerOrder),
       nextRoundReadyCount: this.nextRoundReady.size, // 次の局への準備完了人数
       totalPlayers: this.players.size, // 総プレイヤー数
     };
@@ -390,6 +435,84 @@ class GameRoom {
 
   getCurrentRound() {
     return this.currentRound;
+  }
+
+  getRoundWindNumber() {
+    return this.roundWindIndex + 1;
+  }
+
+  getRoundNumber() {
+    return this.roundNumber;
+  }
+
+  getRoundName() {
+    const windName = this.roundWindIndex === 0 ? '東' : '南';
+    return `${windName}${this.roundNumber}局`;
+  }
+
+  getRoundIndex() {
+    return this.roundWindIndex * 2 + this.roundNumber;
+  }
+
+  getDealerId() {
+    return this.playerOrder[this.dealerIndex] || null;
+  }
+
+  buildSeatWinds(playerOrder) {
+    const order = playerOrder && playerOrder.length > 0 ? playerOrder : Array.from(this.players.keys());
+    const seatWinds = {};
+    if (order.length >= 2) {
+      const dealerId = order[this.dealerIndex] || order[0];
+      const otherId = order.find((id) => id !== dealerId) || order[1];
+      seatWinds[dealerId] = 1; // 東
+      if (otherId) {
+        seatWinds[otherId] = 2; // 南
+      }
+    }
+    return seatWinds;
+  }
+
+  computeNextRoundState(roundResult) {
+    const dealerId = this.getDealerId();
+    const dealerContinues = this.shouldDealerContinue(roundResult, dealerId);
+
+    if (dealerContinues) {
+      return {
+        roundWindIndex: this.roundWindIndex,
+        roundNumber: this.roundNumber,
+        dealerIndex: this.dealerIndex,
+      };
+    }
+
+    const nextDealerIndex = this.playerOrder.length > 0
+      ? (this.dealerIndex + 1) % this.playerOrder.length
+      : 0;
+    let nextRoundNumber = this.roundNumber;
+    let nextRoundWindIndex = this.roundWindIndex;
+
+    if (nextRoundNumber < 2) {
+      nextRoundNumber += 1;
+    } else {
+      nextRoundNumber = 1;
+      nextRoundWindIndex = (nextRoundWindIndex + 1) % 2;
+    }
+
+    return {
+      roundWindIndex: nextRoundWindIndex,
+      roundNumber: nextRoundNumber,
+      dealerIndex: nextDealerIndex,
+    };
+  }
+
+  shouldDealerContinue(roundResult, dealerId) {
+    if (!dealerId) {
+      return false;
+    }
+    if (roundResult.isDraw) {
+      const dealerTenpai = roundResult.tenpai && roundResult.tenpai[dealerId];
+      return dealerTenpai === true;
+    }
+    return roundResult.winner === dealerId;
   }
 
   getNextRoundReadyCount() {

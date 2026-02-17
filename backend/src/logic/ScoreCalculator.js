@@ -50,7 +50,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen } = winInfo;
+    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -61,7 +61,7 @@ class ScoreCalculator {
     
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han > 0) {
@@ -82,7 +82,7 @@ class ScoreCalculator {
     
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han > 0) {
@@ -106,7 +106,7 @@ class ScoreCalculator {
     
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han === 0) continue; // 役なしはスキップ
@@ -202,7 +202,7 @@ class ScoreCalculator {
    * @param {boolean} menzen - 門前か
    * @param {Object} combination - 和了形（面子構成）nullの場合は特殊形
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
     
@@ -334,7 +334,7 @@ class ScoreCalculator {
     }
     
     // 役牌（白發中）- 和了形に依存しない
-    const yakuhai = this.countYakuhai(allTiles);
+    const yakuhai = this.countYakuhai(allTiles, roundWind, seatWind);
     yakuhai.forEach(y => yaku.push(y));
     
     return yaku;
@@ -606,7 +606,7 @@ class ScoreCalculator {
   /**
    * 役牌カウント
    */
-  countYakuhai(tiles) {
+  countYakuhai(tiles, roundWind, seatWind) {
     const yaku = [];
     const counts = {};
     
@@ -624,6 +624,14 @@ class ScoreCalculator {
         yaku.push({ name: names[num], han: 1 });
       }
     });
+
+    const windNames = { 1: '東', 2: '南', 3: '西', 4: '北' };
+    if (roundWind && counts[roundWind] >= 3) {
+      yaku.push({ name: `場風 ${windNames[roundWind] || ''}`.trim(), han: 1 });
+    }
+    if (seatWind && counts[seatWind] >= 3) {
+      yaku.push({ name: `自風 ${windNames[seatWind] || ''}`.trim(), han: 1 });
+    }
     
     return yaku;
   }

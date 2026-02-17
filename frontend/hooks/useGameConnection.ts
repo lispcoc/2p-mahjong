@@ -127,6 +127,11 @@ export function useGameConnection({
           return {
             ...payload,
             currentRound: payload.currentRound ?? prevState?.currentRound,
+            roundWind: payload.roundWind ?? prevState?.roundWind,
+            roundNumber: payload.roundNumber ?? prevState?.roundNumber,
+            roundName: payload.roundName ?? prevState?.roundName,
+            dealerId: payload.dealerId ?? prevState?.dealerId,
+            seatWinds: payload.seatWinds ?? prevState?.seatWinds,
             nextRoundReadyCount: payload.nextRoundReadyCount ?? prevState?.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers ?? prevState?.totalPlayers,
           }
@@ -153,17 +158,10 @@ export function useGameConnection({
           console.log('🗑️ Cleared session on game over')
         } else {
           onScoreResult(payload.scoreResult)
-          const timerId = window.setTimeout(() => {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(
-                JSON.stringify({
-                  type: 'action',
-                  payload: { type: 'nextRound' },
-                })
-              )
-            }
-          }, 5000)
-          setAutoNextTimer(timerId)
+          // 修正: 自動nextRoundを削除し、ユーザーの手動操作を要求
+          // ユーザーが結果を読む時間を確保し、いきなりの局移行を防ぐ
+          console.log('ℹ️ Removed automatic nextRound - user must manually click "Next Round" button')
+          setAutoNextTimer(null)
         }
         
         setGameState((prevState) => {
@@ -175,6 +173,11 @@ export function useGameConnection({
             ...prevState, 
             status: payload.gameOver ? 'gameOver' : 'finished',
             currentRound: payload.currentRound,
+            roundWind: payload.roundWind ?? prevState.roundWind,
+            roundNumber: payload.roundNumber ?? prevState.roundNumber,
+            roundName: payload.roundName ?? prevState.roundName,
+            dealerId: payload.dealerId ?? prevState.dealerId,
+            seatWinds: payload.seatWinds ?? prevState.seatWinds,
             nextRoundReadyCount: payload.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers,
           } : prevState

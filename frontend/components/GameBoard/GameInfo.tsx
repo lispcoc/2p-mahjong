@@ -1,6 +1,29 @@
 import React from 'react'
 import { GameState } from '../../types/GameTypes'
 
+const windNames: Record<number, string> = {
+  1: '東',
+  2: '南',
+  3: '西',
+  4: '北',
+}
+
+const getRoundLabel = (state: GameState) => {
+  if (state.roundName) return state.roundName
+  const wind = windNames[state.roundWind ?? 1] || '東'
+  const number = state.roundNumber ?? state.currentRound ?? 1
+  return `${wind}${number}局`
+}
+
+const getRoundWindLabel = (state: GameState) => {
+  return windNames[state.roundWind ?? 1] || '東'
+}
+
+const getSeatWindLabel = (state: GameState, userId: string) => {
+  const seatWind = state.seatWinds?.[userId]
+  return windNames[seatWind ?? 0] || '不明'
+}
+
 interface GameInfoProps {
   gameState: GameState
   userId: string
@@ -43,7 +66,22 @@ export function GameInfo({
       }}>
         <div style={{ fontSize: '12px', color: '#e0e0e0', marginBottom: '4px' }}>局数</div>
         <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ffffff' }}>
-          {gameState.currentRound || 1}局目
+          {getRoundLabel(gameState)}
+        </div>
+      </div>
+
+      {/* Round/Seat Wind */}
+      <div style={{
+        textAlign: 'center',
+        padding: '8px 16px',
+        background: '#3d6b20',
+        borderRadius: '0px',
+        border: '2px solid #ffffff',
+        minWidth: '140px'
+      }}>
+        <div style={{ fontSize: '12px', color: '#e0e0e0', marginBottom: '4px' }}>場/自風</div>
+        <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#ffffff' }}>
+          場風 {getRoundWindLabel(gameState)} / 自風 {getSeatWindLabel(gameState, userId)}
         </div>
       </div>
 

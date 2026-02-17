@@ -573,6 +573,11 @@ function handleAction(ws, payload) {
         winType: winType,
         isDraw: isDraw,
         currentRound: room.getCurrentRound(),
+        roundWind: room.getRoundWindNumber(),
+        roundNumber: room.getRoundNumber(),
+        roundName: room.getRoundName(),
+        dealerId: room.getDealerId(),
+        seatWinds: room.buildSeatWinds(room.playerOrder),
         nextRoundReadyCount: room.getNextRoundReadyCount(),
         totalPlayers: room.players.size,
       };
@@ -776,6 +781,11 @@ function executeCPUTurnIfNeeded(room) {
             winType: winType,
             isDraw: isDraw,
             currentRound: room.getCurrentRound(),
+            roundWind: room.getRoundWindNumber(),
+            roundNumber: room.getRoundNumber(),
+            roundName: room.getRoundName(),
+            dealerId: room.getDealerId(),
+            seatWinds: room.buildSeatWinds(room.playerOrder),
             nextRoundReadyCount: room.getNextRoundReadyCount(),
             totalPlayers: room.players.size,
           };

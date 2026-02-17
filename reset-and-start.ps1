@@ -56,7 +56,9 @@ Write-Host "Starting backend: npm start (port 3001)" -ForegroundColor Green
 Write-Host "Backend log: $backendLogPath" -ForegroundColor Gray
 $backendJob = Start-Job -ScriptBlock {
     Set-Location $args[0]
-    cmd /c "npm start" *> $args[1]
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    cmd /c "chcp 65001 >nul & npm start" 2>&1 | Out-File -FilePath $args[1] -Encoding utf8
 } -ArgumentList $backendPath, $backendLogPath
 
 Start-Sleep -Seconds 3
@@ -66,7 +68,9 @@ Write-Host "Starting frontend: npm run dev (port 3000)" -ForegroundColor Green
 Write-Host "Frontend log: $frontendLogPath" -ForegroundColor Gray
 $frontendJob = Start-Job -ScriptBlock {
     Set-Location $args[0]
-    cmd /c "npm run dev" *> $args[1]
+    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+    $OutputEncoding = [System.Text.Encoding]::UTF8
+    cmd /c "chcp 65001 >nul & npm run dev" 2>&1 | Out-File -FilePath $args[1] -Encoding utf8
 } -ArgumentList $frontendPath, $frontendLogPath
 
 Start-Sleep -Seconds 2

@@ -35,6 +35,11 @@ export interface GameState {
   wall?: number
   discards?: Record<string, Tile[]>
   currentRound?: number
+  roundWind?: number
+  roundNumber?: number
+  roundName?: string
+  dealerId?: string | null
+  seatWinds?: Record<string, number>
   nextRoundReadyCount?: number
   totalPlayers?: number
 }

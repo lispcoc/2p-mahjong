@@ -234,7 +234,7 @@ export function ScoreResultModal({
           {nextRoundReady ? (
             `相手プレイヤーの準備を待っています... (${gameState?.nextRoundReadyCount || 0}/${gameState?.totalPlayers || 2})`
           ) : (
-            '5秒後に自動的に次の局へ進みます'
+            'ボタンをクリックして次の局へ進んでください'
           )}
         </div>
 

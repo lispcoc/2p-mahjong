@@ -92,7 +92,7 @@ export function FinalResultModal({ finalResults, gameState, onBack }: FinalResul
                   marginBottom: '8px',
                   color: '#ffffff',
                 }}>
-                  第{round.round}局 - {round.winType}
+                  {round.roundName || `第${round.round}局`} - {round.winType}
                 </div>
                 <div style={{ fontSize: '14px', marginBottom: '5px', color: '#e0e0e0' }}>
                   勝者: {winnerName}

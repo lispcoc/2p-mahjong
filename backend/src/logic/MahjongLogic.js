@@ -6,7 +6,13 @@ class MahjongLogic {
   constructor(playerIds, playerScores = {}, isPlayerInNoMeldMode, options = {}) {
     this.playerIds = playerIds; // [player1Id, player2Id]
     this.players = {};
-    this.currentTurnIndex = 0;
+    const dealerIndex = Number.isFinite(options.dealerIndex)
+      ? Math.min(Math.max(0, Math.floor(options.dealerIndex)), Math.max(playerIds.length - 1, 0))
+      : 0;
+    this.currentTurnIndex = dealerIndex;
+    this.dealerIndex = dealerIndex;
+    this.roundWindNumber = Number.isFinite(options.roundWindNumber) ? options.roundWindNumber : 1;
+    this.seatWinds = options.seatWinds || {};
     this.wall = [];
     this.doraIndicators = []; // ドラ表示牌
     this.doraTiles = []; // ドラ（表示牌の次の牌）
@@ -92,6 +98,8 @@ class MahjongLogic {
     if (this.wallTiles < this.wall.length) {
       this.wall = this.wall.slice(0, this.wallTiles);
     }
+
+    console.log(`[wall] initialize: wallTiles=${this.wallTiles}, wall.length=${this.wall.length}`);
   }
   
   dealTiles() {
@@ -109,13 +117,15 @@ class MahjongLogic {
     // Player 0 draws one more
     if (this.wall.length > 0) {
       const tile = this.wall.pop();
-      const firstPlayerId = this.playerIds[0];
+      const firstPlayerId = this.playerIds[this.currentTurnIndex];
       this.players[firstPlayerId].hand.push(tile);
       // Mark this as the drawn tile for player 0
       this.players[firstPlayerId].drawnTile = tile;
       this.players[firstPlayerId].drawnTileIndex = 13; // 14th tile (0-indexed)
       console.log(`[dealTiles] Dealt 14 tiles to first player ${firstPlayerId}, drawnTileIndex=13, hand.length=${this.players[firstPlayerId].hand.length}`);
     }
+
+    console.log(`[wall] after dealTiles: wall.length=${this.wall.length}, kanningWall.length=${this.kanningWall.length}, doraIndicators.length=${this.doraIndicators.length}`);
     
     // Log all players' hand sizes
     this.playerIds.forEach((playerId) => {
@@ -207,14 +217,7 @@ class MahjongLogic {
     // 牌を捨てる = 次の巡に入るので、同巡内フリテンをリセット
     if (player.tempFuriten) {
       player.tempFuriten = false;
-      console.log(`[handleDiscard] Player ${userId} temp furiten reset (new turn)`);
     }
-
-    console.log(`\n[handleDiscard] ========================================`);
-    console.log(`[handleDiscard] Player: ${userId}, tileIndexInput: ${tileIndexInput}`);
-    console.log(`[handleDiscard] Hand (${hand.length} tiles):`, hand.map((t, i) => `[${i}]${t.toString()}`).join(' '));
-    console.log(`[handleDiscard] Riichi status: ${player.riichi}`);
-    console.log(`[handleDiscard] DrawnTile: ${player.drawnTile ? player.drawnTile.toString() : 'null'}`);
 
     // リーチ後は引いた牌を自動的に捨てる
     if (player.riichi) {
@@ -270,7 +273,6 @@ class MahjongLogic {
       if (!this.pendingPungFor && otherPlayerId) {
         const drawResult = this.drawForTurn(otherPlayerId);
         if (drawResult?.finished) {
-          console.log(`[handleDiscard] 🏁 Following auto-draw resulted in finished state during riichi`);
           return {
             success: true,
             finished: true,
@@ -290,32 +292,20 @@ class MahjongLogic {
       const [suit, numberStr] = tileIndexInput.split('_');
       const number = parseInt(numberStr);
       
-      console.log(`[handleDiscard] Parsing tileId: ${tileIndexInput} -> suit=${suit}, number=${number}`);
-      console.log(`[handleDiscard] Searching in hand (${hand.length} tiles):`);
-      hand.forEach((t, i) => {
-        const match = t.suit === suit && t.number === number ? ' ⭐ MATCH' : '';
-        console.log(`  [${i}] suit=${t.suit}, number=${t.number}${match}`);
-      });
-      
       // 手牌の中から該当する牌を探す
       actualIndex = hand.findIndex(
         t => t.suit === suit && t.number === number
       );
       
-      console.log(`[handleDiscard] Found tile at index: ${actualIndex}`);
-      
       if (actualIndex < 0) {
-        console.log(`[handleDiscard] Error: Tile ${tileIndexInput} not found in hand`);
         return { success: false, message: 'Tile not found in hand: ' + tileIndexInput };
       }
     } else if (typeof tileIndexInput === 'number') {
       // 後方互換性のため、古いインデックスベースもサポート
-      console.log(`[handleDiscard] Warning: Using legacy index-based discard`);
       const sorted = hand.slice().sort((a, b) => this.compareTiles(a, b));
       const selectedInSortedOrder = sorted[tileIndexInput];
       
       if (!selectedInSortedOrder) {
-        console.log(`[handleDiscard] Error: Index ${tileIndexInput} out of bounds`);
         return { success: false, message: 'Invalid tile index: ' + tileIndexInput };
       }
       
@@ -324,17 +314,13 @@ class MahjongLogic {
       );
       
       if (actualIndex < 0) {
-        console.log(`[handleDiscard] Error: Selected tile not found in hand`);
         return { success: false, message: 'Tile not found in hand' };
       }
     } else {
       actualIndex = Math.floor(Math.random() * hand.length);
     }
 
-    console.log(`[handleDiscard] ⭐ FINAL: Discarding tile at index ${actualIndex}: ${hand[actualIndex].toString()}`);
-
     const tile = hand.splice(actualIndex, 1)[0];
-    console.log(`[handleDiscard] ✅ DISCARDED: ${tile.toString()} (${tile.suit}_${tile.number})`);
     this.players[userId].discards.push(tile);
     // Reset drawn tile after discard
     this.players[userId].drawnTileIndex = -1;
@@ -372,7 +358,6 @@ class MahjongLogic {
     if (!this.pendingPungFor && otherPlayerId) {
       const drawResult = this.drawForTurn(otherPlayerId);
       if (drawResult?.finished) {
-        console.log(`[handleDiscard] 🏁 Auto-draw resulted in finished state, isDraw=${drawResult.isDraw}`);
         return {
           success: true,
           finished: true,
@@ -940,10 +925,12 @@ class MahjongLogic {
       };
     }
 
+    console.log(`[wall] before draw: userId=${userId}, wall.length=${this.wall.length}`);
     const tile = this.wall.pop();
     hand.push(tile);
     this.players[userId].drawnTile = tile;
     this.players[userId].drawnTileIndex = hand.length - 1;
+    console.log(`[wall] after draw: userId=${userId}, wall.length=${this.wall.length}`);
 
     // リーチ中の場合、和了できるかチェックし、できなければ自動ツモ切り
     if (this.players[userId].riichi) {
@@ -1217,7 +1204,9 @@ class MahjongLogic {
       isTsumo: isTsumo,
       isRon: !isTsumo,
       riichi: player.riichi, // リーチ情報を渡す
-      menzen: player.melds.length === 0 // 門前かどうか
+      menzen: player.melds.length === 0, // 門前かどうか
+      roundWind: this.roundWindNumber,
+      seatWind: this.seatWinds[playerId]
     });
     
     console.log('[calculateWinScore] 点数計算結果:', scoreResult);
@@ -1227,6 +1216,20 @@ class MahjongLogic {
 
   getWinner() {
     return this.winner;
+  }
+
+  getTenpaiStatus() {
+    const status = {};
+    this.playerIds.forEach((playerId) => {
+      const player = this.players[playerId];
+      if (!player) {
+        status[playerId] = false;
+        return;
+      }
+      const waitingTiles = TenpaiChecker.getWinningTiles(player.hand, player.melds);
+      status[playerId] = waitingTiles.length > 0;
+    });
+    return status;
   }
 
   /**
