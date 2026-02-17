@@ -110,31 +110,18 @@ export default function GamePage({
       toast.custom(
         (t) => (
           <div
-            className={`${
-              t.visible ? 'animate-in' : 'animate-out'
-            } flex items-center justify-center px-8 py-6 bg-white border-4 border-[#1a2e0a] rounded-lg shadow-2xl whitespace-nowrap`}
-            style={{
-              animation: t.visible ? 'opponentActionPop 0.2s ease-out' : 'fadeOut 0.3s ease-out',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '120px',
-                fontWeight: 'bold',
-                color: '#000000',
-                lineHeight: '1',
-              }}
-            >
+            className={`flex items-center justify-center px-8 py-6 bg-white border-4 border-[#1a2e0a] rounded-lg shadow-2xl whitespace-nowrap`}>
+            <span className="text-8xl font-bold text-[#1a2e0a]">
               {text}
             </span>
           </div>
         ),
         {
-          duration: 1500,
+          duration: 300,
           position: 'top-center',
         }
       )
-    }, 500)
+    }, 300)
   }, [])
 
   const scheduleOpponentResultDisplay = React.useCallback((callback: () => void, delayMs: number) => {
@@ -258,7 +245,7 @@ export default function GamePage({
         debugLog(`Setting gameState to status=${initialState.status}`)
         console.log('Game state initialized:', initialState)
         setGameState(initialState)
-        
+
         // Restore autoDrawMode and noMeldMode state for the current player on reconnection
         const userAutoDrawMode = payload.gameState?.autoDrawMode?.[payload.userId]
         const userNoMeldMode = payload.gameState?.noMeldMode?.[payload.userId]
@@ -270,7 +257,7 @@ export default function GamePage({
           console.log(`🔄 Restoring noMeldMode: ${userNoMeldMode}`)
           setNoMeldMode(userNoMeldMode)
         }
-        
+
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
 
@@ -322,7 +309,7 @@ export default function GamePage({
           clearTimeout(autoNextTimerRef.current)
           autoNextTimerRef.current = null
         }
-        
+
         // Sync autoDrawMode and noMeldMode for current player
         const currentUserIdForGameStart = userIdRef.current
         if (payload.autoDrawMode?.[currentUserIdForGameStart] !== undefined) {
@@ -335,7 +322,7 @@ export default function GamePage({
         } else {
           setNoMeldMode(false)
         }
-        
+
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
         setMessage('ゲームが始まりました！')
@@ -351,7 +338,7 @@ export default function GamePage({
             triggerOpponentActionModal(actionText)
           }
         }
-        
+
         // Sync autoDrawMode and noMeldMode for current player
         const currentUserId = userIdRef.current
         if (payload.autoDrawMode?.[currentUserId] !== undefined) {
@@ -360,7 +347,7 @@ export default function GamePage({
         if (payload.noMeldMode?.[currentUserId] !== undefined) {
           setNoMeldMode(payload.noMeldMode[currentUserId])
         }
-        
+
         setGameState((prevState) => {
           // 次の局への準備状況が更新された可能性があるので反映
           return {
@@ -1158,34 +1145,6 @@ export default function GamePage({
           </div>
         )}
 
-        {/* Test Button - Display Opponent Action Modal */}
-        <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center">
-          <button
-            onClick={() => triggerOpponentActionModal('ロン')}
-            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
-          >
-            ロン表示テスト
-          </button>
-          <button
-            onClick={() => triggerOpponentActionModal('ツモ')}
-            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
-          >
-            ツモ表示テスト
-          </button>
-          <button
-            onClick={() => triggerOpponentActionModal('ポン')}
-            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
-          >
-            ポン表示テスト
-          </button>
-          <button
-            onClick={() => triggerOpponentActionModal('リーチ')}
-            className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
-          >
-            リーチ表示テスト
-          </button>
-        </div>
-
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
           <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
@@ -1253,7 +1212,7 @@ export default function GamePage({
                           key={`od-${idx}`}
                           className="inline-block"
                         >
-                          <TileImage 
+                          <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
                           />
@@ -1283,20 +1242,15 @@ export default function GamePage({
 
             {/* Game Info Center */}
             {/* Game Info Center */}
-            <div className="w-full mb-1 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-2 flex-wrap">
+            <div className="grid grid-cols-5 w-full mb-1 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-2 flex-wrap">
               {/* Current Round */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
                 <div className="text-lg font-bold text-green-900">
                   {getRoundLabel(gameState)}
                 </div>
-              </div>
-
-              {/* Round/Seat Wind */}
-              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-28 flex flex-col justify-center">
-                <div className="text-xs text-gray-500 mb-1">場/自風</div>
-                <div className="text-sm font-bold text-green-900">
-                  場風 {getRoundWindLabel(gameState)} / 自風 {getSeatWindLabel(gameState, userId)}
+                <div className="text-xs font-bold text-green-900">
+                  自風 {getSeatWindLabel(gameState, userId)}
                 </div>
               </div>
 
@@ -1310,26 +1264,27 @@ export default function GamePage({
 
               {/* Auto-discard countdown */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
-                <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
-                {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
-                  <div className={`text-2xl font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
-                    {autoDiscardTimeLeft}秒
-                  </div>
+                {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 ? (
+                  <>
+                    <div className="text-xs text-gray-500 mb-1">自動ツモ</div>
+                    <div className={`text-2xl font-bold ${pendingPungTimeLeft <= 3 ? 'text-blue-500' : 'text-purple-500'}`}>
+                      {pendingPungTimeLeft}秒
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
+                    {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
+                      <div className={`text-2xl font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
+                        {autoDiscardTimeLeft}秒
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
-              {/* Pending pung auto-draw countdown */}
-              {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 && (
-                <div className={`text-center px-4 py-2 rounded-lg border-2 flex-1 min-w-24 flex flex-col justify-center ${pendingPungTimeLeft <= 3 ? 'bg-blue-50 border-blue-500 animate-pulse' : 'bg-purple-50 border-purple-500'}`}>
-                  <div className="text-xs text-gray-500 mb-1">自動ツモ</div>
-                  <div className={`text-2xl font-bold ${pendingPungTimeLeft <= 3 ? 'text-blue-500' : 'text-purple-500'}`}>
-                    {pendingPungTimeLeft}秒
-                  </div>
-                </div>
-              )}
-
               {/* Scores */}
-              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-48 flex flex-col justify-center">
+              <div className="col-span-2 text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-48 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">得点</div>
                 <div className="text-sm font-bold flex justify-around gap-4">
                   <div>
@@ -1409,7 +1364,7 @@ export default function GamePage({
                           key={`yd-${idx}`}
                           className="inline-block"
                         >
-                          <TileImage 
+                          <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
                           />
@@ -1760,6 +1715,35 @@ export default function GamePage({
                 現在の手牌と聴牌情報をクリップボードにコピーします
               </p>
             </div>
+
+            {/* Test Button - Display Opponent Action Modal */}
+            <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center">
+              <button
+                onClick={() => triggerOpponentActionModal('ロン')}
+                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+              >
+                ロン表示テスト
+              </button>
+              <button
+                onClick={() => triggerOpponentActionModal('ツモ')}
+                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+              >
+                ツモ表示テスト
+              </button>
+              <button
+                onClick={() => triggerOpponentActionModal('ポン')}
+                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+              >
+                ポン表示テスト
+              </button>
+              <button
+                onClick={() => triggerOpponentActionModal('リーチ')}
+                className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+              >
+                リーチ表示テスト
+              </button>
+            </div>
+
           </div>
         ) : gameState.status === 'gameOver' ? (
           // Game Over - Don't show game content, only show final results modal
