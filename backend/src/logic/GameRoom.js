@@ -32,6 +32,7 @@ class GameRoom {
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
     this.oneRoundMatch = options.oneRoundMatch === true; // 1局勝負モード
+    this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
   }
   
   addPlayer(userId, playerName, ws, isCPU = false) {
@@ -178,6 +179,9 @@ class GameRoom {
         seatWinds: seatWinds,
       }
     );
+    if (this.riichiDepositsCarryover > 0) {
+      this.gameLogic.riichiDeposits = this.riichiDepositsCarryover;
+    }
     this.gameLogic.initialize();
     
     // Deal initial tiles
@@ -287,6 +291,9 @@ class GameRoom {
         this.roundHistory.push(roundResult);
         console.log(`[GameRoom.handlePlayerAction] ✅ Round history saved: ${roundResult.winType}, winner: ${roundResult.winner || 'none (draw)'}`);
 
+        this.riichiDepositsCarryover = result.isDraw === true
+          ? this.gameLogic.getRiichiDeposits()
+          : 0;
         this.nextRoundState = this.computeNextRoundState(roundResult);
         
         // 1局勝負モードで和了が発生した場合、ゲームオーバー

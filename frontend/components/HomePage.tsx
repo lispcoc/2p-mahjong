@@ -26,7 +26,7 @@ export default function HomePage({
   onRefreshed,
 }: HomePageProps) {
   const defaultInitialScore = 25000
-  const defaultWallTiles = 136
+  const defaultWallTiles = 70
   const minWallTiles = 30
   const maxWallTiles = 136
   const [joinRoomId, setJoinRoomId] = useState('')

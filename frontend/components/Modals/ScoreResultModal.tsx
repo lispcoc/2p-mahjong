@@ -173,6 +173,11 @@ export function ScoreResultModal({
               <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ffcc66', marginBottom: '8px' }}>
                 {scoreResult.score}点
               </div>
+              {typeof scoreResult.riichiDeposits === 'number' && scoreResult.riichiDeposits > 0 && (
+                <div style={{ fontSize: '14px', color: '#90ee90', marginBottom: '6px' }}>
+                  供託 +{scoreResult.riichiDeposits.toLocaleString()}点
+                </div>
+              )}
               <div style={{ fontSize: '16px', color: '#e0e0e0', marginBottom: '5px' }}>
                 {scoreResult.scoreType}
               </div>
