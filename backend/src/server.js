@@ -85,7 +85,8 @@ app.post('/api/rooms', (req, res) => {
   const wallTiles = Number.isFinite(rawWallTiles)
     ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
     : maxWallTiles;
-  const room = new GameRoom(roomId, { initialScore, wallTiles });
+  const oneRoundMatch = req.body?.oneRoundMatch === true;
+  const room = new GameRoom(roomId, { initialScore, wallTiles, oneRoundMatch });
   rooms.set(roomId, room);
   
   // 非アクティブタイマーを開始

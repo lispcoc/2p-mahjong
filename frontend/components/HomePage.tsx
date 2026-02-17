@@ -36,6 +36,7 @@ export default function HomePage({
   const [roomsLoading, setRoomsLoading] = useState(false)
   const [initialScore, setInitialScore] = useState(defaultInitialScore)
   const [wallTiles, setWallTiles] = useState(defaultWallTiles)
+  const [oneRoundMatch, setOneRoundMatch] = useState(false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
 
   const fetchRooms = async () => {
@@ -101,6 +102,7 @@ export default function HomePage({
         body: JSON.stringify({
           initialScore: sanitizedInitialScore,
           wallTiles: sanitizedWallTiles,
+          oneRoundMatch: oneRoundMatch,
         }),
       })
 
@@ -332,6 +334,18 @@ export default function HomePage({
                   className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
                 />
                 <p className="text-xs text-gray-300 m-0">{minWallTiles}〜{maxWallTiles}（通常 {defaultWallTiles}）</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="oneRoundMatchModal"
+                  type="checkbox"
+                  checked={oneRoundMatch}
+                  onChange={(e) => setOneRoundMatch(e.target.checked)}
+                  className="w-4 h-4 cursor-pointer"
+                />
+                <label className="text-gray-300 text-xs cursor-pointer" htmlFor="oneRoundMatchModal">
+                  1局勝負（どちらかが和了したらその時点で終了）
+                </label>
               </div>
             </div>
 

@@ -31,6 +31,7 @@ class GameRoom {
     this.wallTiles = Number.isFinite(rawWallTiles)
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
+    this.oneRoundMatch = options.oneRoundMatch === true; // 1局勝負モード
   }
   
   addPlayer(userId, playerName, ws, isCPU = false) {
@@ -288,19 +289,27 @@ class GameRoom {
 
         this.nextRoundState = this.computeNextRoundState(roundResult);
         
-        // 誰かの点数がマイナスになったかチェック
-        let hasNegativeScore = false;
-        this.players.forEach((player) => {
-          if (player.score < 0) {
-            hasNegativeScore = true;
-          }
-        });
-        
-        if (hasNegativeScore) {
-          console.log(`[GameRoom.handlePlayerAction] ⚠️ Game over - negative score detected`);
+        // 1局勝負モードで和了が発生した場合、ゲームオーバー
+        if (this.oneRoundMatch && !result.isDraw) {
+          console.log(`[GameRoom.handlePlayerAction] 🏁 One-round match - game over after win`);
           this.status = 'gameOver';
           result.gameOver = true;
           result.finalResults = this.roundHistory;
+        } else {
+          // 誰かの点数がマイナスになったかチェック
+          let hasNegativeScore = false;
+          this.players.forEach((player) => {
+            if (player.score < 0) {
+              hasNegativeScore = true;
+            }
+          });
+          
+          if (hasNegativeScore) {
+            console.log(`[GameRoom.handlePlayerAction] ⚠️ Game over - negative score detected`);
+            this.status = 'gameOver';
+            result.gameOver = true;
+            result.finalResults = this.roundHistory;
+          }
         }
       } catch (err) {
         console.error(`[GameRoom.handlePlayerAction] ❌ Error while processing finished game state:`, err);
