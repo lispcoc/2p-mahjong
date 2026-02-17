@@ -20,6 +20,12 @@ class GameRoom {
     this.initialScore = Number.isFinite(options.initialScore) && options.initialScore >= 0
       ? Math.floor(options.initialScore)
       : 25000;
+    const rawWallTiles = Number(options.wallTiles);
+    const minWallTiles = 30;
+    const maxWallTiles = 136;
+    this.wallTiles = Number.isFinite(rawWallTiles)
+      ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
+      : maxWallTiles;
   }
   
   addPlayer(userId, playerName, ws, isCPU = false) {
@@ -139,7 +145,12 @@ class GameRoom {
       return player?.noMeldMode || false;
     };
     
-    this.gameLogic = new MahjongLogic(Array.from(this.players.keys()), playerScores, isPlayerInNoMeldMode);
+    this.gameLogic = new MahjongLogic(
+      Array.from(this.players.keys()),
+      playerScores,
+      isPlayerInNoMeldMode,
+      { wallTiles: this.wallTiles }
+    );
     this.gameLogic.initialize();
     
     // Deal initial tiles
@@ -211,45 +222,53 @@ class GameRoom {
     const result = this.gameLogic.processAction(userId, action);
     
     if (result.finished) {
+      console.log(`[GameRoom.handlePlayerAction] 🏁 Game finished detected, message: "${result.message}"`);
       this.status = 'finished';
       this.lastResult = result; // CPU callback用に保存
       
-      // 局の結果を履歴に保存
-      const roundResult = {
-        round: this.currentRound,
-        winner: this.gameLogic.getWinner(),
-        winType: result.message,
-        scoreResult: result.scoreResult,
-        scores: {},
-        previousScores: {},
-      };
-      
-      // 各プレイヤーの前回点数を保存
-      this.players.forEach((player, uid) => {
-        roundResult.previousScores[uid] = player.score;
-      });
-      
-      // 各プレイヤーの点数を更新・保存
-      this.players.forEach((player, uid) => {
-        const newScore = this.gameLogic.getPlayerScore(uid);
-        player.score = newScore;
-        roundResult.scores[uid] = newScore;
-      });
-      
-      this.roundHistory.push(roundResult);
-      
-      // 誰かの点数がマイナスになったかチェック
-      let hasNegativeScore = false;
-      this.players.forEach((player) => {
-        if (player.score < 0) {
-          hasNegativeScore = true;
+      try {
+        // 局の結果を履歴に保存
+        const roundResult = {
+          round: this.currentRound,
+          winner: this.gameLogic.getWinner(),
+          winType: result.message,
+          scoreResult: result.scoreResult,
+          scores: {},
+          previousScores: {},
+          isDraw: result.isDraw === true,
+        };
+        
+        // 各プレイヤーの前回点数を保存
+        this.players.forEach((player, uid) => {
+          roundResult.previousScores[uid] = player.score;
+        });
+        
+        // 各プレイヤーの点数を更新・保存
+        this.players.forEach((player, uid) => {
+          const newScore = this.gameLogic.getPlayerScore(uid);
+          player.score = newScore;
+          roundResult.scores[uid] = newScore;
+        });
+        
+        this.roundHistory.push(roundResult);
+        console.log(`[GameRoom.handlePlayerAction] ✅ Round history saved: ${roundResult.winType}, winner: ${roundResult.winner || 'none (draw)'}`);
+        
+        // 誰かの点数がマイナスになったかチェック
+        let hasNegativeScore = false;
+        this.players.forEach((player) => {
+          if (player.score < 0) {
+            hasNegativeScore = true;
+          }
+        });
+        
+        if (hasNegativeScore) {
+          console.log(`[GameRoom.handlePlayerAction] ⚠️ Game over - negative score detected`);
+          this.status = 'gameOver';
+          result.gameOver = true;
+          result.finalResults = this.roundHistory;
         }
-      });
-      
-      if (hasNegativeScore) {
-        this.status = 'gameOver';
-        result.gameOver = true;
-        result.finalResults = this.roundHistory;
+      } catch (err) {
+        console.error(`[GameRoom.handlePlayerAction] ❌ Error while processing finished game state:`, err);
       }
     }
     

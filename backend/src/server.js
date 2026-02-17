@@ -79,7 +79,13 @@ app.post('/api/rooms', (req, res) => {
   const initialScore = Number.isFinite(rawInitialScore) && rawInitialScore >= 0
     ? Math.floor(rawInitialScore)
     : 25000;
-  const room = new GameRoom(roomId, { initialScore });
+  const rawWallTiles = Number(req.body?.wallTiles);
+  const minWallTiles = 30;
+  const maxWallTiles = 136;
+  const wallTiles = Number.isFinite(rawWallTiles)
+    ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
+    : maxWallTiles;
+  const room = new GameRoom(roomId, { initialScore, wallTiles });
   rooms.set(roomId, room);
   
   // 非アクティブタイマーを開始
@@ -531,6 +537,7 @@ function handleAction(ws, payload) {
   // Check if game is finished
   if (room.isFinished()) {
     console.log(`[🔵 ${requestId}] [CHECK] ✅ Game is finished! room.status=${room.status}`);
+    
     if (result?.scoreResult?.valid === false) {
       // 役がない場合はゲーム状態を更新せず、エラーのみ返す
       // ただし、相手プレイヤーにはゲーム状態を送信して同期を保つ
@@ -551,44 +558,51 @@ function handleAction(ws, payload) {
       return;
     }
 
-    // 最新のラウンド履歴から winType と scoreResult を取得
-    const roundHistory = room.getRoundHistory();
-    const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
-    const winType = result.message || latestRound?.winType || '';
-    const scoreResult = result.scoreResult || latestRound?.scoreResult || null;
+    try {
+      // 最新のラウンド履歴から winType と scoreResult を取得
+      const roundHistory = room.getRoundHistory();
+      const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
+      const winType = result.message || latestRound?.winType || '';
+      const scoreResult = result.scoreResult || latestRound?.scoreResult || null;
+      const isDraw = result.isDraw === true || latestRound?.isDraw === true || false;
 
-    const finishedPayload = {
-      winner: room.getWinner(),
-      scores: room.getScores(),
-      scoreResult: scoreResult,
-      winType: winType,
-      currentRound: room.getCurrentRound(),
-      nextRoundReadyCount: room.getNextRoundReadyCount(),
-      totalPlayers: room.players.size,
-    };
+      const finishedPayload = {
+        winner: room.getWinner(),
+        scores: room.getScores(),
+        scoreResult: scoreResult,
+        winType: winType,
+        isDraw: isDraw,
+        currentRound: room.getCurrentRound(),
+        nextRoundReadyCount: room.getNextRoundReadyCount(),
+        totalPlayers: room.players.size,
+      };
 
-    // ゲームオーバー（誰かの点数がマイナス）の場合
-    if (result.gameOver) {
-      finishedPayload.gameOver = true;
-      finishedPayload.finalResults = result.finalResults;
+      // ゲームオーバー（誰かの点数がマイナス）の場合
+      if (result.gameOver) {
+        finishedPayload.gameOver = true;
+        finishedPayload.finalResults = result.finalResults;
+      }
+
+      console.log(`[🔵 ${requestId}] 📢 Broadcasting gameFinished to all players in room ${roomId}`);
+      console.log(`[🔵 ${requestId}] finishedPayload:`, JSON.stringify(finishedPayload, null, 2));
+      
+      broadcastToRoom(roomId, {
+        type: 'gameFinished',
+        payload: finishedPayload,
+      });
+      
+      console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
+      console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
+    } catch (err) {
+      console.error(`[🔵 ${requestId}] ❌ Error while broadcasting gameFinished:`, err);
+      console.error(`[🔵 ${requestId}] Error details:`, err.message, err.stack);
+      // 繰り返し実行を防ぐため、スタックトレース出力のみで処理を続行
     }
-
-    console.log(`[🔵 ${requestId}] 📢 Broadcasting gameFinished to all players in room ${roomId}`);
-    console.log(`[🔵 ${requestId}] finishedPayload:`, JSON.stringify(finishedPayload, null, 2));
-    
-    broadcastToRoom(roomId, {
-      type: 'gameFinished',
-      payload: finishedPayload,
-    });
-    
-    console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
-    console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
     
     // ゲーム終了時は非アクティブタイマーをクリア（auto-ready or game-overタイマーで管理）
     room.clearInactivityTimer();
     
-    // ゲームオーバーでない場合、10秒のタイマーを開始
-    // 両プレイヤーが何も操作しなければ自動的に準備完了状態にして次のラウンドを開始する
+    // ゲーム終了（流局や勝ちなど）後の処理
     console.log(`[🔵 ${requestId}] [TIMER] gameOver=${result.gameOver}`);
     if (!result.gameOver) {
       console.log(`[🔵 ${requestId}] [TIMER] Setting up auto-ready timer...`);
@@ -742,40 +756,54 @@ function executeCPUTurnIfNeeded(room) {
         console.log(`[🔵 CPU CALLBACK] ✅ gameFinished detected in CPU callback`);
         console.log(`[🔵 CPU CALLBACK] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
         
-        // 最新のラウンド履歴から winType と scoreResult を取得
-        const roundHistory = room.getRoundHistory();
-        const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
-        const winType = room.lastResult?.message || latestRound?.winType || '';
-        const scoreResult = room.lastResult?.scoreResult || latestRound?.scoreResult || null;
+        let finishedPayload = null;
+        try {
+          // 最新のラウンド履歴から winType と scoreResult を取得
+          const roundHistory = room.getRoundHistory();
+          const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
+          const winType = room.lastResult?.message || latestRound?.winType || '';
+          const scoreResult = room.lastResult?.scoreResult || latestRound?.scoreResult || null;
+          
+          console.log(`[🔵 CPU CALLBACK] [DEBUG] room.lastResult?.isDraw = ${room.lastResult?.isDraw}`);
+          console.log(`[🔵 CPU CALLBACK] [DEBUG] latestRound?.isDraw = ${latestRound?.isDraw}`);
+          const isDraw = room.lastResult?.isDraw === true || latestRound?.isDraw === true || false;
+          console.log(`[🔵 CPU CALLBACK] [DEBUG] Final isDraw = ${isDraw}`);
 
-        const finishedPayload = {
-          winner: room.getWinner(),
-          scores: room.getScores(),
-          scoreResult: scoreResult,
-          winType: winType,
-          currentRound: room.getCurrentRound(),
-          nextRoundReadyCount: room.getNextRoundReadyCount(),
-          totalPlayers: room.players.size,
-        };
-        
-        if (room.isGameOver()) {
-          finishedPayload.gameOver = true;
-          finishedPayload.finalResults = room.getRoundHistory();
+          finishedPayload = {
+            winner: room.getWinner(),
+            scores: room.getScores(),
+            scoreResult: scoreResult,
+            winType: winType,
+            isDraw: isDraw,
+            currentRound: room.getCurrentRound(),
+            nextRoundReadyCount: room.getNextRoundReadyCount(),
+            totalPlayers: room.players.size,
+          };
+          
+          if (room.isGameOver()) {
+            finishedPayload.gameOver = true;
+            finishedPayload.finalResults = room.getRoundHistory();
+          }
+          
+          console.log(`[🔵 CPU CALLBACK] 📢 Broadcasting gameFinished`);
+          console.log(`[🔵 CPU CALLBACK] Payload:`, JSON.stringify(finishedPayload, null, 2));
+          broadcastToRoom(roomId, {
+            type: 'gameFinished',
+            payload: finishedPayload,
+          });
+        } catch (err) {
+          console.error(`[🔵 CPU CALLBACK] ❌ Error while broadcasting gameFinished:`, err);
+          console.error(`[🔵 CPU CALLBACK] Error details:`, err.message, err.stack);
         }
-        
-        console.log(`[🔵 CPU CALLBACK] 📢 Broadcasting gameFinished`);
-        broadcastToRoom(roomId, {
-          type: 'gameFinished',
-          payload: finishedPayload,
-        });
         
         // ゲーム終了時は非アクティブタイマーをクリア（auto-ready or game-overタイマーで管理）
         room.clearInactivityTimer();
         
-        console.log(`[🔵 CPU CALLBACK] [TIMER] gameOver=${finishedPayload.gameOver}`);
+        const cpuCallbackGameOver = finishedPayload?.gameOver || false;
+        console.log(`[🔵 CPU CALLBACK] [TIMER] gameOver=${cpuCallbackGameOver}`);
         
         // ゲームオーバーでない場合、10秒のタイマーを開始
-        if (!finishedPayload.gameOver) {
+        if (!cpuCallbackGameOver) {
           console.log(`[🔵 CPU CALLBACK] [TIMER] Setting up auto-ready timer...`);
           room.startAutoReadyTimer(() => {
             console.log(`🎮 [AUTO] Auto-starting next round for room ${roomId} (timer expired)`);

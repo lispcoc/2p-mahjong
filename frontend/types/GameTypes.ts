@@ -18,6 +18,7 @@ export interface GameState {
   ronPossibleFor?: string
   canWinFor?: string
   autoDrawMode?: Record<string, boolean>
+  noMeldMode?: Record<string, boolean>
   scores?: Record<string, number>
   riichi?: Record<string, boolean>
   riichiDeposits?: number

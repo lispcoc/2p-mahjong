@@ -3,7 +3,7 @@ const ScoreCalculator = require('./ScoreCalculator');
 const TenpaiChecker = require('./TenpaiChecker');
 
 class MahjongLogic {
-  constructor(playerIds, playerScores = {}, isPlayerInNoMeldMode) {
+  constructor(playerIds, playerScores = {}, isPlayerInNoMeldMode, options = {}) {
     this.playerIds = playerIds; // [player1Id, player2Id]
     this.players = {};
     this.currentTurnIndex = 0;
@@ -21,6 +21,12 @@ class MahjongLogic {
     this.scoreCalculator = new ScoreCalculator();
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
+    const rawWallTiles = Number(options.wallTiles);
+    const minWallTiles = 30;
+    const maxWallTiles = 136;
+    this.wallTiles = Number.isFinite(rawWallTiles)
+      ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
+      : maxWallTiles;
     
     // Initialize players
     playerIds.forEach((id) => {
@@ -82,6 +88,10 @@ class MahjongLogic {
     
     // Shuffle wall
     this.shuffleWall();
+
+    if (this.wallTiles < this.wall.length) {
+      this.wall = this.wall.slice(0, this.wallTiles);
+    }
   }
   
   dealTiles() {
@@ -260,10 +270,12 @@ class MahjongLogic {
       if (!this.pendingPungFor && otherPlayerId) {
         const drawResult = this.drawForTurn(otherPlayerId);
         if (drawResult?.finished) {
+          console.log(`[handleDiscard] 🏁 Following auto-draw resulted in finished state during riichi`);
           return {
             success: true,
             finished: true,
             message: drawResult.message,
+            isDraw: drawResult.isDraw,
             autoDiscard: true,
           };
         }
@@ -360,10 +372,12 @@ class MahjongLogic {
     if (!this.pendingPungFor && otherPlayerId) {
       const drawResult = this.drawForTurn(otherPlayerId);
       if (drawResult?.finished) {
+        console.log(`[handleDiscard] 🏁 Auto-draw resulted in finished state, isDraw=${drawResult.isDraw}`);
         return {
           success: true,
           finished: true,
           message: drawResult.message,
+          isDraw: drawResult.isDraw === true,
         };
       }
     }
@@ -914,8 +928,16 @@ class MahjongLogic {
     }
 
     if (this.wall.length === 0) {
+      console.log(`[drawForTurn] ⚠️ WALL EXHAUSTED: Wall has no more tiles, game ending in draw`);
       this.finished = true;
-      return { success: true, finished: true, message: 'Draw - no more tiles' };
+      return { 
+        success: true, 
+        finished: true, 
+        message: 'Draw - no more tiles',
+        isDraw: true,
+        tileCount: hand.length + (this.players[this.playerIds[0]].melds.reduce((s, m) => s + m.length, 0) + 
+                                  this.players[this.playerIds[1]].melds.reduce((s, m) => s + m.length, 0))
+      };
     }
 
     const tile = this.wall.pop();
@@ -932,6 +954,10 @@ class MahjongLogic {
         const drawnTile = this.players[userId].drawnTile;
         const tileId = `${drawnTile.suit}_${drawnTile.number}`;
         const result = this.handleDiscard(userId, tileId);
+        // ディスカード後に流局している場合はそれを反映させる
+        if (result.finished) {
+          return result;
+        }
         return { success: true, autoDiscard: true, discardResult: result };
       }
     }
@@ -1338,10 +1364,12 @@ class MahjongLogic {
     if (!this.pendingPungFor && otherPlayerId) {
       const drawResult = this.drawForTurn(otherPlayerId);
       if (drawResult?.finished) {
+        console.log(`🔴 [declareRiichi] Draw result finished, returning with isDraw=${drawResult.isDraw}`);
         return {
           success: true,
           finished: true,
           message: drawResult.message,
+          isDraw: drawResult.isDraw === true,
           deposit: 1000,
           waitingTiles: waitingTiles,
           riichi: true,

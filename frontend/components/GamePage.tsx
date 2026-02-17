@@ -220,10 +220,31 @@ export default function GamePage({
           tiles: payload.gameState?.tiles,
           wall: payload.gameState?.wall,
           discards: payload.gameState?.discards,
+          autoDrawMode: payload.gameState?.autoDrawMode,
+          noMeldMode: payload.gameState?.noMeldMode,
+          riichi: payload.gameState?.riichi,
+          riichiDeposits: payload.gameState?.riichiDeposits,
+          dora: payload.gameState?.dora,
+          kanningWall: payload.gameState?.kanningWall,
+          pendingPungFor: payload.gameState?.pendingPungFor,
+          canWinFor: payload.gameState?.canWinFor,
         }
         debugLog(`Setting gameState to status=${initialState.status}`)
         console.log('Game state initialized:', initialState)
         setGameState(initialState)
+        
+        // Restore autoDrawMode and noMeldMode state for the current player on reconnection
+        const userAutoDrawMode = payload.gameState?.autoDrawMode?.[payload.userId]
+        const userNoMeldMode = payload.gameState?.noMeldMode?.[payload.userId]
+        if (typeof userAutoDrawMode === 'boolean') {
+          console.log(`🔄 Restoring autoDrawMode: ${userAutoDrawMode}`)
+          setAutoDrawMode(userAutoDrawMode)
+        }
+        if (typeof userNoMeldMode === 'boolean') {
+          console.log(`🔄 Restoring noMeldMode: ${userNoMeldMode}`)
+          setNoMeldMode(userNoMeldMode)
+        }
+        
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
 
@@ -275,6 +296,20 @@ export default function GamePage({
           clearTimeout(autoNextTimerRef.current)
           autoNextTimerRef.current = null
         }
+        
+        // Sync autoDrawMode and noMeldMode for current player
+        const currentUserIdForGameStart = userIdRef.current
+        if (payload.autoDrawMode?.[currentUserIdForGameStart] !== undefined) {
+          setAutoDrawMode(payload.autoDrawMode[currentUserIdForGameStart])
+        } else {
+          setAutoDrawMode(false)
+        }
+        if (payload.noMeldMode?.[currentUserIdForGameStart] !== undefined) {
+          setNoMeldMode(payload.noMeldMode[currentUserIdForGameStart])
+        } else {
+          setNoMeldMode(false)
+        }
+        
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
         setMessage('ゲームが始まりました！')
@@ -290,6 +325,16 @@ export default function GamePage({
             triggerOpponentActionModal(actionText)
           }
         }
+        
+        // Sync autoDrawMode and noMeldMode for current player
+        const currentUserId = userIdRef.current
+        if (payload.autoDrawMode?.[currentUserId] !== undefined) {
+          setAutoDrawMode(payload.autoDrawMode[currentUserId])
+        }
+        if (payload.noMeldMode?.[currentUserId] !== undefined) {
+          setNoMeldMode(payload.noMeldMode[currentUserId])
+        }
+        
         setGameState((prevState) => {
           // 次の局への準備状況が更新された可能性があるので反映
           return {
@@ -1693,15 +1738,17 @@ export default function GamePage({
       </div>
 
       {/* Score Result Modal */}
-      <ScoreResultModal
-        scoreResult={scoreResult}
-        gameState={gameState!}
-        nextRoundReady={gameState?.nextRoundReadyCount === gameState?.totalPlayers && gameState?.totalPlayers > 0}
-        onNextRound={handleNextRound}
-        winnerId={lastWinnerId}
-        winnerHand={lastWinnerHand}
-        winnerMelds={lastWinnerMelds}
-      />
+      {scoreResult && gameState && (
+        <ScoreResultModal
+          scoreResult={scoreResult}
+          gameState={gameState}
+          nextRoundReady={(gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0}
+          onNextRound={handleNextRound}
+          winnerId={lastWinnerId}
+          winnerHand={lastWinnerHand}
+          winnerMelds={lastWinnerMelds}
+        />
+      )}
 
       {/* Final Results Modal (Game Over) */}
       {console.log('🏁 [DEBUG] Rendering - finalResults:', finalResults, 'gameState.status:', gameState?.status)}

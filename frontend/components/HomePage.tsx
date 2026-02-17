@@ -25,12 +25,18 @@ export default function HomePage({
   shouldRefresh = false,
   onRefreshed,
 }: HomePageProps) {
+  const defaultInitialScore = 25000
+  const defaultWallTiles = 136
+  const minWallTiles = 30
+  const maxWallTiles = 136
   const [joinRoomId, setJoinRoomId] = useState('')
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [rooms, setRooms] = useState<RoomInfo[]>([])
   const [roomsLoading, setRoomsLoading] = useState(false)
-  const [initialScore, setInitialScore] = useState(25000)
+  const [initialScore, setInitialScore] = useState(defaultInitialScore)
+  const [wallTiles, setWallTiles] = useState(defaultWallTiles)
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
 
   const fetchRooms = async () => {
     setRoomsLoading(true)
@@ -65,17 +71,37 @@ export default function HomePage({
     }
   }, [shouldRefresh, onRefreshed])
 
-  const handleCreateRoom = async () => {
+  const handleOpenCreateRoomModal = () => {
+    setError('')
+    setIsRuleModalOpen(true)
+  }
+
+  const clampWallTiles = (value: number) => {
+    if (!Number.isFinite(value)) return defaultWallTiles
+    return Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(value)))
+  }
+
+  const sanitizeInitialScore = (value: number) => {
+    if (!Number.isFinite(value) || value < 0) return defaultInitialScore
+    return Math.floor(value)
+  }
+
+  const handleConfirmCreateRoom = async () => {
     setIsCreating(true)
     setError('')
 
     try {
+      const sanitizedInitialScore = sanitizeInitialScore(initialScore)
+      const sanitizedWallTiles = clampWallTiles(wallTiles)
       const response = await fetch('http://localhost:3001/api/rooms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ initialScore }),
+        body: JSON.stringify({
+          initialScore: sanitizedInitialScore,
+          wallTiles: sanitizedWallTiles,
+        }),
       })
 
       if (!response.ok) {
@@ -83,6 +109,7 @@ export default function HomePage({
       }
 
       const data = await response.json()
+      setIsRuleModalOpen(false)
       onCreateRoom(data.roomId)
     } catch (err) {
       setError(
@@ -93,6 +120,10 @@ export default function HomePage({
     } finally {
       setIsCreating(false)
     }
+  }
+
+  const handleCancelCreateRoom = () => {
+    setIsRuleModalOpen(false)
   }
 
   const handleJoinRoom = async (e: React.FormEvent) => {
@@ -189,22 +220,8 @@ export default function HomePage({
             <p className="text-gray-300 text-sm m-0">
               ランダムに生成されたルームIDで新しい部屋を作成できます
             </p>
-            <div className="flex flex-col gap-1">
-              <label className="text-gray-300 text-xs" htmlFor="initialScore">
-                初期持ち点
-              </label>
-              <input
-                id="initialScore"
-                type="number"
-                min={0}
-                step={100}
-                value={initialScore}
-                onChange={(e) => setInitialScore(Number(e.target.value))}
-                className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a] uppercase"
-              />
-            </div>
             <button
-              onClick={handleCreateRoom}
+              onClick={handleOpenCreateRoomModal}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70 w-full"
             >
@@ -276,6 +293,73 @@ export default function HomePage({
 
         {error && <p className="text-red-400 text-sm text-center p-3 bg-[#2d1a1a] border-2 border-red-400 mt-5">{error}</p>}
       </div>
+
+      {isRuleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5">
+          <div className="w-full max-w-[520px] border-4 border-white bg-[#2d5016] p-6 shadow-2xl">
+            <div className="mb-5 border-b-2 border-gray-300 pb-3">
+              <h3 className="text-xl font-bold text-white m-0">ルール設定</h3>
+              <p className="text-xs text-gray-300 mt-2 mb-0">持ち点と壁の枚数を設定してください</p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs" htmlFor="initialScoreModal">
+                  初期持ち点
+                </label>
+                <input
+                  id="initialScoreModal"
+                  type="number"
+                  min={0}
+                  step={100}
+                  value={initialScore}
+                  onChange={(e) => setInitialScore(Number(e.target.value))}
+                  className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs" htmlFor="wallTilesModal">
+                  壁の枚数
+                </label>
+                <input
+                  id="wallTilesModal"
+                  type="number"
+                  min={minWallTiles}
+                  max={maxWallTiles}
+                  step={1}
+                  value={wallTiles}
+                  onChange={(e) => setWallTiles(Number(e.target.value))}
+                  className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
+                />
+                <p className="text-xs text-gray-300 m-0">{minWallTiles}〜{maxWallTiles}（通常 {defaultWallTiles}）</p>
+              </div>
+            </div>
+
+            {error && (
+              <p className="text-red-400 text-xs text-center p-2 bg-[#2d1a1a] border-2 border-red-400 mt-4">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-6 flex gap-3">
+              <button
+                onClick={handleConfirmCreateRoom}
+                disabled={isCreating}
+                className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+              >
+                {isCreating ? '作成中...' : 'OK'}
+              </button>
+              <button
+                onClick={handleCancelCreateRoom}
+                disabled={isCreating}
+                className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
