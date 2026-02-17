@@ -2,147 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure Tailwind utilities take precedence over CSS modules */
-@layer utilities {
-  .w-full {
-    width: 100% !important;
-  }
-  .mb-3 {
-    margin-bottom: 0.75rem !important;
-  }
-  .mb-2 {
-    margin-bottom: 0.5rem !important;
-  }
-  .p-3 {
-    padding: 0.75rem !important;
-  }
-  .p-4 {
-    padding: 1rem !important;
-  }
-  .flex {
-    display: flex !important;
-  }
-  .flex-wrap {
-    flex-wrap: wrap !important;
-  }
-  .flex-shrink-0 {
-    flex-shrink: 0 !important;
-  }
-  .gap-1 {
-    gap: 0.25rem !important;
-  }
-  .gap-2 {
-    gap: 0.5rem !important;
-  }
-  .gap-3 {
-    gap: 0.75rem !important;
-  }
-  .gap-4 {
-    gap: 1rem !important;
-  }
-  .items-start {
-    align-items: flex-start !important;
-  }
-  .items-center {
-    align-items: center !important;
-  }
-  .justify-start {
-    justify-content: flex-start !important;
-  }
-  .justify-between {
-    justify-content: space-between !important;
-  }
-  .justify-center {
-    justify-content: center !important;
-  }
-  .rounded-lg {
-    border-radius: 0.5rem !important;
-  }
-  .border {
-    border: 1px solid !important;
-  }
-  .border-gray-300 {
-    border-color: #d1d5db !important;
-  }
-  .border-gray-400 {
-    border-color: #9ca3af !important;
-  }
-  .border-green-300 {
-    border-color: #86efac !important;
-  }
-  .border-green-400 {
-    border-color: #4ade80 !important;
-  }
-  .border-yellow-400 {
-    border-color: #facc15 !important;
-  }
-  .bg-white {
-    background-color: #ffffff !important;
-  }
-  .bg-gray-100 {
-    background-color: #f3f4f6 !important;
-  }
-  .bg-green-100 {
-    background-color: #dcfce7 !important;
-  }
-  .bg-green-50 {
-    background-color: #f0fdf4 !important;
-  }
-  .bg-opacity-70 {
-    opacity: 0.7 !important;
-  }
-  .text-xs {
-    font-size: 0.75rem !important;
-  }
-  .text-sm {
-    font-size: 0.875rem !important;
-  }
-  .text-gray-400 {
-    color: #9ca3af !important;
-  }
-  .text-gray-500 {
-    color: #6b7280 !important;
-  }
-  .text-gray-600 {
-    color: #4b5563 !important;
-  }
-  .text-gray-700 {
-    color: #374151 !important;
-  }
-  .text-green-600 {
-    color: #16a34a !important;
-  }
-  .text-green-900 {
-    color: #166534 !important;
-  }
-  .text-yellow-700 {
-    color: #b45309 !important;
-  }
-  .text-red-500 {
-    color: #ef4444 !important;
-  }
-  .text-white {
-    color: #ffffff !important;
-  }
-  .font-bold {
-    font-weight: 700 !important;
-  }
-  .text-center {
-    text-align: center !important;
-  }
-  .min-w-20 {
-    min-width: 5rem !important;
-  }
-  .min-w-24 {
-    min-width: 6rem !important;
-  }
-  .min-w-48 {
-    min-width: 12rem !important;
-  }
-}
-
 body {
-  background-color: #2d5016;
+  @apply bg-[#2d5016];
   color: #1f2937;
 }
 
@@ -151,11 +12,49 @@ code {
     monospace;
 }
 
+/* Animations */
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes opponentActionPop {
+  from {
+    transform: translateY(-8px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@layer utilities {
+  .grayscale {
+    filter: grayscale(1) saturate(0);
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import styles from './GamePage.module.css'
+import { Toaster, toast } from 'react-hot-toast'
 import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState } from '../types/GameTypes'
 import { normalizeTile, getTileKey } from '../utils/TileUtils'
@@ -24,8 +24,6 @@ export default function GamePage({
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
-  const [opponentActionText, setOpponentActionText] = useState('')
-  const [showOpponentActionModal, setShowOpponentActionModal] = useState(false)
   const [userId, setUserId] = useState('')
   const [isGrayscale, setIsGrayscale] = useState(false)
   const [autoDrawMode, setAutoDrawMode] = useState(false)
@@ -75,22 +73,41 @@ export default function GamePage({
   const triggerOpponentActionModal = React.useCallback((text: string) => {
     if (!text) return
 
+    // Clear any existing timers
     if (opponentActionDelayRef.current !== null) {
       clearTimeout(opponentActionDelayRef.current)
       opponentActionDelayRef.current = null
     }
-    if (opponentActionHideRef.current !== null) {
-      clearTimeout(opponentActionHideRef.current)
-      opponentActionHideRef.current = null
-    }
 
-    setShowOpponentActionModal(false)
+    // Schedule toast with 500ms delay
     opponentActionDelayRef.current = window.setTimeout(() => {
-      setOpponentActionText(text)
-      setShowOpponentActionModal(true)
-      opponentActionHideRef.current = window.setTimeout(() => {
-        setShowOpponentActionModal(false)
-      }, 1500)
+      toast.custom(
+        (t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-in' : 'animate-out'
+            } flex items-center justify-center px-8 py-6 bg-white border-4 border-[#1a2e0a] rounded-lg shadow-2xl whitespace-nowrap`}
+            style={{
+              animation: t.visible ? 'opponentActionPop 0.2s ease-out' : 'fadeOut 0.3s ease-out',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '120px',
+                fontWeight: 'bold',
+                color: '#000000',
+                lineHeight: '1',
+              }}
+            >
+              {text}
+            </span>
+          </div>
+        ),
+        {
+          duration: 1500,
+          position: 'top-center',
+        }
+      )
     }, 500)
   }, [])
 
@@ -118,6 +135,13 @@ export default function GamePage({
       || prevState.players?.find((player) => player.userId !== currentUserId)
 
     if (!opponent) return ''
+
+    // Check for riichi
+    const prevRiichi = prevState.riichi?.[opponent.userId]
+    const nextRiichi = nextState.riichi?.[opponent.userId]
+    if (!prevRiichi && nextRiichi) {
+      return `${opponent.playerName || '相手'}のリーチ`
+    }
 
     const prevMelds = (prevState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
     const nextMelds = (nextState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
@@ -455,9 +479,6 @@ export default function GamePage({
       }
       if (opponentActionDelayRef.current !== null) {
         clearTimeout(opponentActionDelayRef.current)
-      }
-      if (opponentActionHideRef.current !== null) {
-        clearTimeout(opponentActionHideRef.current)
       }
     }
   }, [])
@@ -914,50 +935,27 @@ export default function GamePage({
     const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
 
     return (
-      <div className={styles.container}>
-        <div className={styles.card}>
-          <div style={{ padding: '20px', textAlign: 'center' }}>
-            <p style={{ fontSize: '18px', marginBottom: '20px' }}>ゲームに接続中...</p>
-            <div style={{ marginBottom: '15px', fontSize: '14px', fontWeight: 'bold', color: '#2c5f2d' }}>
+      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
+        <div className="bg-[#2d5016] border-4 border-white shadow-xl p-10 w-full max-w-2xl">
+          <div className="p-5 text-center">
+            <p className="text-lg mb-5">ゲームに接続中...</p>
+            <div className="mb-4 text-sm font-bold text-green-600">
               最新イベント: {lastLog}
             </div>
-            <div style={{
-              textAlign: 'left',
-              color: '#666',
-              fontSize: '12px',
-              background: '#f5f5f5',
-              padding: '10px',
-              borderRadius: '4px',
-              marginBottom: '10px',
-              fontFamily: 'monospace',
-              maxHeight: '200px',
-              overflow: 'auto'
-            }}>
+            <div className="text-left text-gray-600 text-xs bg-gray-100 p-2 rounded mb-2 font-mono max-h-48 overflow-auto">
               <div><strong>プレイヤー:</strong> {playerName}</div>
               <div><strong>ルーム:</strong> {roomId}</div>
               <div><strong>エラー:</strong> {error || 'なし'}</div>
               <div><strong>WebSocket状態:</strong> {wsRef.current?.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)</div>
               <div><strong>gameState:</strong> {gameState === null ? '❌ null（待機中）' : JSON.stringify(gameState, null, 2)}</div>
             </div>
-            <details style={{
-              marginTop: '10px',
-              textAlign: 'left',
-              fontSize: '11px',
-              fontFamily: 'monospace'
-            }}>
-              <summary style={{ cursor: 'pointer', marginBottom: '5px' }}>
+            <details className="mt-2 text-left text-xs font-mono">
+              <summary className="cursor-pointer mb-1">
                 📋 デバッグログ ({debugLogs.length}件)
               </summary>
-              <div style={{
-                background: '#f0f0f0',
-                padding: '5px',
-                borderRadius: '3px',
-                maxHeight: '200px',
-                overflow: 'auto',
-                fontSize: '10px'
-              }}>
+              <div className="bg-gray-100 p-1 rounded max-h-48 overflow-auto text-xs">
                 {debugLogs.map((log: any, idx: number) => (
-                  <div key={idx} style={{ marginBottom: '2px', wordBreak: 'break-word' }}>
+                  <div key={idx} className="mb-0 break-words">
                     {log.message}
                   </div>
                 ))}
@@ -1035,98 +1033,82 @@ export default function GamePage({
   }
 
   return (
-    <div className={`${styles.container} ${isGrayscale ? styles.grayscale : ''}`}>
-      <div className={styles.gameBoard}>
+    <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5 ${isGrayscale ? 'grayscale' : ''}`}>
+      <Toaster position="top-center" reverseOrder={false} />
+      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-8 w-full max-w-[800px] max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className={styles.header}>
+        <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-white">
           <div>
-            <h1>ルームID: {roomId}</h1>
-            <p>ステータス: {gameState.status} | userId: {userId}</p>
+            <h1 className="text-2xl text-[#ffffff] font-bold m-0">ルームID: {roomId}</h1>
+            <p className="text-gray-300 text-sm m-0">ステータス: {gameState.status} | userId: {userId}</p>
           </div>
-          <div className={styles.headerButtons}>
+          <div className="flex gap-2 items-center">
             {/* CPU追加ボタン（待機中のみ表示） */}
             {gameState.status === 'waiting' && gameState.players.length < 2 && (
               <button
                 onClick={handleAddCPU}
                 disabled={isAddingCPU}
-                className={styles.cpuButton}
-                style={{
-                  marginRight: '10px',
-                  padding: '8px 16px',
-                  backgroundColor: isAddingCPU ? '#ccc' : '#FF9800',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: isAddingCPU ? 'not-allowed' : 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '14px',
-                }}
+                className={`mr-2 px-4 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
               >
                 {isAddingCPU ? 'CPU追加中...' : '🤖 CPU追加'}
               </button>
             )}
             <button
               onClick={() => setIsGrayscale((prev) => !prev)}
-              className={styles.toggleButton}
+              className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
             >
               {isGrayscale ? '彩度ON' : '彩度OFF'}
             </button>
-            <button onClick={onBack} className={styles.backButton}>
+            <button onClick={onBack} className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
               戻る
             </button>
           </div>
         </div>
 
-        {showOpponentActionModal && (
-          <div className={styles.opponentActionOverlay} role="dialog" aria-live="polite">
-            <div className={styles.opponentActionModal}>{opponentActionText}</div>
-          </div>
-        )}
-
         {/* Toast Notification - Server Messages */}
         {error && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '16px 20px',
-            backgroundColor: '#f44336',
-            color: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(244, 67, 54, 0.3)',
-            zIndex: 1001,
-            maxWidth: '400px',
-            animation: 'slideIn 0.3s ease-out',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}>
+          <div className="fixed top-5 right-5 p-5 bg-red-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
             {error}
           </div>
         )}
         {message && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '16px 20px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
-            zIndex: 1001,
-            maxWidth: '400px',
-            animation: 'slideIn 0.3s ease-out',
-            fontSize: '14px',
-            fontWeight: '500'
-          }}>
+          <div className="fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
             {message}
           </div>
         )}
 
+        {/* Test Button - Display Opponent Action Modal */}
+        <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center">
+          <button
+            onClick={() => triggerOpponentActionModal('ロン')}
+            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+          >
+            ロン表示テスト
+          </button>
+          <button
+            onClick={() => triggerOpponentActionModal('ツモ')}
+            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+          >
+            ツモ表示テスト
+          </button>
+          <button
+            onClick={() => triggerOpponentActionModal('ポン')}
+            className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+          >
+            ポン表示テスト
+          </button>
+          <button
+            onClick={() => triggerOpponentActionModal('リーチ')}
+            className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+          >
+            リーチ表示テスト
+          </button>
+        </div>
+
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
-          <div className={styles.gameContent}>
-            <p className={isYourTurn ? styles.yourTurn : styles.waitingTurn}>
+          <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
+            <p className={`text-lg mb-5 font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
               {gameState.status === 'finished'
                 ? 'ゲーム終了'
                 : (isYourTurn ? 'あなたの番です' : '相手の番です')
@@ -1140,7 +1122,7 @@ export default function GamePage({
                 {otherPlayer?.isCPU && (
                   <button
                     onClick={() => setShowOpponentHand(!showOpponentHand)}
-                    className={`px-3 py-1 text-white border-none rounded text-xs font-bold transition-colors ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
+                    className={`px-3 py-1 text-[#ffffff] border-none rounded text-xs font-bold transition-colors ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
                   >
                     {showOpponentHand ? '👁️ 手牌を隠す' : '👁️ 手牌を見る'}
                   </button>
@@ -1351,7 +1333,7 @@ export default function GamePage({
             </div>
 
             {/* Hand display with tile images and actions - unified horizontal layout */}
-            <div className={styles.playerHandDock}>
+            <div className="w-full px-5 py-4 border-t-4 border-white bg-[#2d5016] max-h-[35vh] overflow-y-auto">
               <div className="flex flex-row gap-4 items-start min-h-24">
                 {/* Hand tiles section */}
                 <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
@@ -1569,7 +1551,7 @@ export default function GamePage({
                     {canDraw && (
                       <button
                         onClick={() => sendAction({ type: 'draw' })}
-                        className="px-3 py-2 bg-gray-500 text-white text-xs font-bold border-2 border-gray-600 rounded cursor-pointer transition-all hover:bg-gray-600"
+                        className="px-3 py-2 bg-gray-500 text-[#ffffff] text-xs font-bold border-2 border-gray-600 rounded cursor-pointer transition-all hover:bg-gray-600"
                       >
                         牌を引く
                       </button>
@@ -1577,7 +1559,7 @@ export default function GamePage({
                     {canPung && (
                       <button
                         onClick={() => sendAction({ type: 'pung' })}
-                        className="px-3 py-2 bg-cyan-600 text-white text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
+                        className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
                       >
                         ポン
                       </button>
@@ -1585,7 +1567,7 @@ export default function GamePage({
                     {canRon && (
                       <button
                         onClick={() => sendAction({ type: 'ron' })}
-                        className="px-3 py-2 bg-yellow-600 text-white text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
+                        className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
                       >
                         ロン
                       </button>
@@ -1593,7 +1575,7 @@ export default function GamePage({
                     {canWin && (
                       <button
                         onClick={() => sendAction({ type: 'win' })}
-                        className="px-3 py-2 bg-green-600 text-white text-xs font-bold border-2 border-green-700 rounded cursor-pointer transition-all hover:bg-green-700"
+                        className="px-3 py-2 bg-green-600 text-[#ffffff] text-xs font-bold border-2 border-green-700 rounded cursor-pointer transition-all hover:bg-green-700"
                       >
                         ツモ
                       </button>
@@ -1664,13 +1646,13 @@ export default function GamePage({
               <div className="mt-2 flex gap-3 items-center justify-center flex-wrap">
                 <button
                   onClick={() => toggleAutoDrawMode(!autoDrawMode)}
-                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-white border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
                 >
                   自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
                 </button>
                 <button
                   onClick={() => toggleNoMeldMode(!noMeldMode)}
-                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-white border-red-700' : 'bg-white text-red-600 border-red-600'}`}
+                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
                 >
                   鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
                 </button>
@@ -1692,17 +1674,17 @@ export default function GamePage({
           </div>
         ) : gameState.status === 'gameOver' ? (
           // Game Over - Don't show game content, only show final results modal
-          <div className={styles.gameContent} style={{ minHeight: '200px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
+          <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5 gap-2">
             <p>最終結果を表示中...</p>
-            <p style={{ fontSize: '12px', color: '#666' }}>
+            <p className="text-xs text-gray-600">
               finalResults: {finalResults ? `${finalResults.length}局` : 'null/undefined'}
             </p>
-            <p style={{ fontSize: '12px', color: '#666' }}>
+            <p className="text-xs text-gray-600">
               コンソールでデバッグログを確認してください
             </p>
           </div>
         ) : (
-          <div className={styles.gameContent}>
+          <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
             <p>ゲーム開始を待機中...</p>
           </div>
         )}

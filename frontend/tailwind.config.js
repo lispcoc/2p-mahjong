@@ -18,6 +18,9 @@ module.exports = {
           muted: '#6c757d',
         }
       },
+      fontSize: {
+        '10xl': ['120px', { lineHeight: '1' }],
+      },
       animation: {
         pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
