@@ -89,6 +89,7 @@ export default function GamePage({
   const opponentResultDelayRef = useRef<number | null>(null)
   const userIdRef = useRef('')
   const gameStateRef = useRef<GameState | null>(null)
+  const tilesRef = useRef<Record<string, any>>({})  // ゲーム状態の tiles を保持
 
   useEffect(() => {
     onBackRef.current = onBack
@@ -101,6 +102,13 @@ export default function GamePage({
   useEffect(() => {
     gameStateRef.current = gameState
   }, [gameState])
+
+  useEffect(() => {
+    // gameState の tiles を保存しておき、gameFinished 時に使用する
+    if (gameState?.tiles) {
+      tilesRef.current = gameState.tiles
+    }
+  }, [gameState?.tiles])
 
   const triggerOpponentActionModal = React.useCallback((text: string) => {
     if (!text) return
@@ -305,6 +313,7 @@ export default function GamePage({
         setLastWinnerHand([])
         setLastWinnerMelds([])
         setNextRoundReady(false)
+        tilesRef.current = {}  // tiles キャッシュをリセット
         setRiichiMode(false)
         setTenpaiInfoMap({})
         if (opponentResultDelayRef.current !== null) {
@@ -373,6 +382,20 @@ export default function GamePage({
       case 'gameFinished':
         debugLog(`🏁 Game finished`)
         console.log('🏁 Game finished', payload)
+        console.log('🏁 payload.tiles keys:', Object.keys(payload.tiles || {}))
+        console.log('🏁 payload.tiles has winnerId:', payload.tiles && payload.winner in payload.tiles)
+        console.log('🏁 payload.finalResults:', payload.finalResults)
+        console.log('🏁 payload.finalResults detailed:', JSON.stringify(payload.finalResults, null, 2))
+        
+        // finalResults から winner の hand 情報を取得
+        const winnerDataFromFinalResults = payload.finalResults?.find((result: any) => result.userId === payload.winner)
+        console.log('🏁 Winner data from finalResults (by userId):', winnerDataFromFinalResults)
+        
+        // もし userId で見つからなければ、finalResults[0] を確認
+        if (!winnerDataFromFinalResults && payload.finalResults?.[0]) {
+          console.log('🏁 finalResults[0] keys:', Object.keys(payload.finalResults[0]))
+          console.log('🏁 finalResults[0]:', JSON.stringify(payload.finalResults[0], null, 2))
+        }
 
         const winnerId = payload.winner || null
         setLastWinnerId(winnerId)
@@ -380,6 +403,8 @@ export default function GamePage({
         const opponentWon = winnerId && winnerId !== userIdRef.current
         const isOpponentRonTsumo = opponentWon && /ロン|ツモ/.test(payload.winType || '')
         const resultDelayMs = isOpponentRonTsumo ? 2000 : 0
+        
+        console.log('🏁 gameFinished - opponentWon:', opponentWon, 'isOpponentRonTsumo:', isOpponentRonTsumo, 'resultDelayMs:', resultDelayMs)
 
         if (opponentWon && isOpponentRonTsumo) {
           const winnerName = gameStateRef.current?.players?.find((p) => p.userId === winnerId)?.playerName || '相手'
@@ -406,63 +431,124 @@ export default function GamePage({
           // 最終局の場合はまずスコア結果を表示し、ボタン押下で最終結果を表示する
           setFinalResults(payload.finalResults)
           setShowFinalResults(false)
-          // スコア結果は下の分岐で setScoreResult される
-        } else {
-          // 点数計算結果を保存
-          if (payload.scoreResult) {
-            // scoreResultがある場合は、winType情報を追加し、isDraw を false に設定
-            const resultToShow = {
-              ...payload.scoreResult,
-              winType: payload.winType || '',
-              isDraw: false  // ロン・ツモなど実際の和了は流局ではない
-            }
-            scheduleOpponentResultDisplay(() => {
-              setScoreResult(resultToShow)
-            }, resultDelayMs)
-          } else if (payload.winner) {
-            // 勝者がいる場合は実際の和了（scoreResult がなくても）
-            const resultToShow = {
-              valid: true,
-              score: 0,
-              han: 0,
-              fu: 0,
-              scoreType: payload.winType || '和了',
-              yaku: [],
-              isDraw: false,  // 勝者がいるなら和了
-              winType: payload.winType || ''
-            }
-            scheduleOpponentResultDisplay(() => {
-              setScoreResult(resultToShow)
-            }, resultDelayMs)
-          } else if (!payload.gameOver) {
-            // 勝者もいない場合のみ、流局などの結果として簡易情報を作成
-            const resultToShow = {
-              valid: true,
-              score: 0,
-              han: 0,
-              fu: 0,
-              scoreType: payload.winType || 'ゲーム終了',
-              yaku: [],
-              isDraw: true,  // 流局・引き分けフラグ
-            }
-            scheduleOpponentResultDisplay(() => {
-              setScoreResult(resultToShow)
-            }, resultDelayMs)
+          // スコア結果は以下で処理される
+        }
+        
+        // gameOver の有無に関わらず scoreResult を処理
+        if (payload.scoreResult) {
+          // scoreResultがある場合は、winType情報を追加し、isDraw を false に設定
+          const resultToShow = {
+            ...payload.scoreResult,
+            winType: payload.winType || '',
+            isDraw: false  // ロン・ツモなど実際の和了は流局ではない
           }
-          // 自動進行はバックエンドに任せる（両プレイヤーが準備完了したら自動的にgameStartedが来る）
+          console.log('🏁 scoreResult がある: resultToShow=', resultToShow, 'resultDelayMs=', resultDelayMs)
+          scheduleOpponentResultDisplay(() => {
+            console.log('🏁 setScoreResult 実行:', resultToShow)
+            setScoreResult(resultToShow)
+          }, resultDelayMs)
+        } else if (payload.winner) {
+          // 勝者がいる場合は実際の和了（scoreResult がなくても）
+          const resultToShow = {
+            valid: true,
+            score: 0,
+            han: 0,
+            fu: 0,
+            scoreType: payload.winType || '和了',
+            yaku: [],
+            isDraw: false,  // 勝者がいるなら和了
+            winType: payload.winType || ''
+          }
+          scheduleOpponentResultDisplay(() => {
+            setScoreResult(resultToShow)
+          }, resultDelayMs)
+        } else if (!payload.gameOver) {
+          // 勝者もいない場合のみ、流局などの結果として簡易情報を作成
+          const resultToShow = {
+            valid: true,
+            score: 0,
+            han: 0,
+            fu: 0,
+            scoreType: payload.winType || 'ゲーム終了',
+            yaku: [],
+            isDraw: true,  // 流局・引き分けフラグ
+          }
+          scheduleOpponentResultDisplay(() => {
+            setScoreResult(resultToShow)
+          }, resultDelayMs)
         }
 
         // gameStateを使って勝者名を取得してからメッセージを設定
         setGameState((prevState) => {
-          if (winnerId && prevState?.tiles?.[winnerId]) {
-            const winnerTiles = prevState.tiles[winnerId]
+          console.log('勝者データ取得開始:', { winnerId, prevState_exists: !!prevState, tiles_exists: !!prevState?.tiles, winner_tiles_exists: !!prevState?.tiles?.[winnerId], tilesRef_exists: !!tilesRef.current?.[winnerId] })
+          
+          // prevState.tiles または tilesRef.current から winner の tiles を取得
+          const winnerTilesSource = prevState?.tiles?.[winnerId] || tilesRef.current?.[winnerId]
+          
+          if (winnerId && winnerTilesSource) {
+            const winnerTiles = winnerTilesSource
+            console.log('winnerTiles:', winnerTiles)
+            console.log('winnerTiles.hand:', winnerTiles?.hand)
+            console.log('winnerTiles.drawnTile:', winnerTiles?.drawnTile)
             const winnerHand = (winnerTiles?.hand || []).map((tile: any) => normalizeTile(tile))
             const winnerMelds = ((winnerTiles?.melds as Array<Array<Tile | string>>) || [])
               .map((meld) => meld.map((tile) => normalizeTile(tile)))
-            const winnerDrawn = winnerTiles?.drawnTile ? normalizeTile(winnerTiles.drawnTile) : null
-            setLastWinnerHand(winnerDrawn ? [...winnerHand, winnerDrawn] : winnerHand)
+            
+            // ロン時は scoreResult.winningTile、ツモ時は scoreResult.winningTile または hand[drawnTileIndex] を使用
+            let winnerDrawn = null
+            const isRon = payload.winType && payload.winType.includes('ロン')
+            if (payload.scoreResult?.winningTile) {
+              winnerDrawn = normalizeTile(payload.scoreResult.winningTile)
+              console.log((isRon ? 'ロン' : 'ツモ') + ': scoreResult.winningTile から取得:', winnerDrawn)
+            } else if (winnerTiles?.drawnTileIndex !== undefined && winnerHand[winnerTiles.drawnTileIndex]) {
+              // ツモ時は drawnTileIndex から和了牌を取得
+              winnerDrawn = winnerHand[winnerTiles.drawnTileIndex]
+              console.log('ツモ: hand[drawnTileIndex] から取得:', winnerDrawn, 'index:', winnerTiles.drawnTileIndex)
+            } else if (winnerHand.length > 0) {
+              // それでもない場合は hand の最後の牌を和了牌として使用
+              winnerDrawn = winnerHand[winnerHand.length - 1]
+              console.log('デフォルト: hand の最後の牌を使用:', winnerDrawn)
+            }
+            
+            console.log('winnerHand:', winnerHand, 'winnerDrawn:', winnerDrawn)
+            setLastWinnerHand(winnerDrawn ? [...winnerHand.slice(0, -1), winnerDrawn] : winnerHand)
             setLastWinnerMelds(winnerMelds)
+          } else if (winnerId && payload.finalResults) {
+            // payload.finalResults から winner の hand を取得
+            const winnerDataFromFinalResults = payload.finalResults.find((result: any) => result.winner === winnerId)
+            console.log('finalResults から winner を検索:', { winnerId, winnerDataFromFinalResults })
+            console.log('finalResults[0] の keys:', Object.keys(payload.finalResults[0] || {}))
+            
+            if (winnerDataFromFinalResults) {
+              // finalResults に hand があれば使用、なければ別の方法を検討
+              const winnerHand = winnerDataFromFinalResults.hand 
+                ? (winnerDataFromFinalResults.hand || []).map((tile: any) => normalizeTile(tile))
+                : []
+              const winnerMelds = winnerDataFromFinalResults.melds
+                ? ((winnerDataFromFinalResults.melds as Array<Array<Tile | string>>) || [])
+                  .map((meld) => meld.map((tile) => normalizeTile(tile)))
+                : []
+              
+              console.log('finalResults から取得した winnerHand:', winnerHand, 'winnerMelds:', winnerMelds)
+              
+              // winningTile がある場合は和了牌として追加
+              let winningTile = null
+              if (payload.scoreResult?.winningTile) {
+                winningTile = normalizeTile(payload.scoreResult.winningTile)
+              }
+              
+              if (winningTile && winnerHand.length > 0) {
+                setLastWinnerHand([...winnerHand, winningTile])
+              } else {
+                setLastWinnerHand(winnerHand)
+              }
+              setLastWinnerMelds(winnerMelds)
+            } else {
+              setLastWinnerHand([])
+              setLastWinnerMelds([])
+            }
           } else {
+            console.log('勝者データなし - winnerId=' + winnerId + ', prevState=' + !!prevState + ', tiles=' + !!prevState?.tiles)
             setLastWinnerHand([])
             setLastWinnerMelds([])
           }
@@ -481,6 +567,7 @@ export default function GamePage({
             roundName: payload.roundName ?? prevState.roundName,
             dealerId: payload.dealerId ?? prevState.dealerId,
             seatWinds: payload.seatWinds ?? prevState.seatWinds,
+            tiles: payload.tiles ?? prevState.tiles,
             nextRoundReadyCount: payload.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers,
           } : prevState
@@ -635,7 +722,7 @@ export default function GamePage({
     ws.onmessage = (event) => {
       try {
         debugLog(`📥 Raw message received (${event.data.length} bytes)`)
-        console.log('📥 Raw WebSocket message received:', event.data)
+        //console.log('📥 Raw WebSocket message received:', event.data)
         const data = JSON.parse(event.data)
         debugLog(`📨 Parsed message type: ${data.type}`)
         handleMessage(data)
@@ -691,8 +778,8 @@ export default function GamePage({
     console.log(`🔍 Checking tenpai locally for tile index ${tileIndex}`)
     const hand = gameState?.tiles?.[userId]?.hand || []
     const melds = gameState?.tiles?.[userId]?.melds || []
-    console.log(`  Current hand:`, hand)
-    console.log(`  Current melds:`, melds)
+    //console.log(`  Current hand:`, hand)
+    //console.log(`  Current melds:`, melds)
 
     if (hand.length === 0) {
       setTenpaiInfo({ isTenpai: false, winningTiles: [] })
@@ -701,7 +788,7 @@ export default function GamePage({
 
     // クライアント側で聴牌判定を実行
     const result = TenpaiChecker.checkTenpaiAfterDiscard(hand, tileIndex, melds)
-    console.log(`  Tenpai result:`, result)
+    //console.log(`  Tenpai result:`, result)
     setTenpaiInfo(result)
   }, [gameState, userId])
 
@@ -717,12 +804,12 @@ export default function GamePage({
       const melds = gameState?.tiles?.[userId]?.melds || []
 
       if (hand.length > 0) {
-        console.log('🔍 Computing all tenpai checks locally...')
-        console.log('  Hand:', hand.map((t: any, i: number) => `[${i}]${t.display}`).join(' '))
-        console.log('  Melds:', melds.length)
+        //console.log('🔍 Computing all tenpai checks locally...')
+        //console.log('  Hand:', hand.map((t: any, i: number) => `[${i}]${t.display}`).join(' '))
+        //console.log('  Melds:', melds.length)
         const results = TenpaiChecker.checkAllTenpai(hand, melds)
-        console.log('🔍 All tenpai results:', results)
-        console.log('🔍 Tenpai tiles count:', Object.values(results).filter((r: any) => r.isTenpai).length)
+        //console.log('🔍 All tenpai results:', results)
+        //console.log('🔍 Tenpai tiles count:', Object.values(results).filter((r: any) => r.isTenpai).length)
         setTenpaiInfoMap(results)
       }
     }

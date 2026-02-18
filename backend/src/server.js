@@ -567,6 +567,7 @@ function handleAction(ws, payload) {
       const scoreResult = result.scoreResult || latestRound?.scoreResult || null;
       const isDraw = result.isDraw === true || latestRound?.isDraw === true || false;
 
+      const gameState = room.getGameState();
       const finishedPayload = {
         winner: room.getWinner(),
         scores: room.getScores(),
@@ -581,6 +582,7 @@ function handleAction(ws, payload) {
         seatWinds: room.buildSeatWinds(room.playerOrder),
         nextRoundReadyCount: room.getNextRoundReadyCount(),
         totalPlayers: room.players.size,
+        tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
       };
 
       // ゲームオーバー（誰かの点数がマイナス）の場合
@@ -775,6 +777,7 @@ function executeCPUTurnIfNeeded(room) {
           const isDraw = room.lastResult?.isDraw === true || latestRound?.isDraw === true || false;
           console.log(`[🔵 CPU CALLBACK] [DEBUG] Final isDraw = ${isDraw}`);
 
+          const gameState = room.getGameState();
           finishedPayload = {
             winner: room.getWinner(),
             scores: room.getScores(),
@@ -789,6 +792,7 @@ function executeCPUTurnIfNeeded(room) {
             seatWinds: room.buildSeatWinds(room.playerOrder),
             nextRoundReadyCount: room.getNextRoundReadyCount(),
             totalPlayers: room.players.size,
+            tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
           };
           
           if (room.isGameOver()) {

@@ -96,10 +96,22 @@ export function ScoreResultModal({
                   ))}
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap' }}>
-                {winnerHand.map((tile, idx) => (
+              <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {winnerHand.slice(0, winnerHand.length - 1).map((tile, idx) => (
                   <TileImage key={`winner-hand-${idx}`} tile={tile} />
                 ))}
+                {/* 和了牌を右端にスペースを空けて表示 */}
+                {scoreResult.winningTile && (
+                  <span style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                    <TileImage tile={scoreResult.winningTile} />
+                  </span>
+                )}
+                {/* winningTileがなければ最後の牌を和了牌として表示 */}
+                {!scoreResult.winningTile && winnerHand.length > 0 && (
+                  <span style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                    <TileImage tile={winnerHand[winnerHand.length - 1]} />
+                  </span>
+                )}
               </div>
             </div>
           </div>
