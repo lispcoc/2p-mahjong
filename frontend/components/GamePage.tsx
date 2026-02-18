@@ -66,6 +66,10 @@ export default function GamePage({
   const [lastWinnerMelds, setLastWinnerMelds] = useState<Tile[][]>([])
   const [autoDiscardTimeLeft, setAutoDiscardTimeLeft] = useState<number | null>(null) // 自動ツモ切りまでの残り時間
   const [pendingPungTimeLeft, setPendingPungTimeLeft] = useState<number | null>(null) // ポン待ち自動引きまでの残り時間
+  // タイマー一時停止用
+  const [isTimerPaused, setIsTimerPaused] = useState(false)
+  const pausedAutoDiscardTimeLeft = useRef<number | null>(null)
+  const pausedPendingPungTimeLeft = useRef<number | null>(null)
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
   const wsRef = useRef<WebSocket | null>(null)
@@ -848,6 +852,24 @@ export default function GamePage({
       return;
     }
 
+    if (isTimerPaused) {
+      // タイマー一時停止時は現在の残り秒数を保存し、interval/timeoutを止める
+      if (pendingPungIntervalRef.current !== null) {
+        clearInterval(pendingPungIntervalRef.current);
+        pendingPungIntervalRef.current = null;
+      }
+      if (autoDiscardIntervalRef.current !== null) {
+        clearInterval(autoDiscardIntervalRef.current);
+        autoDiscardIntervalRef.current = null;
+      }
+      // 残り時間をrefに保存
+      pausedAutoDiscardTimeLeft.current = autoDiscardTimeLeft;
+      pausedPendingPungTimeLeft.current = pendingPungTimeLeft;
+      return;
+    }
+
+    // ...existing code (元のタイマー処理をここにそのまま残す)...
+    // ここから下は元のタイマー処理
     const isYourTurn = gameState.currentTurn === userId;
     const drawnTileIndex = isYourTurn
       ? (gameState.tiles?.[userId]?.drawnTileIndex ?? -1)
@@ -889,8 +911,9 @@ export default function GamePage({
 
     // Handle pending pung waiting - auto-draw after 10 seconds (unless in no-meld mode)
     if (canPung && !isNoMeldMode) {
-      // Start countdown from 10 seconds
-      setPendingPungTimeLeft(10);
+      // Start countdown from 10秒 or 一時停止復帰時は残り秒数から
+      setPendingPungTimeLeft(pausedPendingPungTimeLeft.current ?? 10);
+      pausedPendingPungTimeLeft.current = null;
 
       // Update countdown every second
       const interval = window.setInterval(() => {
@@ -909,7 +932,7 @@ export default function GamePage({
         console.log('⏱️ Auto-drawing after pending pung timeout');
         sendAction({ type: 'draw' });
         setPendingPungTimeLeft(null);
-      }, 10000);
+      }, (pausedPendingPungTimeLeft.current ?? 10) * 1000);
 
       return () => {
         clearTimeout(timer);
@@ -957,8 +980,9 @@ export default function GamePage({
 
     // Set timer if player needs to discard (10 second fallback)
     if (!autoDrawMode && canDiscard && drawnTileIndex >= 0) {
-      // Start countdown from 10 seconds
-      setAutoDiscardTimeLeft(10);
+      // Start countdown from 10秒 or 一時停止復帰時は残り秒数から
+      setAutoDiscardTimeLeft(pausedAutoDiscardTimeLeft.current ?? 10);
+      pausedAutoDiscardTimeLeft.current = null;
 
       // Update countdown every second
       const interval = window.setInterval(() => {
@@ -979,7 +1003,7 @@ export default function GamePage({
           sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
         }
         setAutoDiscardTimeLeft(null);
-      }, 10000);
+      }, (pausedAutoDiscardTimeLeft.current ?? 10) * 1000);
 
       return () => {
         clearTimeout(timer);
@@ -996,7 +1020,7 @@ export default function GamePage({
         autoDiscardIntervalRef.current = null;
       }
     }
-  }, [gameState, userId, autoDrawMode, sendAction]);
+  }, [gameState, userId, autoDrawMode, sendAction, isTimerPaused]);
 
   if (!gameState) {
     const debugLogs = JSON.parse(localStorage.getItem('debugLogs') || '[]')
@@ -1571,13 +1595,7 @@ export default function GamePage({
 
               {/* Action buttons section - compact vertical layout */}
               {isYourTurn && gameState.status === 'playing' && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                  flexShrink: 0,
-                  width: '105px'
-                }}>
+                <div className='w-full flex gap-8 justify-end'>
                   {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
                   {isRiichi && drawnTileIndex >= 0 && canWin && (
                     <button
@@ -1718,23 +1736,23 @@ export default function GamePage({
               </p>
             </div>
 
-            {/* Test Button - Display Opponent Action Modal */}
-            <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center">
+            {/* Test Button - Display Opponent Action Modal & Timer Pause */}
+            <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center flex flex-wrap gap-2 justify-center items-center">
               <button
                 onClick={() => triggerOpponentActionModal('ロン')}
-                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+                className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
               >
                 ロン表示テスト
               </button>
               <button
                 onClick={() => triggerOpponentActionModal('ツモ')}
-                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+                className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
               >
                 ツモ表示テスト
               </button>
               <button
                 onClick={() => triggerOpponentActionModal('ポン')}
-                className="mr-2 px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+                className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
               >
                 ポン表示テスト
               </button>
@@ -1743,6 +1761,13 @@ export default function GamePage({
                 className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
               >
                 リーチ表示テスト
+              </button>
+              <button
+                onClick={() => setIsTimerPaused((prev) => !prev)}
+                className={`px-4 py-2 font-bold rounded transition-all ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-white text-blue-700 border-2 border-blue-700'}`}
+                style={{ minWidth: '120px' }}
+              >
+                {isTimerPaused ? '▶ タイマー再開' : '⏸ タイマー一時停止'}
               </button>
             </div>
 
