@@ -157,23 +157,23 @@ export default function GamePage({
     const prevRiichi = prevState.riichi?.[opponent.userId]
     const nextRiichi = nextState.riichi?.[opponent.userId]
     if (!prevRiichi && nextRiichi) {
-      return `${opponent.playerName || '相手'}のリーチ`
+      return `リーチ`
     }
 
     const prevMelds = (prevState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
     const nextMelds = (nextState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
 
     if (nextMelds.length > prevMelds.length) {
-      return `${opponent.playerName || '相手'}のポン`
+      return `ポン`
     }
 
     return ''
   }, [])
 
   const getOpponentWinText = React.useCallback((winType: string, winnerName: string) => {
-    if (winType.includes('ツモ')) return `${winnerName}のツモ`
-    if (winType.includes('ロン')) return `${winnerName}のロン`
-    return `${winnerName}の和了`
+    if (winType.includes('ツモ')) return `ツモ`
+    if (winType.includes('ロン')) return `ロン`
+    return `和了`
   }, [])
 
   const clearInvalidSession = React.useCallback(() => {
