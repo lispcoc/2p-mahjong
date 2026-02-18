@@ -1167,7 +1167,7 @@ export default function GamePage({
 
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
-          <div className="p-2 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center">
+          <div className="p-1 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center">
             <p className={`max-sm:hidden text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
               {gameState.status === 'finished'
                 ? 'ゲーム終了'
@@ -1845,15 +1845,6 @@ export default function GamePage({
             overflow: 'auto',
             boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
           }}>
-            <h2 style={{
-              marginTop: 0,
-              color: '#d32f2f',
-              textAlign: 'center',
-              fontSize: '24px',
-              marginBottom: '20px',
-            }}>
-              🏁 ゲーム終了
-            </h2>
 
             {/* Score History Table */}
             <div style={{
@@ -1886,13 +1877,6 @@ export default function GamePage({
                         {player.playerName}
                       </th>
                     ))}
-                    <th style={{
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      fontWeight: 'bold',
-                      fontSize: '14px',
-                      textAlign: 'center',
-                    }}>結果</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1932,14 +1916,6 @@ export default function GamePage({
                             </td>
                           );
                         })}
-                        <td style={{
-                          padding: '10px',
-                          border: '1px solid #ddd',
-                          textAlign: 'center',
-                          fontSize: '13px',
-                        }}>
-                          {round.winType}
-                        </td>
                       </tr>
                     );
                   })}
@@ -1972,12 +1948,6 @@ export default function GamePage({
                         </td>
                       );
                     })}
-                    <td style={{
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      textAlign: 'center',
-                    }}>
-                    </td>
                   </tr>
                 </tbody>
               </table>
