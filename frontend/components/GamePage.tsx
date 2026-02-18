@@ -1127,7 +1127,7 @@ export default function GamePage({
   return (
     <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-[800px] max-h-[70vh] sm:max-h-[75vh] overflow-y-auto">
+      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl h-[calc(100vh-16rem)] sm:max-h-[75vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="text-white font-bold text-lg">
@@ -1160,7 +1160,7 @@ export default function GamePage({
           </div>
         )}
         {message && (
-          <div className="fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
+          <div className="max-sm:hidden fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
             {message}
           </div>
         )}
@@ -1168,12 +1168,33 @@ export default function GamePage({
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
           <div className="p-2 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center">
-            <p className={`text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
+            <p className={`max-sm:hidden text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
               {gameState.status === 'finished'
                 ? 'ゲーム終了'
                 : (isYourTurn ? 'あなたの番です' : '相手の番です')
               }
             </p>
+
+            {/* Game Info Center */}
+            {/* Current Round */}
+            <div className="sm:hidden w-full text-center p-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
+              <div className="text-xs font-bold text-green-900">
+                {getRoundLabel(gameState)} /
+                自風 {getSeatWindLabel(gameState, userId)} /
+                残り {gameState.wall || 0}枚
+                <div>
+                  <span className="text-xs text-gray-600">あなた ({playerName}) : </span>
+                  <span className="text-green-600">
+                    {((gameState?.scores?.[userId]) ?? 25000)?.toLocaleString()}
+                  </span>
+                  /
+                  <span className="text-xs text-gray-600">相手 ({otherPlayer?.playerName || '---'}) : </span>
+                  <span className="text-red-500">
+                    {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
+                  </span>
+                </div>
+              </div>
+            </div>
 
             {/* Opponent's Hand */}
             <div className="w-full mb-3 rounded-lg p-3 border-0">
@@ -1191,7 +1212,7 @@ export default function GamePage({
               <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
                 {otherMelds.length > 0 && (
-                  <div className="flex gap-4">
+                  <div className="flex max-sm:flex-col gap-4">
                     {otherMelds.map((meld, meldIdx) => (
                       <div key={`meld-${meldIdx}`} className="flex gap-px">
                         {meld.map((tile, tileIdx) => (
@@ -1219,7 +1240,7 @@ export default function GamePage({
             </div>
 
             {/* Opponent's Discards (Kawa) */}
-            <div className="w-full mb-3 rounded-lg p-3 border border-gray-300">
+            <div className="w-full mb-3 rounded-lg p-1 border border-gray-300 min-h-28">
               <div className="flex items-center gap-3">
                 <div className="flex flex-wrap gap-px">
                   {otherDiscards.length === 0 ? (
@@ -1261,8 +1282,7 @@ export default function GamePage({
             </div>
 
             {/* Game Info Center */}
-            {/* Game Info Center */}
-            <div className="grid sm:grid-cols-5 w-full mb-1 flex justify-start items-stretch gap-1 flex-wrap">
+            <div className="max-sm:hidden grid sm:grid-cols-5 w-full mb-1 flex justify-start items-stretch gap-1 flex-wrap">
               {/* Current Round */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
@@ -1356,7 +1376,7 @@ export default function GamePage({
             </div>
 
             {/* Your Discards (Kawa) */}
-            <div className="w-full mb-3 rounded-lg p-3 border border-gray-300">
+            <div className="w-full mb-3 rounded-lg p-1 border border-gray-300 min-h-28">
               {/* 自分のリーチ棒表示 */}
               {(() => {
                 const isPlayerRiichi = gameState.riichi && gameState.riichi[userId];
@@ -1396,21 +1416,8 @@ export default function GamePage({
               </div>
             </div>
 
-            {/* Copy hand info button */}
-            <div className="mt-4 p-3 border-2 border-blue-700 rounded-lg bg-blue-50 text-center">
-              <button
-                onClick={copyHandInfoToClipboard}
-                className="px-5 py-2 text-sm font-bold border-2 border-blue-700 rounded bg-white text-blue-700 cursor-pointer transition-all hover:bg-blue-50 w-full"
-              >
-                📋 手牌情報をコピー
-              </button>
-              <p className="mt-2 text-xs text-gray-600">
-                現在の手牌と聴牌情報をクリップボードにコピーします
-              </p>
-            </div>
-
             {/* Test Button - Display Opponent Action Modal & Timer Pause */}
-            <div className="mb-5 p-4 bg-blue-600 rounded-lg text-center flex flex-wrap gap-2 justify-center items-center">
+            <div className="hidden mb-5 p-4 bg-blue-600 rounded-lg text-center flex flex-wrap gap-2 justify-center items-center">
               <button
                 onClick={() => triggerOpponentActionModal('ロン')}
                 className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
@@ -1442,6 +1449,12 @@ export default function GamePage({
               >
                 {isTimerPaused ? '▶ タイマー再開' : '⏸ タイマー一時停止'}
               </button>
+              <button
+                onClick={copyHandInfoToClipboard}
+                className="px-5 py-2 text-sm font-bold border-2 border-blue-700 rounded bg-white text-blue-700 cursor-pointer transition-all hover:bg-blue-50"
+              >
+                📋 手牌情報をコピー
+              </button>
             </div>
 
           </div>
@@ -1462,20 +1475,21 @@ export default function GamePage({
           </div>
         )}
 
-        {/* Debug Panel */}
-        <DebugPanel
-          wsReadyState={wsRef.current?.readyState}
-          gameStatus={gameState.status}
-          playersCount={gameState.players?.length || 0}
-          currentTurn={gameState.currentTurn}
-          userId={userId}
-          isYourTurn={isYourTurn}
-          wall={gameState.wall}
-        />
+        <div className="hidden">
+          <DebugPanel
+            wsReadyState={wsRef.current?.readyState}
+            gameStatus={gameState.status}
+            playersCount={gameState.players?.length || 0}
+            currentTurn={gameState.currentTurn}
+            userId={userId}
+            isYourTurn={isYourTurn}
+            wall={gameState.wall}
+          />
+        </div>
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-[800px] p-2 border-t-4 border-white bg-[#2d5016] sm:h-[20vh] overflow-y-auto">
+      <div className="w-full max-w-4xl p-2 border-t-4 border-white bg-[#2d5016] min-h-60 overflow-y-auto">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
@@ -1653,7 +1667,7 @@ export default function GamePage({
             {/* Melds display - positioned to the right */}
             {melds.length > 0 && (
               <div className="flex flex-col items-end flex-shrink-0 gap-2 min-w-max">
-                <div className="flex gap-2 flex-wrap justify-end">
+                <div className="flex max-sm:flex-col gap-2 flex-wrap justify-end">
                   {melds.map((meld: Tile[], idx: number) => (
                     <div key={idx} className="flex gap-px">
                       {meld.map((tile: Tile, tileIdx: number) => (
@@ -1794,6 +1808,23 @@ export default function GamePage({
           >
             鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
           </button>
+          <div className="text-center bg-white rounded-lg border border-gray-300 min-w-24 min-h-8 justify-center">
+            {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 ? (
+              <>
+                <div className={`text-lg font-bold ${pendingPungTimeLeft <= 3 ? 'text-blue-500' : 'text-purple-500'}`}>
+                  {pendingPungTimeLeft}秒
+                </div>
+              </>
+            ) : (
+              <>
+                {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
+                  <div className={`text-lg font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
+                    {autoDiscardTimeLeft}秒
+                  </div>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
