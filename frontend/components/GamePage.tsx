@@ -1127,12 +1127,14 @@ export default function GamePage({
   return (
     <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-8 w-full max-w-[800px] max-h-[80vh] overflow-y-auto">
+      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-2 w-full max-w-[800px] max-h-[75vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-white">
-          <div>
-            <h1 className="text-2xl text-[#ffffff] font-bold m-0">ルームID: {roomId}</h1>
-            <p className="text-gray-300 text-sm m-0">ステータス: {gameState.status} | userId: {userId}</p>
+        <div className="flex justify-between items-center">
+          <div className="text-white font-bold text-lg">
+            ルームID: {roomId} / ステータス: {gameState.status}
+          </div>
+          <div className='hidden'>
+            userId: {userId}
           </div>
           <div className="flex gap-2 items-center">
             {/* CPU追加ボタン（待機中のみ表示） */}
@@ -1145,12 +1147,6 @@ export default function GamePage({
                 {isAddingCPU ? 'CPU追加中...' : '🤖 CPU追加'}
               </button>
             )}
-            <button
-              onClick={() => setIsGrayscale((prev) => !prev)}
-              className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
-            >
-              {isGrayscale ? '彩度ON' : '彩度OFF'}
-            </button>
             <button onClick={onBack} className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
               戻る
             </button>
