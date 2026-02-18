@@ -912,7 +912,7 @@ export default function GamePage({
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:3001/api/rooms/${roomId}/add-cpu`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${roomId}/add-cpu`, {
         method: 'POST',
       })
 

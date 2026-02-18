@@ -93,7 +93,7 @@ export default function Page() {
           // Notify backend to remove the old player
           try {
             const response = await fetch(
-              `http://localhost:3001/api/rooms/${session.roomId}/players/${session.userId}`,
+              `${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${session.roomId}/players/${session.userId}`,
               { method: 'DELETE' }
             )
             if (response.ok) {
