@@ -61,6 +61,8 @@ export default function GamePage({
   const [tenpaiInfoMap, setTenpaiInfoMap] = useState<Record<number, { isTenpai: boolean; winningTiles: any[] }>>({})
   const [nextRoundReady, setNextRoundReady] = useState(false)
   const [finalResults, setFinalResults] = useState<any[] | null>(null)
+  // 最終結果を表示するかどうか
+  const [showFinalResults, setShowFinalResults] = useState(false)
   const [lastWinnerId, setLastWinnerId] = useState<string | null>(null)
   const [lastWinnerHand, setLastWinnerHand] = useState<Tile[]>([])
   const [lastWinnerMelds, setLastWinnerMelds] = useState<Tile[][]>([])
@@ -401,10 +403,10 @@ export default function GamePage({
         console.log('🏁 [DEBUG] gameFinished - payload.gameOver:', payload.gameOver)
         console.log('🏁 [DEBUG] gameFinished - payload.finalResults:', payload.finalResults)
         if (payload.gameOver) {
-          // 最終結果は遅延なしで即座に表示
-          console.log('🏁 [DEBUG] Setting finalResults:', payload.finalResults)
+          // 最終局の場合はまずスコア結果を表示し、ボタン押下で最終結果を表示する
           setFinalResults(payload.finalResults)
-          setMessage('ゲーム終了（誰かの点数がマイナスになりました）')
+          setShowFinalResults(false)
+          // スコア結果は下の分岐で setScoreResult される
         } else {
           // 点数計算結果を保存
           if (payload.scoreResult) {
@@ -1808,174 +1810,38 @@ export default function GamePage({
       </div>
 
       {/* Score Result Modal */}
-      {scoreResult && gameState && (
-        <ScoreResultModal
-          scoreResult={scoreResult}
-          gameState={gameState}
-          nextRoundReady={(gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0}
-          onNextRound={handleNextRound}
-          winnerId={lastWinnerId}
-          winnerHand={lastWinnerHand}
-          winnerMelds={lastWinnerMelds}
-        />
-      )}
-
-      {/* Final Results Modal (Game Over) */}
-      {console.log('🏁 [DEBUG] Rendering - finalResults:', finalResults, 'gameState.status:', gameState?.status)}
-      {finalResults && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 2000,
-        }}>
-          <div style={{
-            backgroundColor: '#fff',
-            padding: '25px',
-            borderRadius: '12px',
-            maxWidth: '90vw',
-            width: '1000px',
-            maxHeight: '90vh',
-            overflow: 'auto',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-          }}>
-
-            {/* Score History Table */}
-            <div style={{
-              marginBottom: '20px',
-              overflowX: 'auto',
-            }}>
-              <table style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                backgroundColor: '#fff',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              }}>
-                <thead>
-                  <tr style={{ backgroundColor: '#f5f5f5' }}>
-                    <th style={{
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      fontWeight: 'bold',
-                      fontSize: '14px',
-                      textAlign: 'center',
-                    }}>局</th>
-                    {gameState?.players && gameState.players.map((player: any) => (
-                      <th key={player.userId} style={{
-                        padding: '12px',
-                        border: '1px solid #ddd',
-                        fontWeight: 'bold',
-                        fontSize: '14px',
-                        textAlign: 'center',
-                      }}>
-                        {player.playerName}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {finalResults.map((round: any, idx: number) => {
-                    const winnerName = gameState?.players?.find((p: any) => p.userId === round.winner)?.playerName || round.winner;
-                    // Calculate score changes for each player
-                    const scoreChanges: Record<string, number> = {};
-                    if (round.previousScores && round.scores) {
-                      Object.keys(round.scores).forEach((userId: string) => {
-                        const prevScore = round.previousScores[userId] ?? 25000;
-                        const currentScore = round.scores[userId] ?? 25000;
-                        scoreChanges[userId] = currentScore - prevScore;
-                      });
-                    }
-
-                    return (
-                      <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#f9f9f9' }}>
-                        <td style={{
-                          padding: '10px',
-                          border: '1px solid #ddd',
-                          textAlign: 'center',
-                          fontWeight: 'bold',
-                        }}>
-                          {round.roundName || `${round.round}局`}
-                        </td>
-                        {gameState?.players && gameState.players.map((player: any) => {
-                          const change = scoreChanges[player.userId] ?? 0;
-                          return (
-                            <td key={player.userId} style={{
-                              padding: '10px',
-                              border: '1px solid #ddd',
-                              textAlign: 'center',
-                              fontWeight: 'bold',
-                              color: change > 0 ? '#4CAF50' : change < 0 ? '#f44336' : '#666',
-                            }}>
-                              {change > 0 ? '+' : ''}{change.toLocaleString()}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                  {/* Final Score Row */}
-                  <tr style={{
-                    backgroundColor: '#fff9e6',
-                    borderTop: '3px solid #FFD700',
-                  }}>
-                    <td style={{
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      textAlign: 'center',
-                      fontWeight: 'bold',
-                      fontSize: '16px',
-                    }}>
-                      最終得点
-                    </td>
-                    {gameState?.players && gameState.players.map((player: any) => {
-                      const finalScore = gameState?.scores?.[player.userId] ?? 0;
-                      return (
-                        <td key={player.userId} style={{
-                          padding: '12px',
-                          border: '1px solid #ddd',
-                          textAlign: 'center',
-                          fontWeight: 'bold',
-                          fontSize: '16px',
-                          color: finalScore < 0 ? '#f44336' : '#4CAF50',
-                        }}>
-                          {finalScore.toLocaleString()}点
-                        </td>
-                      );
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <button
-              onClick={() => {
-                setFinalResults(null)
-                onBack()
+      {/* Score Result Modal */}
+      {(scoreResult && gameState) || (finalResults && showFinalResults) ? (
+        <>
+          {scoreResult && gameState && (
+            <ScoreResultModal
+              scoreResult={scoreResult}
+              gameState={gameState}
+              nextRoundReady={(gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0}
+              onNextRound={() => {
+                // 最終局かつfinalResultsがある場合は最終結果モーダルを表示
+                if (finalResults && !showFinalResults) {
+                  setScoreResult(null)
+                  setShowFinalResults(true)
+                } else {
+                  handleNextRound()
+                }
               }}
-              style={{
-                marginTop: '20px',
-                padding: '12px 24px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                border: 'none',
-                borderRadius: '6px',
-                backgroundColor: '#4CAF50',
-                color: '#fff',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              タイトルに戻る
-            </button>
-          </div>
-        </div>
-      )}
+              winnerId={lastWinnerId}
+              winnerHand={lastWinnerHand}
+              winnerMelds={lastWinnerMelds}
+            />
+          )}
+          {/* Final Results Modal (Game Over) */}
+          {finalResults && showFinalResults && (
+            <FinalResultModal
+              finalResults={finalResults}
+              gameState={gameState}
+              onBack={onBack}
+            />
+          )}
+        </>
+      ) : null}
     </div>
   )
 }

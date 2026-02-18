@@ -226,23 +226,6 @@ export function ScoreResultModal({
           </p>
         )}
 
-        <div style={{
-          marginTop: '15px',
-          padding: '12px',
-          backgroundColor: '#1a2e0a',
-          borderRadius: '0px',
-          border: '2px solid #ffffff',
-          textAlign: 'center',
-          fontSize: '13px',
-          color: '#e0e0e0',
-        }}>
-          {nextRoundReady ? (
-            `相手プレイヤーの準備を待っています... (${gameState?.nextRoundReadyCount || 0}/${gameState?.totalPlayers || 2})`
-          ) : (
-            'ボタンをクリックして次の局へ進んでください'
-          )}
-        </div>
-
         <button
           onClick={onNextRound}
           disabled={nextRoundReady}

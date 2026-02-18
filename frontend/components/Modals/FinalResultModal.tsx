@@ -24,18 +24,17 @@ export function FinalResultModal({ finalResults, gameState, onBack }: FinalResul
       zIndex: 2000,
     }}>
       <div style={{
-        backgroundColor: '#2d5016',
+        backgroundColor: '#fff',
         padding: '25px',
-        borderRadius: '0px',
+        borderRadius: '12px',
         maxWidth: '90vw',
         width: '1000px',
         maxHeight: '90vh',
         overflow: 'auto',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-        border: '3px solid #ffffff',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
       }}>
-        <h2 style={{ 
-          marginTop: 0, 
+        <h2 style={{
+          marginTop: 0,
           color: '#ff6b6b',
           textAlign: 'center',
           fontSize: '24px',
@@ -44,79 +43,109 @@ export function FinalResultModal({ finalResults, gameState, onBack }: FinalResul
           ゲーム終了
         </h2>
 
+        {/* Score History Table */}
         <div style={{
           marginBottom: '20px',
-          padding: '15px',
-          backgroundColor: '#1a2e0a',
-          borderRadius: '0px',
-          border: '2px solid #ffffff',
-          textAlign: 'center',
+          overflowX: 'auto',
         }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', color: '#ffffff' }}>最終得点</h3>
-          {gameState?.players && gameState.players.map((player: any) => (
-            <div key={player.userId} style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: '10px',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              color: '#ffffff',
-            }}>
-              <span>{player.playerName}</span>
-              <span style={{ 
-                color: (gameState?.scores?.[player.userId] ?? 0) < 0 ? '#ff6b6b' : '#90ee90' 
+          <table style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            backgroundColor: '#fff',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f5f5f5' }}>
+                <th style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  textAlign: 'center',
+                }}>局</th>
+                {gameState?.players && gameState.players.map((player: any) => (
+                  <th key={player.userId} style={{
+                    padding: '12px',
+                    border: '1px solid #ddd',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    textAlign: 'center',
+                  }}>
+                    {player.playerName}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {finalResults.map((round: any, idx: number) => {
+                // Calculate score changes for each player
+                const scoreChanges: Record<string, number> = {}
+                if (round.previousScores && round.scores) {
+                  Object.keys(round.scores).forEach((userId: string) => {
+                    const prevScore = round.previousScores[userId] ?? 25000
+                    const currentScore = round.scores[userId] ?? 25000
+                    scoreChanges[userId] = currentScore - prevScore
+                  })
+                }
+                return (
+                  <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fff' : '#f9f9f9' }}>
+                    <td style={{
+                      padding: '10px',
+                      border: '1px solid #ddd',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                    }}>
+                      {round.roundName || `${round.round}局`}
+                    </td>
+                    {gameState?.players && gameState.players.map((player: any) => {
+                      const change = scoreChanges[player.userId] ?? 0
+                      return (
+                        <td key={player.userId} style={{
+                          padding: '10px',
+                          border: '1px solid #ddd',
+                          textAlign: 'center',
+                          fontWeight: 'bold',
+                          color: change > 0 ? '#4CAF50' : change < 0 ? '#f44336' : '#666',
+                        }}>
+                          {change > 0 ? '+' : ''}{change.toLocaleString()}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+              {/* Final Score Row */}
+              <tr style={{
+                backgroundColor: '#fff9e6',
+                borderTop: '3px solid #FFD700',
               }}>
-                {((gameState?.scores?.[player.userId]) ?? 0)?.toLocaleString()}点
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{
-          marginTop: '20px',
-        }}>
-          <h3 style={{ marginTop: 0, fontSize: '18px', marginBottom: '15px', color: '#ffffff' }}>局の履歴</h3>
-          {finalResults.map((round: any, idx: number) => {
-            const winnerName = gameState?.players?.find((p: any) => p.userId === round.winner)?.playerName || round.winner
-            return (
-              <div key={idx} style={{
-                marginBottom: '15px',
-                padding: '15px',
-                backgroundColor: '#3d6b20',
-                borderRadius: '0px',
-                border: '2px solid #ffffff',
-              }}>
-                <div style={{ 
-                  fontSize: '16px', 
-                  fontWeight: 'bold', 
-                  marginBottom: '8px',
-                  color: '#ffffff',
+                <td style={{
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
                 }}>
-                  {round.roundName || `第${round.round}局`} - {round.winType}
-                </div>
-                <div style={{ fontSize: '14px', marginBottom: '5px', color: '#e0e0e0' }}>
-                  勝者: {winnerName}
-                </div>
-                {round.scoreResult && (
-                  <div style={{ fontSize: '13px', color: '#a0a0a0' }}>
-                    {round.scoreResult.han}飜 {round.scoreResult.fu}符 - {round.scoreResult.score}点
-                    {round.scoreResult.yaku && round.scoreResult.yaku.length > 0 && (
-                      <div style={{ marginTop: '5px' }}>
-                        役: {round.scoreResult.yaku.map((y: any) => `${y.name}(${y.han}飜)`).join(', ')}
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div style={{ fontSize: '13px', marginTop: '8px', color: '#e0e0e0' }}>
-                  {Object.entries(round.scores).map(([name, score]: [string, any]) => (
-                    <span key={name} style={{ marginRight: '15px' }}>
-                      {name}: {score?.toLocaleString()}点
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
+                  最終得点
+                </td>
+                {gameState?.players && gameState.players.map((player: any) => {
+                  const finalScore = gameState?.scores?.[player.userId] ?? 0
+                  return (
+                    <td key={player.userId} style={{
+                      padding: '12px',
+                      border: '1px solid #ddd',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '16px',
+                      color: finalScore < 0 ? '#f44336' : '#4CAF50',
+                    }}>
+                      {finalScore.toLocaleString()}点
+                    </td>
+                  )
+                })}
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <button
@@ -126,9 +155,9 @@ export function FinalResultModal({ finalResults, gameState, onBack }: FinalResul
             padding: '12px 24px',
             fontSize: '16px',
             fontWeight: 'bold',
-            border: '2px solid #ffffff',
-            borderRadius: '0px',
-            backgroundColor: '#1a2e0a',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: '#4CAF50',
             color: '#fff',
             cursor: 'pointer',
             width: '100%',
