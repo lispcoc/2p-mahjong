@@ -201,8 +201,8 @@ export default function HomePage({
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
-      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-10 w-full max-w-[500px]">
+    <div className="sm:p-2 flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
+      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-[500px]">
         <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
           <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
@@ -216,7 +216,7 @@ export default function HomePage({
           </div>
         </div>
 
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <h2 className="text-lg text-[#ffffff] m-0 font-bold">新しい部屋を作成</h2>
             <p className="text-gray-300 text-sm m-0">
@@ -246,7 +246,7 @@ export default function HomePage({
                 value={joinRoomId}
                 onChange={(e) => setJoinRoomId(e.target.value)}
                 placeholder="ルームID を入力"
-                className="flex-1 px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a] uppercase"
+                className="flex-1 p-2 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a] uppercase"
                 maxLength={8}
               />
               <button type="submit" className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]">
@@ -260,7 +260,7 @@ export default function HomePage({
               <h2 className="text-lg text-[#ffffff] m-0 font-bold">稼働中のルーム</h2>
               <button
                 onClick={fetchRooms}
-                className="px-3 py-1 border-2 border-white bg-[#1a2e0a] text-[#ffffff] cursor-pointer text-xs transition-all hover:bg-[#0f1a06] disabled:opacity-60"
+                className="px-6 py-3 border-2 border-white bg-[#1a2e0a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f1a06] disabled:opacity-60"
                 disabled={roomsLoading}
               >
                 {roomsLoading ? '更新中...' : '更新'}

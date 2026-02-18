@@ -30,7 +30,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
 
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
-      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-10 w-full max-w-[400px]">
+      <div className="bg-[#2d5016] border-2 border-white shadow-xl p-4 w-full max-w-[400px]">
         <div className="text-center text-4xl mb-8 text-[#ffffff]">二人麻雀</div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
