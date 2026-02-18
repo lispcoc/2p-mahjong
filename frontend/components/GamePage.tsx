@@ -1125,9 +1125,9 @@ export default function GamePage({
   }
 
   return (
-    <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5 ${isGrayscale ? 'grayscale' : ''}`}>
+    <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-2 w-full max-w-[800px] max-h-[75vh] overflow-y-auto">
+      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-[800px] max-h-[70vh] sm:max-h-[75vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="text-white font-bold text-lg">
@@ -1262,7 +1262,7 @@ export default function GamePage({
 
             {/* Game Info Center */}
             {/* Game Info Center */}
-            <div className="grid grid-cols-5 w-full mb-1 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-start items-stretch gap-2 flex-wrap">
+            <div className="grid sm:grid-cols-5 w-full mb-1 flex justify-start items-stretch gap-1 flex-wrap">
               {/* Current Round */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
@@ -1324,7 +1324,7 @@ export default function GamePage({
             </div>
 
             {/* Dora and Kanning Wall */}
-            <div className="w-full mb-3 bg-gradient-to-br from-yellow-50 to-yellow-25 rounded-lg p-4 border-2 border-yellow-400 shadow-md flex justify-center items-center gap-16 flex-wrap">
+            <div className="w-full mb-3 flex justify-left items-center flex-wrap">
               {/* Dora Indicator */}
               {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
                 <div className="flex items-center gap-3">
@@ -1475,13 +1475,13 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-[800px] px-5 py-4 border-t-4 border-white bg-[#2d5016] h-[20vh] overflow-y-auto">
+      <div className="w-full max-w-[800px] p-2 border-t-4 border-white bg-[#2d5016] sm:h-[20vh] overflow-y-auto">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
             {gameState.tiles && gameState.tiles[userId]?.hand && gameState.tiles[userId].hand.length > 0 ? (
               <>
-                <div className="flex gap-px">
+                <div className="flex flex-wrap gap-px">
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
@@ -1781,7 +1781,7 @@ export default function GamePage({
           </div>
         )}
 
-        <div className="mt-2 flex gap-3 items-center justify-center flex-wrap">
+        <div className="mt-1 flex gap-3 items-center justify-center flex-wrap">
           <button
             onClick={() => toggleAutoDrawMode(!autoDrawMode)}
             className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
