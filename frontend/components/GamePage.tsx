@@ -1127,7 +1127,7 @@ export default function GamePage({
   return (
     <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster position="top-center" reverseOrder={false} />
-      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-8 w-full max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#2d5016] border-4 border-white shadow-xl p-8 w-full max-w-[800px] max-h-[80vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-white">
           <div>
@@ -1171,8 +1171,8 @@ export default function GamePage({
 
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
-          <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
-            <p className={`text-lg mb-5 font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
+          <div className="p-2 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center">
+            <p className={`text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
               {gameState.status === 'finished'
                 ? 'ゲーム終了'
                 : (isYourTurn ? 'あなたの番です' : '相手の番です')
@@ -1400,329 +1400,6 @@ export default function GamePage({
               </div>
             </div>
 
-            {/* Hand display with tile images and actions - unified horizontal layout */}
-            <div className="w-full px-5 py-4 border-t-4 border-white bg-[#2d5016] max-h-[35vh] overflow-y-auto">
-              <div className="flex flex-row gap-4 items-start">
-                {/* Hand tiles section */}
-                <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
-                  {gameState.tiles && gameState.tiles[userId]?.hand && gameState.tiles[userId].hand.length > 0 ? (
-                    <>
-                      <div className="flex gap-px">
-                        {displayHandIndices.map((idx: number) => (
-                          <div
-                            key={idx}
-                            className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : ''}`}
-                            style={{
-                              opacity: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 0.3 : (idx === drawnTileIndex ? 1 : 0.9),
-                            }}
-                          >
-                            <TileImage
-                              tile={fullHand[idx]}
-                              onClick={() => {
-                                // リーチ中は手牌をクリックできない
-                                if (isRiichi) {
-                                  return;
-                                }
-                                if (isYourTurn && gameState.status === 'playing') {
-                                  // リーチモードONの場合、聴牌形になる牌のみクリック可能
-                                  if (riichiMode) {
-                                    const canDiscardForRiichi = tenpaiInfoMap[idx]?.isTenpai
-                                    if (!canDiscardForRiichi) {
-                                      return; // グレーアウトされた牌はクリックできない
-                                    }
-                                    // リーチ宣言
-                                    const tileToRiichi = fullHand[idx];
-                                    console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${tileToRiichi?.suit}_${tileToRiichi?.number}`);
-                                    sendAction({
-                                      type: 'riichi',
-                                      tileId: `${tileToRiichi.suit}_${tileToRiichi.number}`
-                                    });
-                                    setRiichiMode(false); // リーチモード解除
-                                    return;
-                                  }
-                                  // 通常の捨て牌
-                                  const tileToDiscard = fullHand[idx];
-                                  const tileId = `${tileToDiscard?.suit}_${tileToDiscard?.number}`;
-                                  console.log(`🟢 [Discard] Selected tile index: ${idx}`);
-                                  console.log(`   fullHand length: ${fullHand.length}`);
-                                  console.log(`   fullHand[${idx}]: suit=${tileToDiscard?.suit}, number=${tileToDiscard?.number}`);
-                                  console.log(`   Sending tileId: ${tileId}`);
-                                  console.log(`   Full hand: ${fullHand.map((t, i) => `[${i}]${t.suit}${t.number}`).join(' ')}`);
-                                  sendAction({
-                                    type: 'discard',
-                                    tileId: tileId
-                                  });
-                                }
-                              }}
-                              onMouseEnter={() => {
-                                // リーチ中は聴牌チェックしない
-                                if (isRiichi) {
-                                  return;
-                                }
-                                if (isYourTurn && gameState.status === 'playing') {
-                                  setHoveredTileIndex(idx);
-                                  // キャッシュから聴牌情報を取得
-                                  const cached = tenpaiInfoMap[idx];
-                                  if (cached) {
-                                    setTenpaiInfo(cached);
-                                  } else {
-                                    // キャッシュがない場合のみサーバーに問い合わせ
-                                    checkTenpai(idx);
-                                  }
-                                }
-                              }}
-                              onMouseLeave={() => {
-                                setHoveredTileIndex(null);
-                                setTenpaiInfo(null);
-                              }}
-                              isDrawn={idx === drawnTileIndex}
-                              isHovered={hoveredTileIndex === idx}
-                            />
-                            {/* Tenpai popup */}
-                            {hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
-                              <div style={{
-                                position: 'absolute',
-                                bottom: '100%',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                backgroundColor: 'rgba(76, 175, 80, 0.95)',
-                                padding: '10px 12px',
-                                borderRadius: '8px',
-                                marginBottom: '10px',
-                                whiteSpace: 'nowrap',
-                                zIndex: 1000,
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                                pointerEvents: 'none',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: '6px',
-                              }}>
-                                <div style={{
-                                  color: 'white',
-                                  fontSize: '11px',
-                                  fontWeight: 'bold',
-                                  marginBottom: '2px',
-                                }}>
-                                  🀄 聴牌
-                                </div>
-                                <div style={{
-                                  display: 'flex',
-                                  gap: '2px',
-                                  flexDirection: 'row',
-                                  flexWrap: 'nowrap',
-                                  justifyContent: 'center',
-                                  alignItems: 'center',
-                                }}>
-                                  {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
-                                    const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
-                                    const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
-                                    if (tIdx === 0) {
-                                      console.log(`First tile: ${tile.display} -> suit: ${tile.suit}, number: ${tile.number}, path: ${imagePath}`);
-                                    }
-                                    return (
-                                      <img
-                                        key={tIdx}
-                                        src={imagePath}
-                                        alt={tile.display}
-                                        width={22}
-                                        height={31}
-                                        style={{
-                                          borderRadius: '2px',
-                                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                                        }}
-                                        onError={(e) => {
-                                          console.error(`Failed to load tile image: ${imagePath}`, tile);
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                  {tenpaiInfo.winningTiles.length > 8 && (
-                                    <div style={{
-                                      color: 'white',
-                                      fontSize: '10px',
-                                      marginLeft: '4px',
-                                    }}>
-                                      +{tenpaiInfo.winningTiles.length - 8}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
-                        {/* Highlight drawn tile on the right - always reserve space */}
-                        {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                          <span className='ml-8'>
-                            <TileImage
-                              tile={fullHand[drawnTileIndex]}
-                              onClick={() => {
-                                if (isYourTurn && gameState.status === 'playing') {
-                                  sendAction({
-                                    type: 'discard',
-                                    tileIndex: drawnTileIndex
-                                  });
-                                }
-                              }}
-                              isDrawn={true}
-                            />
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p style={{ color: '#666', fontStyle: 'italic' }}>手札を読み込み中...</p>
-                  )}
-                </div>
-                <div>
-                  {/* Melds display - positioned to the right */}
-                  {melds.length > 0 && (
-                    <div className="flex flex-col items-end flex-shrink-0 gap-2 min-w-max">
-                      <div className="flex gap-2 flex-wrap justify-end">
-                        {melds.map((meld: Tile[], idx: number) => (
-                          <div key={idx} className="flex gap-px">
-                            {meld.map((tile: Tile, tileIdx: number) => (
-                              <TileImage key={tileIdx} tile={tile} />
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Action buttons section - compact vertical layout */}
-              {isYourTurn && gameState.status === 'playing' && (
-                <div className='w-full flex gap-8 justify-end'>
-                  {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
-                  {isRiichi && drawnTileIndex >= 0 && canWin && (
-                    <button
-                      onClick={() => {
-                        const drawnTile = fullHand[drawnTileIndex];
-                        if (drawnTile) {
-                          sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
-                        }
-                      }}
-                      style={{
-                        backgroundColor: '#ff6b6b',
-                        borderColor: '#c92a2a',
-                        fontSize: '13px',
-                        fontWeight: 'bold',
-                        padding: '8px 12px',
-                        border: '2px solid',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        color: 'white',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      ツモ切り
-                    </button>
-                  )}
-                  {/* リーチ中で和了できない場合は自動でツモ切りされる（ボタン不要） */}
-                  {isRiichi && drawnTileIndex >= 0 && !canWin && (
-                    <div className="px-3 py-2 bg-blue-50 border-2 border-blue-500 rounded text-xs text-blue-700 text-center">
-                      自動ツモ切り中
-                    </div>
-                  )}
-                  {canDraw && (
-                    <button
-                      onClick={() => sendAction({ type: 'draw' })}
-                      className="px-3 py-2 bg-gray-500 text-[#ffffff] text-xs font-bold border-2 border-gray-600 rounded cursor-pointer transition-all hover:bg-gray-600"
-                    >
-                      牌を引く
-                    </button>
-                  )}
-                  {canPung && (
-                    <button
-                      onClick={() => sendAction({ type: 'pung' })}
-                      className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
-                    >
-                      ポン
-                    </button>
-                  )}
-                  {canRon && (
-                    <button
-                      onClick={() => sendAction({ type: 'ron' })}
-                      className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
-                    >
-                      ロン
-                    </button>
-                  )}
-                  {canWin && (
-                    <button
-                      onClick={() => sendAction({ type: 'win' })}
-                      className="px-3 py-2 bg-green-600 text-[#ffffff] text-xs font-bold border-2 border-green-700 rounded cursor-pointer transition-all hover:bg-green-700"
-                    >
-                      ツモ
-                    </button>
-                  )}
-                  {/* リーチボタン - トグル式 */}
-                  {canDeclareRiichi && (
-                    <button
-                      onClick={() => {
-                        setRiichiMode(!riichiMode);
-                        if (!riichiMode) {
-                          // リーチモードONにする際のメッセージ
-                          setMessage('リーチモードON: 聴牌形になる牌を選んでクリックしてください（グレーの牌は選べません）');
-                          setTimeout(() => setMessage(''), 5000);
-                        }
-                      }}
-                      style={{
-                        backgroundColor: riichiMode ? '#4CAF50' : '#ff4444',
-                        borderColor: riichiMode ? '#388E3C' : '#cc0000',
-                        fontWeight: 'bold',
-                        fontSize: '13px',
-                        padding: '8px 12px',
-                        border: '2px solid',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        color: 'white',
-                        boxShadow: riichiMode ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {riichiMode ? '✓ 待機' : '🔴 リーチ'}
-                    </button>
-                  )}
-                  {/* リーチ中の表示 */}
-                  {gameState.riichi?.[userId] && (
-                    <div style={{
-                      padding: '8px 12px',
-                      backgroundColor: '#ffebee',
-                      border: '2px solid #ff4444',
-                      borderRadius: '6px',
-                      fontWeight: 'bold',
-                      fontSize: '12px',
-                      color: '#d32f2f',
-                      textAlign: 'center',
-                      boxShadow: '0 4px 8px rgba(255,68,68,0.3)',
-                      animation: 'pulse 2s infinite'
-                    }}>
-                      🔴 リーチ中
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="mt-2 flex gap-3 items-center justify-center flex-wrap">
-                <button
-                  onClick={() => toggleAutoDrawMode(!autoDrawMode)}
-                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
-                >
-                  自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  onClick={() => toggleNoMeldMode(!noMeldMode)}
-                  className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
-                >
-                  鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
-                </button>
-              </div>
-            </div>
-
             {/* Copy hand info button */}
             <div className="mt-4 p-3 border-2 border-blue-700 rounded-lg bg-blue-50 text-center">
               <button
@@ -1789,7 +1466,339 @@ export default function GamePage({
           </div>
         )}
 
+        {/* Debug Panel */}
+        <DebugPanel
+          wsReadyState={wsRef.current?.readyState}
+          gameStatus={gameState.status}
+          playersCount={gameState.players?.length || 0}
+          currentTurn={gameState.currentTurn}
+          userId={userId}
+          isYourTurn={isYourTurn}
+          wall={gameState.wall}
+        />
+      </div>
 
+      {/* Hand display with tile images and actions - unified horizontal layout */}
+      <div className="w-full max-w-[800px] px-5 py-4 border-t-4 border-white bg-[#2d5016] h-[20vh] overflow-y-auto">
+        <div className="flex flex-row gap-4 items-start">
+          {/* Hand tiles section */}
+          <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
+            {gameState.tiles && gameState.tiles[userId]?.hand && gameState.tiles[userId].hand.length > 0 ? (
+              <>
+                <div className="flex gap-px">
+                  {displayHandIndices.map((idx: number) => (
+                    <div
+                      key={idx}
+                      className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : ''}`}
+                      style={{
+                        opacity: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 0.3 : (idx === drawnTileIndex ? 1 : 0.9),
+                      }}
+                    >
+                      <TileImage
+                        tile={fullHand[idx]}
+                        onClick={() => {
+                          // リーチ中は手牌をクリックできない
+                          if (isRiichi) {
+                            return;
+                          }
+                          if (isYourTurn && gameState.status === 'playing') {
+                            // リーチモードONの場合、聴牌形になる牌のみクリック可能
+                            if (riichiMode) {
+                              const canDiscardForRiichi = tenpaiInfoMap[idx]?.isTenpai
+                              if (!canDiscardForRiichi) {
+                                return; // グレーアウトされた牌はクリックできない
+                              }
+                              // リーチ宣言
+                              const tileToRiichi = fullHand[idx];
+                              console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${tileToRiichi?.suit}_${tileToRiichi?.number}`);
+                              sendAction({
+                                type: 'riichi',
+                                tileId: `${tileToRiichi.suit}_${tileToRiichi.number}`
+                              });
+                              setRiichiMode(false); // リーチモード解除
+                              return;
+                            }
+                            // 通常の捨て牌
+                            const tileToDiscard = fullHand[idx];
+                            const tileId = `${tileToDiscard?.suit}_${tileToDiscard?.number}`;
+                            console.log(`🟢 [Discard] Selected tile index: ${idx}`);
+                            console.log(`   fullHand length: ${fullHand.length}`);
+                            console.log(`   fullHand[${idx}]: suit=${tileToDiscard?.suit}, number=${tileToDiscard?.number}`);
+                            console.log(`   Sending tileId: ${tileId}`);
+                            console.log(`   Full hand: ${fullHand.map((t, i) => `[${i}]${t.suit}${t.number}`).join(' ')}`);
+                            sendAction({
+                              type: 'discard',
+                              tileId: tileId
+                            });
+                          }
+                        }}
+                        onMouseEnter={() => {
+                          // リーチ中は聴牌チェックしない
+                          if (isRiichi) {
+                            return;
+                          }
+                          if (isYourTurn && gameState.status === 'playing') {
+                            setHoveredTileIndex(idx);
+                            // キャッシュから聴牌情報を取得
+                            const cached = tenpaiInfoMap[idx];
+                            if (cached) {
+                              setTenpaiInfo(cached);
+                            } else {
+                              // キャッシュがない場合のみサーバーに問い合わせ
+                              checkTenpai(idx);
+                            }
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredTileIndex(null);
+                          setTenpaiInfo(null);
+                        }}
+                        isDrawn={idx === drawnTileIndex}
+                        isHovered={hoveredTileIndex === idx}
+                      />
+                      {/* Tenpai popup */}
+                      {hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          backgroundColor: 'rgba(76, 175, 80, 0.95)',
+                          padding: '10px 12px',
+                          borderRadius: '8px',
+                          marginBottom: '10px',
+                          whiteSpace: 'nowrap',
+                          zIndex: 1000,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          pointerEvents: 'none',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}>
+                          <div style={{
+                            color: 'white',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            marginBottom: '2px',
+                          }}>
+                            🀄 聴牌
+                          </div>
+                          <div style={{
+                            display: 'flex',
+                            gap: '2px',
+                            flexDirection: 'row',
+                            flexWrap: 'nowrap',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          }}>
+                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
+                              const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
+                              const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                              if (tIdx === 0) {
+                                console.log(`First tile: ${tile.display} -> suit: ${tile.suit}, number: ${tile.number}, path: ${imagePath}`);
+                              }
+                              return (
+                                <img
+                                  key={tIdx}
+                                  src={imagePath}
+                                  alt={tile.display}
+                                  width={22}
+                                  height={31}
+                                  style={{
+                                    borderRadius: '2px',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                                  }}
+                                  onError={(e) => {
+                                    console.error(`Failed to load tile image: ${imagePath}`, tile);
+                                  }}
+                                />
+                              );
+                            })}
+                            {tenpaiInfo.winningTiles.length > 8 && (
+                              <div style={{
+                                color: 'white',
+                                fontSize: '10px',
+                                marginLeft: '4px',
+                              }}>
+                                +{tenpaiInfo.winningTiles.length - 8}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Highlight drawn tile on the right - always reserve space */}
+                  {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
+                    <span className='ml-8'>
+                      <TileImage
+                        tile={fullHand[drawnTileIndex]}
+                        onClick={() => {
+                          if (isYourTurn && gameState.status === 'playing') {
+                            sendAction({
+                              type: 'discard',
+                              tileIndex: drawnTileIndex
+                            });
+                          }
+                        }}
+                        isDrawn={true}
+                      />
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <p style={{ color: '#666', fontStyle: 'italic' }}>手札を読み込み中...</p>
+            )}
+          </div>
+          <div>
+            {/* Melds display - positioned to the right */}
+            {melds.length > 0 && (
+              <div className="flex flex-col items-end flex-shrink-0 gap-2 min-w-max">
+                <div className="flex gap-2 flex-wrap justify-end">
+                  {melds.map((meld: Tile[], idx: number) => (
+                    <div key={idx} className="flex gap-px">
+                      {meld.map((tile: Tile, tileIdx: number) => (
+                        <TileImage key={tileIdx} tile={tile} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons section - compact vertical layout */}
+        {isYourTurn && gameState.status === 'playing' && (
+          <div className='w-full flex gap-8 justify-end'>
+            {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
+            {isRiichi && drawnTileIndex >= 0 && canWin && (
+              <button
+                onClick={() => {
+                  const drawnTile = fullHand[drawnTileIndex];
+                  if (drawnTile) {
+                    sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
+                  }
+                }}
+                style={{
+                  backgroundColor: '#ff6b6b',
+                  borderColor: '#c92a2a',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  padding: '8px 12px',
+                  border: '2px solid',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ツモ切り
+              </button>
+            )}
+            {/* リーチ中で和了できない場合は自動でツモ切りされる（ボタン不要） */}
+            {isRiichi && drawnTileIndex >= 0 && !canWin && (
+              <div className="px-3 py-2 bg-blue-50 border-2 border-blue-500 rounded text-xs text-blue-700 text-center">
+                自動ツモ切り中
+              </div>
+            )}
+            {canDraw && (
+              <button
+                onClick={() => sendAction({ type: 'draw' })}
+                className="px-3 py-2 bg-gray-500 text-[#ffffff] text-xs font-bold border-2 border-gray-600 rounded cursor-pointer transition-all hover:bg-gray-600"
+              >
+                牌を引く
+              </button>
+            )}
+            {canPung && (
+              <button
+                onClick={() => sendAction({ type: 'pung' })}
+                className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
+              >
+                ポン
+              </button>
+            )}
+            {canRon && (
+              <button
+                onClick={() => sendAction({ type: 'ron' })}
+                className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
+              >
+                ロン
+              </button>
+            )}
+            {canWin && (
+              <button
+                onClick={() => sendAction({ type: 'win' })}
+                className="px-3 py-2 bg-green-600 text-[#ffffff] text-xs font-bold border-2 border-green-700 rounded cursor-pointer transition-all hover:bg-green-700"
+              >
+                ツモ
+              </button>
+            )}
+            {/* リーチボタン - トグル式 */}
+            {canDeclareRiichi && (
+              <button
+                onClick={() => {
+                  setRiichiMode(!riichiMode);
+                  if (!riichiMode) {
+                    // リーチモードONにする際のメッセージ
+                    setMessage('リーチモードON: 聴牌形になる牌を選んでクリックしてください（グレーの牌は選べません）');
+                    setTimeout(() => setMessage(''), 5000);
+                  }
+                }}
+                style={{
+                  backgroundColor: riichiMode ? '#4CAF50' : '#ff4444',
+                  borderColor: riichiMode ? '#388E3C' : '#cc0000',
+                  fontWeight: 'bold',
+                  fontSize: '13px',
+                  padding: '8px 12px',
+                  border: '2px solid',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: 'white',
+                  boxShadow: riichiMode ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {riichiMode ? '✓ 待機' : '🔴 リーチ'}
+              </button>
+            )}
+            {/* リーチ中の表示 */}
+            {gameState.riichi?.[userId] && (
+              <div style={{
+                padding: '8px 12px',
+                backgroundColor: '#ffebee',
+                border: '2px solid #ff4444',
+                borderRadius: '6px',
+                fontWeight: 'bold',
+                fontSize: '12px',
+                color: '#d32f2f',
+                textAlign: 'center',
+                boxShadow: '0 4px 8px rgba(255,68,68,0.3)',
+                animation: 'pulse 2s infinite'
+              }}>
+                🔴 リーチ中
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-2 flex gap-3 items-center justify-center flex-wrap">
+          <button
+            onClick={() => toggleAutoDrawMode(!autoDrawMode)}
+            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+          >
+            自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => toggleNoMeldMode(!noMeldMode)}
+            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
+          >
+            鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
+          </button>
+        </div>
       </div>
 
       {/* Score Result Modal */}
@@ -1991,17 +2000,6 @@ export default function GamePage({
           </div>
         </div>
       )}
-
-      {/* Debug Panel - Fixed at Bottom */}
-      <DebugPanel
-        wsReadyState={wsRef.current?.readyState}
-        gameStatus={gameState.status}
-        playersCount={gameState.players?.length || 0}
-        currentTurn={gameState.currentTurn}
-        userId={userId}
-        isYourTurn={isYourTurn}
-        wall={gameState.wall}
-      />
     </div>
   )
 }

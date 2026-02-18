@@ -21,7 +21,6 @@ export function DebugPanel({
 }: DebugPanelProps) {
   return (
     <div style={{
-      position: 'fixed',
       bottom: 0,
       left: 0,
       right: 0,
