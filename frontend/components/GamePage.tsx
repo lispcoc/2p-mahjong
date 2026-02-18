@@ -1489,7 +1489,7 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-4xl p-2 border-t-4 border-white bg-[#2d5016] min-h-60 overflow-y-auto">
+      <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] min-h-60 overflow-y-auto">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
