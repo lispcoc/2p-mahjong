@@ -1282,7 +1282,7 @@ export default function GamePage({
             </div>
 
             {/* Game Info Center */}
-            <div className="max-sm:hidden grid sm:grid-cols-5 w-full mb-1 flex justify-start items-stretch gap-1 flex-wrap">
+            <div className="max-sm:hidden grid sm:grid-cols-4 w-full mb-1 flex justify-start items-stretch gap-1 flex-wrap">
               {/* Current Round */}
               <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
                 <div className="text-xs text-gray-500 mb-1">局数</div>
@@ -1300,27 +1300,6 @@ export default function GamePage({
                 <div className="text-lg font-bold text-green-900">
                   残り {gameState.wall || 0}枚
                 </div>
-              </div>
-
-              {/* Auto-discard countdown */}
-              <div className="text-center px-4 py-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
-                {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 ? (
-                  <>
-                    <div className="text-xs text-gray-500 mb-1">自動ツモ</div>
-                    <div className={`text-2xl font-bold ${pendingPungTimeLeft <= 3 ? 'text-blue-500' : 'text-purple-500'}`}>
-                      {pendingPungTimeLeft}秒
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="text-xs text-gray-500 mb-1">自動ツモ切り</div>
-                    {autoDiscardTimeLeft !== null && autoDiscardTimeLeft > 0 && (
-                      <div className={`text-2xl font-bold ${autoDiscardTimeLeft <= 3 ? 'text-red-500' : 'text-orange-500'}`}>
-                        {autoDiscardTimeLeft}秒
-                      </div>
-                    )}
-                  </>
-                )}
               </div>
 
               {/* Scores */}
