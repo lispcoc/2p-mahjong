@@ -12,6 +12,7 @@ class CPUBattleTest {
     this.maxTurns = options.maxTurns || 300; // 最大ターン数（無限ループ防止）
     this.verbose = options.verbose !== undefined ? options.verbose : false; // 詳細ログ
     this.quiet = options.quiet !== undefined ? options.quiet : false; // 内部ログ抑制
+    this.summaryOnly = options.summaryOnly !== undefined ? options.summaryOnly : false; // 局の結果のみ表示
     this.room = null;
     this.turnCount = 0;
     this.errors = [];
@@ -25,7 +26,8 @@ class CPUBattleTest {
       this.logStream = fs.createWriteStream(this.logFile, { encoding: 'utf8', flags: 'w' });
     }
 
-    if (this.quiet) {
+    // summaryOnlyモードではquietを有効にする
+    if (this.summaryOnly || this.quiet) {
       this.suppressConsoleLogs();
     }
   }
@@ -82,9 +84,11 @@ class CPUBattleTest {
 
   // 新しいゲームを開始
   startGame() {
-    this.log('\n========================================')
-    this.log('  CPU同士の自動対戦テスト開始');
-    this.log('========================================\n');
+    if (!this.summaryOnly) {
+      this.log('\n========================================')
+      this.log('  CPU同士の自動対戦テスト開始');
+      this.log('========================================\n');
+    }
     
     this.room = new GameRoom('cpuBattle', { testMode: true });
     this.turnCount = 0;
@@ -95,14 +99,19 @@ class CPUBattleTest {
     this.room.addPlayer('cpu1', 'CPU-1', null, true);
     this.room.addPlayer('cpu2', 'CPU-2', null, true);
     
-    this.log('✓ CPUプレイヤーを追加しました');
-    this.log(`  - CPU-1 (cpu1)`);
-    this.log(`  - CPU-2 (cpu2)`);
+    if (!this.summaryOnly) {
+      this.log('✓ CPUプレイヤーを追加しました');
+      this.log(`  - CPU-1 (cpu1)`);
+      this.log(`  - CPU-2 (cpu2)`);
+    }
     
     // ゲーム開始
     this.room.start();
-    this.log('✓ ゲームを開始しました');
-    this.log('');
+    
+    if (!this.summaryOnly) {
+      this.log('✓ ゲームを開始しました');
+      this.log('');
+    }
     
     return true;
   }
@@ -225,56 +234,167 @@ class CPUBattleTest {
 
   // テスト結果を表示
   showResults() {
-    this.log('\n========================================')
-    this.log('  テスト結果');
-    this.log('========================================\n');
-    
-    this.log(`総ターン数: ${this.turnCount}`);
-    this.log(`ゲーム状態: ${this.room.status}`);
+    if (!this.summaryOnly) {
+      this.log('\n========================================')
+      this.log('  テスト結果');
+      this.log('========================================\n');
+      
+      this.log(`総ターン数: ${this.turnCount}`);
+      this.log(`ゲーム状態: ${this.room.status}`);
+    }
     
     if (this.room.status === 'finished') {
       const winner = this.room.getWinner();
-      if (winner) {
-        const winnerName = this.room.players.get(winner)?.playerName || winner;
-        this.log(`\n🎉 勝者: ${winnerName}`);
+      if (this.summaryOnly) {
+        // summaryOnlyモード：局の結果のみを簡潔に表示
+        if (winner) {
+          const winnerName = this.room.players.get(winner)?.playerName || winner;
+          this.log(`🎉 ${this.turnCount}ターン - 勝者: ${winnerName}`);
+        } else {
+          this.log(`🏁 ${this.turnCount}ターン - 流局`);
+        }
       } else {
-        this.log(`\n🏁 流局`);
+        // 通常モード：詳細情報を表示
+        if (winner) {
+          const winnerName = this.room.players.get(winner)?.playerName || winner;
+          this.log(`\n🎉 勝者: ${winnerName}`);
+        } else {
+          this.log(`\n🏁 流局`);
+        }
+        
+        const scores = this.room.getScores();
+        this.log('\n最終スコア:');
+        Object.entries(scores).forEach(([name, score]) => {
+          this.log(`  ${name}: ${score}点`);
+        });
       }
       
-      const scores = this.room.getScores();
-      this.log('\n最終スコア:');
-      Object.entries(scores).forEach(([name, score]) => {
-        this.log(`  ${name}: ${score}点`);
+      if (!this.summaryOnly) {
+        // 局の詳細結果を表示
+        this.log('\n========================================');
+        this.log('  局の結果詳細（ドラ確認）');
+        this.log('========================================\n');
+      } else {
+        // summaryOnlyモード：局の結果をコンパクトに表示
+        this.log('');
+      }
+      
+      const roundHistory = this.room.getRoundHistory();
+      roundHistory.forEach((roundResult, idx) => {
+        const roundNum = idx + 1;
+        if (this.summaryOnly) {
+          // summaryOnlyモード：１行表示
+          const resultLine = `【第${roundNum}局】 ${roundResult.roundName} ${roundResult.roundNumber}局 - ${roundResult.winType}`;
+          
+          if (roundResult.scoreResult && roundResult.scoreResult.valid) {
+            const sr = roundResult.scoreResult;
+            const yaku = sr.yaku.map(y => y.name).join(',');
+            const doraYaku = sr.yaku.filter(y => y.isDora);
+            const doraStr = doraYaku.length > 0 
+              ? ` | 💎 ${doraYaku.map(y => `${y.name}(${y.han}翻)`).join(',')}` 
+              : '';
+            this.log(`${resultLine} | ${yaku} | ${sr.han}翻 | ${sr.score}点${doraStr}`);
+          } else if (roundResult.isDraw) {
+            this.log(`${resultLine}`);
+          } else {
+            this.log(`${resultLine}`);
+          }
+        } else {
+          // 通常モード：詳細表示
+          this.log(`【第${roundNum}局】 ${roundResult.roundName} ${roundResult.roundNumber}局`);
+          this.log(`  結果: ${roundResult.winType}`);
+          
+          if (roundResult.winner) {
+            const winnerName = this.room.players.get(roundResult.winner)?.playerName || roundResult.winner;
+            this.log(`  勝者: ${winnerName}`);
+          }
+          
+          // スコア結果の詳細を表示
+          if (roundResult.scoreResult && roundResult.scoreResult.valid) {
+            const sr = roundResult.scoreResult;
+            this.log(`  役: ${sr.yaku.map(y => y.name).join(', ')}`);
+            
+            // ドラを含むかチェック
+            const doraYaku = sr.yaku.filter(y => y.isDora);
+            if (doraYaku.length > 0) {
+              this.log(`  💎 ドラあり: ${doraYaku.map(y => `${y.name}(${y.han}翻)`).join(', ')}`);
+            }
+            
+            this.log(`  翻数: ${sr.han}翻`);
+            if (sr.fu) {
+              this.log(`  符: ${sr.fu}符`);
+            }
+            this.log(`  得点: ${sr.score}点`);
+          } else if (roundResult.isDraw) {
+            // 流局の場合
+            if (roundResult.tenpai && Object.keys(roundResult.tenpai).length > 0) {
+              const tenpaiPlayers = Object.entries(roundResult.tenpai)
+                .filter(([_, isTenpai]) => isTenpai)
+                .map(([playerId, _]) => this.room.players.get(playerId)?.playerName || playerId);
+              if (tenpaiPlayers.length > 0) {
+                this.log(`  天和: ${tenpaiPlayers.join(', ')}`);
+              }
+            }
+          }
+          
+          // ドラ表示牌情報をゲーム開始時に取得して表示
+          if (idx === 0) {
+            const gameState = this.room.getGameState();
+            if (gameState && gameState.dora) {
+              this.log(`\n  【ドラ表示牌】`);
+              if (gameState.dora.indicators && gameState.dora.indicators.length > 0) {
+                const doraIndicators = gameState.dora.indicators.map(d => d.display).join(', ');
+                this.log(`  表: ${doraIndicators}`);
+              }
+              if (gameState.dora.tiles && gameState.dora.tiles.length > 0) {
+                const doraTiles = gameState.dora.tiles.map(d => d.display).join(', ');
+                this.log(`  実ドラ: ${doraTiles}`);
+              }
+            }
+          }
+          
+          this.log('');
+        }
       });
     }
     
     // エラーと警告を表示
-    if (this.errors.length > 0) {
-      this.log('\n❌ エラー:');
-      this.errors.forEach((err, i) => {
-        this.log(`  ${i + 1}. ${err}`);
-      });
+    if (!this.summaryOnly) {
+      if (this.errors.length > 0) {
+        this.log('\n❌ エラー:');
+        this.errors.forEach((err, i) => {
+          this.log(`  ${i + 1}. ${err}`);
+        });
+      } else {
+        this.log('\n✅ エラーは検出されませんでした');
+      }
+      
+      if (this.warnings.length > 0) {
+        this.log('\n⚠️  警告:');
+        this.warnings.forEach((warn, i) => {
+          this.log(`  ${i + 1}. ${warn}`);
+        });
+      }
+      
+      // 最終判定
+      this.log('\n========================================')
+      if (this.errors.length === 0 && this.room.status === 'finished') {
+        this.log('✅ テスト成功: ゲームは正常に完了しました');
+      } else if (this.errors.length === 0) {
+        this.log('⚠️  テスト完了: エラーはありませんが、ゲームは未完了です');
+      } else {
+        this.log('❌ テスト失敗: エラーが検出されました');
+      }
+      this.log('========================================\n');
     } else {
-      this.log('\n✅ エラーは検出されませんでした');
+      // summaryOnlyモード：エラーがある場合のみ表示
+      if (this.errors.length > 0) {
+        this.log('\n❌ エラー検出:');
+        this.errors.forEach((err) => {
+          this.log(`  - ${err}`);
+        });
+      }
     }
-    
-    if (this.warnings.length > 0) {
-      this.log('\n⚠️  警告:');
-      this.warnings.forEach((warn, i) => {
-        this.log(`  ${i + 1}. ${warn}`);
-      });
-    }
-    
-    // 最終判定
-    this.log('\n========================================')
-    if (this.errors.length === 0 && this.room.status === 'finished') {
-      this.log('✅ テスト成功: ゲームは正常に完了しました');
-    } else if (this.errors.length === 0) {
-      this.log('⚠️  テスト完了: エラーはありませんが、ゲームは未完了です');
-    } else {
-      this.log('❌ テスト失敗: エラーが検出されました');
-    }
-    this.log('========================================\n');
     
     this.closeLog();
   }
@@ -299,7 +419,9 @@ class CPUBattleTest {
     };
     
     for (let i = 0; i < count; i++) {
-      this.log(`\n【第${i + 1}回目】`);
+      if (!this.summaryOnly) {
+        this.log(`\n【第${i + 1}回目】`);
+      }
       this.startGame();
       
       let canContinue = true;
@@ -307,7 +429,9 @@ class CPUBattleTest {
         canContinue = await this.executeTurn();
         
         if (this.errors.length > 0) {
-          this.log('\n❌ エラー検出により中断');
+          if (!this.summaryOnly) {
+            this.log('\n❌ エラー検出により中断');
+          }
           break;
         }
       }
@@ -321,13 +445,18 @@ class CPUBattleTest {
         results.success++;
         const winner = this.room.getWinner();
         if (winner) {
-          const winScore = this.room.lastResult?.scoreResult?.score || 0;
+          const scoreResult = this.room.lastResult?.scoreResult;
+          const winScore = scoreResult?.score || 0;
+          const yaku = scoreResult?.yaku?.map(y => y.name).join(',') || '不明';
+          const han = scoreResult?.han || 0;
           results.totalWinPoints += winScore;
           results.winCount++;
-          this.log(`✅ 第${i + 1}回目終了: ${this.turnCount}ターン (和了 ${winScore}点)`);
+          const resultLine = `🎉 第${i + 1}回: ${this.turnCount}ターン - 和了 ${winScore}点 | 上がり手: ${yaku} | ${han}翻`;
+          this.log(resultLine);
         } else {
           results.draws++;
-          this.log(`✅ 第${i + 1}回目終了: ${this.turnCount}ターン (流局)`);
+          const resultLine = `🏁 第${i + 1}回: ${this.turnCount}ターン - 流局`;
+          this.log(resultLine);
         }
       } else {
         results.incomplete++;
@@ -382,6 +511,7 @@ if (require.main === module) {
   let logFile = null;
   let quiet = false;
   let verbose = false;
+  let summaryOnly = false;
 
   args.forEach((arg) => {
     if (arg === '--quiet' || arg === '--silent') {
@@ -390,6 +520,10 @@ if (require.main === module) {
     }
     if (arg === '--verbose') {
       verbose = true;
+      return;
+    }
+    if (arg === '--summary-only' || arg === '--summary') {
+      summaryOnly = true;
       return;
     }
     if (/^\d+$/.test(arg) && count === 1) {
@@ -405,6 +539,7 @@ if (require.main === module) {
     maxTurns: 300,
     verbose: verbose, // trueにすると詳細ログを出力
     quiet: quiet, // trueにすると内部ログを抑制
+    summaryOnly: summaryOnly, // trueにすると局の結果のみ表示
     logFile: logFile, // ログファイルのパス（UTF-8で保存される）
   });
   

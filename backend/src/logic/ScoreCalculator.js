@@ -50,7 +50,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind } = winInfo;
+    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [] } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -61,10 +61,13 @@ class ScoreCalculator {
     
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
-      if (han > 0) {
+      // ドラのみの場合はスキップ
+      const hasNonDoraYaku = yaku.some(y => !y.isDora);
+      
+      if (han > 0 && hasNonDoraYaku) {
         const fu = 25; // 七対子は固定25符
         const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
         bestResult = {
@@ -82,10 +85,13 @@ class ScoreCalculator {
     
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
-      if (han > 0) {
+      // ドラのみの場合はスキップ
+      const hasNonDoraYaku = yaku.some(y => !y.isDora);
+      
+      if (han > 0 && hasNonDoraYaku) {
         const fu = 30; // 国士無双は固定30符（実際には満貫以上）
         const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
         bestResult = {
@@ -106,10 +112,14 @@ class ScoreCalculator {
     
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han === 0) continue; // 役なしはスキップ
+      
+      // ドラのみの場合はスキップ（ドラだけでは和了できない）
+      const hasNonDoraYaku = yaku.some(y => !y.isDora);
+      if (!hasNonDoraYaku) continue;
       
       // 符を計算
       const fu = this.calculateFuWithCombination(hand, melds, winningTile, isTsumo, combination);
@@ -201,8 +211,11 @@ class ScoreCalculator {
    * @param {boolean} riichi - リーチ状態か
    * @param {boolean} menzen - 門前か
    * @param {Object} combination - 和了形（面子構成）nullの場合は特殊形
+   * @param {Array} doraIndicators - ドラ表示牌
+   * @param {Array} doraTiles - ドラ
+   * @param {Array} urahaTiles - 裏ドラ（リーチ時）
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = []) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
     
@@ -336,6 +349,20 @@ class ScoreCalculator {
     // 役牌（白發中）- 和了形に依存しない
     const yakuhai = this.countYakuhai(allTiles, roundWind, seatWind);
     yakuhai.forEach(y => yaku.push(y));
+    
+    // ドラをカウント
+    const doraCounts = this.countDora(hand, doraIndicators, doraTiles);
+    if (doraCounts.dora > 0) {
+      yaku.push({ name: 'ドラ', han: doraCounts.dora, isDora: true });
+    }
+    
+    // リーチ時の裏ドラをカウント
+    if (riichi && isTsumo) {
+      const urahaCounts = this.countDora(hand, [], urahaTiles);
+      if (urahaCounts.dora > 0) {
+        yaku.push({ name: '裏ドラ', han: urahaCounts.dora, isDora: true });
+      }
+    }
     
     return yaku;
   }
@@ -1340,6 +1367,50 @@ class ScoreCalculator {
     text += `\n得点: ${score}点`;
     
     return text;
+  }
+
+  /**
+   * ドラをカウント
+   * @param {Array} hand - 手牌
+   * @param {Array} doraIndicators - ドラ表示牌
+   * @param {Array} doraTiles - ドラ（オプション、使用していない場合は表示牌から算出）
+   * @returns {Object} {dora: ドラの数}
+   */
+  countDora(hand, doraIndicators, doraTiles) {
+    let doraCount = 0;
+    
+    // ドラ表示牌がない場合はドラなし
+    if (!doraIndicators || doraIndicators.length === 0) {
+      return { dora: 0 };
+    }
+    
+    // ドラ表示牌から実際のドラを計算
+    const actualDoraTiles = [];
+    doraIndicators.forEach(indicator => {
+      const nextTile = this.getNextTile(indicator);
+      actualDoraTiles.push(nextTile);
+    });
+    
+    // 手牌の中でドラの枚数をカウント
+    actualDoraTiles.forEach(doraTile => {
+      hand.forEach(handTile => {
+        if (handTile.suit === doraTile.suit && handTile.number === doraTile.number) {
+          doraCount++;
+        }
+      });
+    });
+    
+    return { dora: doraCount };
+  }
+
+  /**
+   * 表示牌の次の牌を取得
+   * @param {Tile} tile - 表示牌
+   * @returns {Tile} 次の牌
+   */
+  getNextTile(tile) {
+    const nextNumber = tile.number === 9 ? 1 : (tile.number === 7 && tile.suit === 'honor' ? 1 : tile.number + 1);
+    return new Tile(tile.suit, nextNumber);
   }
 }
 
