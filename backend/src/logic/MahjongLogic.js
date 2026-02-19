@@ -1828,6 +1828,7 @@ class MahjongLogic {
       seatWind: this.seatWinds[playerId],
       doraIndicators: this.doraIndicators, // ドラ表示牌を渡す
       doraTiles: this.doraTiles, // 実際のドラを渡す
+      urahaIndicators: player.riichi ? this.uraDoraIndicators : [], // リーチの時は裏ドラ表示牌を渡す
       urahaTiles: player.riichi ? this.getUrahaTiles() : [], // リーチの時は裏ドラを渡す
       isIppatsumari: isIppatsumari, // 一発判定
       isHaitei: isHaitei, // 海底判定

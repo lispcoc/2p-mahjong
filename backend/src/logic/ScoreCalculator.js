@@ -50,7 +50,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false } = winInfo;
+    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [],  urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -61,7 +61,7 @@ class ScoreCalculator {
     
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -85,7 +85,7 @@ class ScoreCalculator {
     
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -112,7 +112,7 @@ class ScoreCalculator {
     
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han === 0) continue; // 役なしはスキップ
@@ -218,7 +218,7 @@ class ScoreCalculator {
    * @param {boolean} isHaitei - 海底判定
    * @param {boolean} isRinshan - 嶺上開花判定
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
     
@@ -285,6 +285,11 @@ class ScoreCalculator {
     }
     
     // 通常役チェック
+    // ツモ（門前のみ）
+    if (isTsumo && menzen) {
+      yaku.push({ name: 'ツモ', han: 1 });
+    }
+
     // リーチ（門前のみ）
     if (riichi && (menzen || melds.length === 0)) {
       yaku.push({ name: 'リーチ', han: 1 });
@@ -406,8 +411,8 @@ class ScoreCalculator {
     }
     
     // リーチ時の裏ドラをカウント
-    if (riichi && isTsumo) {
-      const urahaCounts = this.countDora(hand, [], urahaTiles);
+    if (riichi) {
+      const urahaCounts = this.countDora(hand, urahaIndicators, urahaTiles);
       if (urahaCounts.dora > 0) {
         yaku.push({ name: '裏ドラ', han: urahaCounts.dora, isDora: true });
       }
