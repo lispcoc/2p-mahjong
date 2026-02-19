@@ -1187,6 +1187,43 @@ export default function GamePage({
   // ポン後で牌をまだ引いていない状態（fullHand.length % 3 === 2）では牌を引けない
   const canDraw = isYourTurn && drawnTileIndex < 0 && !canRon && !isRiichi && fullHand.length % 3 !== 2
 
+  // Check if player can kan (concealed or added)
+  const canKan = (() => {
+    if (!isYourTurn || isRiichi || isNoMeldMode || drawnTileIndex < 0) {
+      return false;
+    }
+    
+    // Check for concealed kan (4 identical tiles in hand)
+    const tileGroups: Record<string, number> = {};
+    fullHand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      tileGroups[key] = (tileGroups[key] || 0) + 1;
+    });
+    
+    // Check if any tile group has 4 identical tiles
+    for (const count of Object.values(tileGroups)) {
+      if (count === 4) {
+        return true;
+      }
+    }
+    
+    // Check for added kan (matching tile + existing pung)
+    for (const meld of melds) {
+      if (meld.length !== 3) continue; // Only check pungs (3 tiles)
+      
+      const meldTile = meld[0];
+      const hasMatchingTile = fullHand.some(
+        (tile) => tile.suit === meldTile.suit && tile.number === meldTile.number
+      );
+      
+      if (hasMatchingTile) {
+        return true;
+      }
+    }
+    
+    return false;
+  })()
+
   // 聴牌可能な牌が1つでもあるかチェック
   // 重要: すべての牌の聴牌情報が取得されているか確認してから判定
   const allTenpaiChecked = fullHand.length > 0 && Object.keys(tenpaiInfoMap).length === fullHand.length
@@ -1207,6 +1244,7 @@ export default function GamePage({
     console.log(`    - canRon=${canRon} (isYourTurn=${isYourTurn} && ronPossibleFor===userId=${ronPossibleFor === userId})`)
     console.log(`    - isNoMeldMode=${isNoMeldMode}`)
     console.log(`    - canPung=${canPung}`)
+    console.log(`    - canKan=${canKan}`)
     console.log(`    - canWin=${canWin}`)
     console.log(`    - isRiichi=${isRiichi}`)
     console.log(`    - canDeclareRiichi=${canDeclareRiichi} (tenpaiCount=${tenpaiCount2})`)
@@ -1797,6 +1835,14 @@ export default function GamePage({
                 className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
               >
                 ポン
+              </button>
+            )}
+            {canKan && (
+              <button
+                onClick={() => sendAction({ type: 'kong' })}
+                className="px-3 py-2 bg-purple-600 text-[#ffffff] text-xs font-bold border-2 border-purple-700 rounded cursor-pointer transition-all hover:bg-purple-700"
+              >
+                カン
               </button>
             )}
             {canRon && (

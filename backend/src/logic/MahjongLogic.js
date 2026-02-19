@@ -48,6 +48,7 @@ class MahjongLogic {
       this.players[id] = {
         hand: [],
         melds: [], // completed sets
+        concealedMeldIndices: new Set(), // Indices of concealed kans (暗槓) in melds array
         discards: [],
         score: playerScores[id] || 25000, // 持ち点（デフォルト25000点）
         drawnTile: null, // Last tile drawn from wall
@@ -252,6 +253,62 @@ class MahjongLogic {
     }
     
     return false;
+  }
+  
+  /**
+   * Check if player can make a kan
+   * Returns true if either concealed kan or added kan is possible
+   */
+  canPlayerKan(userId) {
+    if (!this.players[userId]) return false;
+    
+    const hand = this.players[userId].hand;
+    const melds = this.players[userId].melds;
+    
+    // Check for concealed kan (4 identical tiles in hand)
+    const tileGroups = {};
+    hand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!tileGroups[key]) {
+        tileGroups[key] = [];
+      }
+      tileGroups[key].push(tile);
+    });
+    
+    for (const key in tileGroups) {
+      if (tileGroups[key].length === 4) {
+        return true;
+      }
+    }
+    
+    // Check for added kan (matching tile + existing pung, but NOT concealed kans)
+    for (let i = 0; i < melds.length; i++) {
+      const meld = melds[i];
+      // Skip concealed kans - can't add to them
+      if (this.players[userId].concealedMeldIndices.has(i)) continue;
+      // Only check pungs (3 tiles)
+      if (meld.length !== 3) continue;
+      
+      const meldTile = meld[0];
+      for (const handTile of hand) {
+        if (handTile.equals(meldTile)) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Calculate if player is in menzen (closed hand) state
+   * 暗槓は面前扱いのため、concealedMeldはカウントしない
+   */
+  isPlayerMenzen(userId) {
+    const player = this.players[userId];
+    // Count only non-concealed melds
+    const nonConcealedMeldCount = player.melds.length - player.concealedMeldIndices.size;
+    return nonConcealedMeldCount === 0;
   }
 
   compareTiles(a, b) {
@@ -573,8 +630,207 @@ class MahjongLogic {
   }
   
   handleKong(userId) {
-    // Kong: similar to pung but with 4 tiles
-    return { success: false, message: 'Kong not yet implemented' };
+    // Kan can be:
+    // 1. Concealed kan (暗かん) - 4 identical tiles from hand
+    // 2. Added kan (加かん) - adding a 4th tile to an existing pung (碰)
+    
+    // Check basic conditions
+    if (this.players[userId].riichi) {
+      return { success: false, message: 'リーチ中はカンできません' };
+    }
+
+    if (this.isPlayerInNoMeldMode(userId)) {
+      return { success: false, message: '鳴き無効モード中はカンできません' };
+    }
+
+    const hand = this.players[userId].hand;
+    const melds = this.players[userId].melds;
+    
+    // Try concealed kan first
+    const concealedKanResult = this.attemptConcealedKan(userId);
+    if (concealedKanResult.success) {
+      return concealedKanResult;
+    }
+    
+    // Try added kan
+    const addedKanResult = this.attemptAddedKan(userId);
+    if (addedKanResult.success) {
+      return addedKanResult;
+    }
+    
+    return { success: false, message: 'カンできる牌がありません' };
+  }
+  
+  /**
+   * Attempt to form a concealed kan (暗かん)
+   * Requires 4 identical tiles in hand
+   */
+  attemptConcealedKan(userId) {
+    const hand = this.players[userId].hand;
+    const tileGroups = {};
+    
+    // Group tiles by suit and number
+    hand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!tileGroups[key]) {
+        tileGroups[key] = [];
+      }
+      tileGroups[key].push(tile);
+    });
+    
+    // Find a group with 4 identical tiles
+    for (const key in tileGroups) {
+      if (tileGroups[key].length === 4) {
+        // Found 4 identical tiles - form a concealed kan
+        const kanTiles = tileGroups[key];
+        
+        // Remove the 4 tiles from hand
+        for (const tile of kanTiles) {
+          const index = hand.indexOf(tile);
+          if (index >= 0) {
+            hand.splice(index, 1);
+          }
+        }
+        
+        // Add the kan as a meld (mark as concealed kan internally)
+        const kanMeld = kanTiles.concat();
+        const meldIndex = this.players[userId].melds.length;
+        this.players[userId].melds.push(kanMeld);
+        // Mark this meld as a concealed kan (面前扱い)
+        this.players[userId].concealedMeldIndices.add(meldIndex);
+        
+        // Draw a tile from the kanning wall to restore hand size
+        const drawnTile = this.drawFromKanningWall();
+        if (drawnTile) {
+          this.players[userId].hand.push(drawnTile);
+          this.players[userId].drawnTile = drawnTile;
+          this.players[userId].drawnTileIndex = this.players[userId].hand.length - 1;
+        }
+        
+        // Reveal new dora
+        this.addNewDora();
+        
+        // Reset pending pung state
+        this.pendingPungFor = null;
+        this.ronPossibleFor = null;
+        this.ronTile = null;
+        this.lastDiscard = null;
+        this.lastDiscardBy = null;
+        
+        console.log(`[handleKong] Concealed kan by ${userId}: ${kanTiles[0].toString()}×4`);
+        
+        return {
+          success: true,
+          message: `暗カン: ${kanTiles[0].toString()}×4`,
+          kanType: 'concealed'
+        };
+      }
+    }
+    
+    return { success: false, message: 'Cannot form concealed kan' };
+  }
+  
+  /**
+   * Attempt to add a 4th tile to an existing pung (added kan - 加かん)
+   * Requires a pung and a matching tile in hand
+   */
+  attemptAddedKan(userId) {
+    const hand = this.players[userId].hand;
+    const melds = this.players[userId].melds;
+    
+    // Check each pung in melds
+    for (let i = 0; i < melds.length; i++) {
+      const meld = melds[i];
+      
+      // Check if this is a pung (3 tiles)
+      if (meld.length !== 3) continue;
+      
+      const meldTile = meld[0];
+      
+      // Look for a matching tile in hand
+      for (let j = 0; j < hand.length; j++) {
+        if (hand[j].equals(meldTile)) {
+          // Found a matching tile - add it to the pung
+          const matchingTile = hand[j];
+          
+          // Remove the tile from hand
+          hand.splice(j, 1);
+          
+          // Add the tile to the pung (convert to kan)
+          meld.push(matchingTile);
+          
+          // Draw a tile from the kanning wall to restore hand size
+          const drawnTile = this.drawFromKanningWall();
+          if (drawnTile) {
+            this.players[userId].hand.push(drawnTile);
+            this.players[userId].drawnTile = drawnTile;
+            this.players[userId].drawnTileIndex = this.players[userId].hand.length - 1;
+          }
+          
+          // Reveal new dora
+          this.addNewDora();
+          
+          // Reset pending pung state
+          this.pendingPungFor = null;
+          this.ronPossibleFor = null;
+          this.ronTile = null;
+          this.lastDiscard = null;
+          this.lastDiscardBy = null;
+          
+          console.log(`[handleKong] Added kan by ${userId}: ${meldTile.toString()}×4 (added to pung)`);
+          
+          return {
+            success: true,
+            message: `加カン: ${meldTile.toString()}×4`,
+            kanType: 'added'
+          };
+        }
+      }
+    }
+    
+    return { success: false, message: 'Cannot form added kan' };
+  }
+  
+  /**
+   * Draw a tile from the kanning wall (嶺上牌)
+   */
+  drawFromKanningWall() {
+    if (this.kanningWall.length > 0) {
+      return this.kanningWall.pop();
+    }
+    
+    // If kanning wall is empty, try to replenish from supply
+    if (this.kanningWallSupply.length > 0) {
+      return this.kanningWallSupply.pop();
+    }
+    
+    // If both are empty, draw from the main wall as fallback
+    if (this.wall.length > 0) {
+      return this.wall.pop();
+    }
+    
+    console.warn('[drawFromKanningWall] No tiles available from kanning wall or main wall');
+    return null;
+  }
+  
+  /**
+   * Add a new dora when kan is declared
+   */
+  addNewDora() {
+    // Add the next dora indicator (if available)
+    if (this.candidateDoraIndicators.length > this.doraIndicators.length) {
+      const newDoraIndicator = this.candidateDoraIndicators[this.doraIndicators.length];
+      this.doraIndicators.push(newDoraIndicator);
+      
+      // Get the corresponding dora tile
+      const newDoraIdx = this.doraIndicators.length - 1;
+      if (newDoraIdx < this.candidateDoraTiles.length) {
+        const newDoraTile = this.candidateDoraTiles[newDoraIdx];
+        this.doraTiles.push(newDoraTile);
+        
+        console.log(`[addNewDora] New dora indicator: ${newDoraIndicator.toString()}, dora tile: ${newDoraTile.toString()}`);
+      }
+    }
   }
   
   handleWin(userId) {
@@ -1328,9 +1584,10 @@ class MahjongLogic {
   calculateWinScore(playerId, winningTile, isTsumo) {
     const player = this.players[playerId];
     
+    const isMenzen = this.isPlayerMenzen(playerId);
     console.log(`[calculateWinScore] Player ${playerId}:`);
     console.log(`  - riichi: ${player.riichi}`);
-    console.log(`  - menzen: ${player.melds.length === 0}`);
+    console.log(`  - menzen: ${isMenzen}`);
     console.log(`  - isTsumo: ${isTsumo}`);
     
     // 和了時の手牌（和了牌を含む）
@@ -1347,7 +1604,7 @@ class MahjongLogic {
       isTsumo: isTsumo,
       isRon: !isTsumo,
       riichi: player.riichi, // リーチ情報を渡す
-      menzen: player.melds.length === 0, // 門前かどうか
+      menzen: isMenzen, // 門前かどうか（暗槓は面前扱い）
       roundWind: this.roundWindNumber,
       seatWind: this.seatWinds[playerId],
       doraIndicators: this.doraIndicators, // ドラ表示牌を渡す
