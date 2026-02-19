@@ -26,11 +26,12 @@ export default function HomePage({
   onRefreshed,
 }: HomePageProps) {
   const defaultInitialScore = 25000
-  // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
-  // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 最大87枚
+  // wallTiles: 配牌27枚が配られた後、壁に残す牌の枚数
+  // 計算: 全牌136枚 - 配牌26枚 - 予約牌22枚 = 最大88枚がツモ可能
+  // バックエンドに送信する際は配牌26枚を加算して送信
   const defaultWallTiles = 44
   const minWallTiles = 30
-  const maxWallTiles = 87
+  const maxWallTiles = 88
   const [joinRoomId, setJoinRoomId] = useState('')
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -98,6 +99,8 @@ export default function HomePage({
     try {
       const sanitizedInitialScore = sanitizeInitialScore(initialScore)
       const sanitizedWallTiles = clampWallTiles(wallTiles)
+      // バックエンドに送信する値: 配牌26枚を加算した値
+      const wallTilesToSend = sanitizedWallTiles + 26
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
         method: 'POST',
         headers: {
@@ -105,7 +108,7 @@ export default function HomePage({
         },
         body: JSON.stringify({
           initialScore: sanitizedInitialScore,
-          wallTiles: sanitizedWallTiles,
+          wallTiles: wallTilesToSend,
           oneRoundMatch: oneRoundMatch,
           myTsumoLuck: myTsumoLuck,
           opponentTsumoLuck: opponentTsumoLuck,
@@ -343,7 +346,7 @@ export default function HomePage({
                   className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
                 />
                 <p className="text-xs text-gray-300 m-0">{minWallTiles}〜{maxWallTiles}（通常 {defaultWallTiles}）</p>
-                <p className="text-xs text-gray-400 m-0 mt-1">配牌27枚と予約牌22枚を除いた、ゲーム進行中にツモできる牌の枚数です</p>
+                <p className="text-xs text-gray-400 m-0 mt-1">配牌26枚と予約牌22枚を除いた、ゲーム進行中にツモできる牌の枚数です</p>
               </div>
               <div className="flex flex-col gap-3 p-3 bg-[#1a2e0a] border border-gray-500 rounded">
                 <div>
