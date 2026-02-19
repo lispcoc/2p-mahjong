@@ -143,6 +143,86 @@ export function ScoreResultModal({
             {(scoreResult.winType || '').includes('ロン') ? '対手の捨て牌をすぐに和了' : 'ツモで和了'}
           </div>
         )}
+
+        {/* ドラ・裏ドラ表示 */}
+        {scoreResult.valid && !isDrawOrAbort && (
+          <div style={{
+            marginTop: '15px',
+            padding: '15px',
+            backgroundColor: '#3d6b20',
+            borderRadius: '0px',
+            border: '2px solid #FFD700',
+            display: 'flex',
+            gap: '40px',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+          }}>
+            {/* 表ドラ表示 */}
+            {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '8px 12px',
+                backgroundColor: '#FFFACD',
+                borderRadius: '4px',
+                border: '1px solid #DAA520'
+              }}>
+                <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', minWidth: '65px' }}>
+                  表ドラ
+                </div>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  {gameState.dora.indicators.map((tile, idx) => (
+                    <TileImage key={`dora-ind-${idx}`} tile={tile} />
+                  ))}
+                </div>
+                {gameState.dora.tiles && gameState.dora.tiles.length > 0 && (
+                  <>
+                    <div style={{ fontSize: '10px', color: '#999' }}>→</div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {gameState.dora.tiles.map((tile, idx) => (
+                        <TileImage key={`dora-tile-${idx}`} tile={tile} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 裏ドラ表示 */}
+            {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '8px 12px',
+                backgroundColor: '#F0E68C',
+                borderRadius: '4px',
+                border: '1px solid #CD853F'
+              }}>
+                <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', minWidth: '65px' }}>
+                  裏ドラ
+                </div>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  {gameState.dora.uraIndicators.map((tile, idx) => (
+                    <TileImage key={`ura-ind-${idx}`} tile={tile} />
+                  ))}
+                </div>
+                {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
+                  <>
+                    <div style={{ fontSize: '10px', color: '#999' }}>→</div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      {gameState.dora.uraTiles.map((tile, idx) => (
+                        <TileImage key={`ura-tile-${idx}`} tile={tile} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         
         {scoreResult.valid && !isDrawOrAbort ? (
           <>
