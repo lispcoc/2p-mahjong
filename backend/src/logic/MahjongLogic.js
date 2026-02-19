@@ -1430,25 +1430,22 @@ class MahjongLogic {
    * @returns {Tile|null} 引いた牌、または null
    */
   drawTileWithLuckAdaptive(userId) {
-    // ツモ対象から除外すべき牌のセット
-    const excludedTiles = [
+    // ツモ対象から除外すべき牌のセット（オブジェクト参照ベース）
+    const excludedTileObjects = new Set([
       ...this.kanningWall, // かん牌スペース
       ...this.kanningWallSupply, // かん牌補充用
       ...this.candidateDoraIndicators,
       ...this.candidateDoraTiles,
       ...this.candidateUraDoraIndicators,
       ...this.candidateUraDoraTiles,
-    ];
+    ]);
     
     // 引けるすべての牌を取得
     const playableTiles = [];
     for (let i = this.wall.length - 1; i >= 0; i--) {
       const tile = this.wall[i];
-      const isExcluded = excludedTiles.some(excluded => 
-        excluded.suit === tile.suit && excluded.number === tile.number
-      );
-      
-      if (!isExcluded) {
+      // オブジェクト参照で除外判定（値ベースではなく）
+      if (!excludedTileObjects.has(tile)) {
         playableTiles.push({ index: i, tile });
       }
     }
