@@ -11,6 +11,7 @@ class MahjongLogic {
       : 0;
     this.currentTurnIndex = dealerIndex;
     this.dealerIndex = dealerIndex;
+    this.turnNumber = 0; // ゲーム全体のターン番号（一発判定用）
     this.roundWindNumber = Number.isFinite(options.roundWindNumber) ? options.roundWindNumber : 1;
     this.seatWinds = options.seatWinds || {};
     this.wall = [];
@@ -56,6 +57,7 @@ class MahjongLogic {
         score: playerScores[id] || 25000, // 持ち点（デフォルト25000点）
         drawnTile: null, // Last tile drawn from wall
         drawnTileIndex: -1, // Index of drawn tile in hand
+        drawnFromKanningWall: false, // 嶺上牌から引いたか（嶺上開花用）
         riichi: false, // リーチ状態
         riichiTurn: -1, // リーチした巡目
         riichiDiscardIndex: -1, // リーチ宣言時の捨て牌インデックス
@@ -388,6 +390,7 @@ class MahjongLogic {
       // Reset drawn tile after discard
       this.players[userId].drawnTileIndex = -1;
       this.players[userId].drawnTile = null;
+      this.players[userId].drawnFromKanningWall = false;
 
       // Set up pending pung for the other player
       const otherPlayerId = this.getOtherPlayerId(userId);
@@ -474,6 +477,7 @@ class MahjongLogic {
     // Reset drawn tile after discard
     this.players[userId].drawnTileIndex = -1;
     this.players[userId].drawnTile = null;
+    this.players[userId].drawnFromKanningWall = false;
 
     // Set up pending pung for the other player
     const otherPlayerId = this.getOtherPlayerId(userId);
@@ -720,6 +724,7 @@ class MahjongLogic {
           this.players[userId].hand.push(drawnTile);
           this.players[userId].drawnTile = drawnTile;
           this.players[userId].drawnTileIndex = this.players[userId].hand.length - 1;
+          this.players[userId].drawnFromKanningWall = true;
         }
         
         // Reveal new dora
@@ -780,6 +785,7 @@ class MahjongLogic {
             this.players[userId].hand.push(drawnTile);
             this.players[userId].drawnTile = drawnTile;
             this.players[userId].drawnTileIndex = this.players[userId].hand.length - 1;
+            this.players[userId].drawnFromKanningWall = true;
           }
           
           // Reveal new dora
@@ -1238,6 +1244,7 @@ class MahjongLogic {
   
   nextTurn() {
     this.currentTurnIndex = (this.currentTurnIndex + 1) % this.playerIds.length;
+    this.turnNumber++; // ターン番号を進める
   }
 
   drawForTurn(userId) {
@@ -1257,27 +1264,17 @@ class MahjongLogic {
       return { success: true };
     }
 
-    if (this.wall.length === 0) {
-      console.log(`[drawForTurn] ⚠️ WALL EXHAUSTED: Wall has no more tiles, game ending in draw`);
-      this.finished = true;
-      return { 
-        success: true, 
-        finished: true, 
-        message: 'Draw - no more tiles',
-        isDraw: true,
-        tileCount: hand.length + (this.players[this.playerIds[0]].melds.reduce((s, m) => s + m.length, 0) + 
-                                  this.players[this.playerIds[1]].melds.reduce((s, m) => s + m.length, 0))
-      };
-    }
-
+    // 注意：wall.length === 0でも、嶺上牌や残り牌がある場合は続行する
+    // drawTileWithLuckAdaptive が null を返す場合のみ流局と判定
+    
     console.log(`[wall] before draw: userId=${userId}, wall.length=${this.wall.length}`);
     
     // ドラ候補牌を避けてツモを実行（ツモ運を考慮、手牌分析に基づく動的補正）
     const tile = this.drawTileWithLuckAdaptive(userId);
     
     if (!tile) {
-      // ドラ候補のみが残っている場合は流局
-      console.log(`[drawForTurn] ⚠️ WALL EXHAUSTED: Only dora candidate tiles remaining, game ending in draw`);
+      // 引ける牌がない場合は流局
+      console.log(`[drawForTurn] ⚠️ WALL EXHAUSTED: No playable tiles remaining, game ending in draw`);
       this.finished = true;
       return { 
         success: true, 
@@ -1813,6 +1810,12 @@ class MahjongLogic {
       fullHand.push(winningTile);
     }
     
+    // 偶然役の判定条件を計算
+    const numPlayers = this.playerIds.length;
+    const isIppatsumari = player.riichi && this.turnNumber === player.riichiTurn + numPlayers;
+    const isHaitei = this.wall.length === 0 && isTsumo;
+    const isRinshan = player.drawnFromKanningWall && isTsumo;
+    
     // 点数計算
     const scoreResult = this.scoreCalculator.calculateScore({
       hand: fullHand,
@@ -1826,7 +1829,10 @@ class MahjongLogic {
       seatWind: this.seatWinds[playerId],
       doraIndicators: this.doraIndicators, // ドラ表示牌を渡す
       doraTiles: this.doraTiles, // 実際のドラを渡す
-      urahaTiles: player.riichi ? this.getUrahaTiles() : [] // リーチの時は裏ドラを渡す
+      urahaTiles: player.riichi ? this.getUrahaTiles() : [], // リーチの時は裏ドラを渡す
+      isIppatsumari: isIppatsumari, // 一発判定
+      isHaitei: isHaitei, // 海底判定
+      isRinshan: isRinshan // 嶺上開花判定
     });
     
     console.log('[calculateWinScore] 点数計算結果:', scoreResult);
@@ -1938,7 +1944,7 @@ class MahjongLogic {
 
     // リーチ成立（捨て牌後）
     player.riichi = true;
-    player.riichiTurn = this.getCurrentTurn();
+    player.riichiTurn = this.turnNumber; // ターン番号を記録（一発判定用）
     player.riichiDiscardIndex = player.discards.length - 1; // リーチ宣言時の捨て牌インデックスを記録
     player.score -= 1000; // 1000点を供託
     this.riichiDeposits += 1000;

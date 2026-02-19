@@ -99,7 +99,7 @@ export default function HomePage({
     try {
       const sanitizedInitialScore = sanitizeInitialScore(initialScore)
       const sanitizedWallTiles = clampWallTiles(wallTiles)
-      const wallTilesToSend = sanitizedWallTiles + 26 + 22
+      const wallTilesToSend = sanitizedWallTiles + 26 + 22 + 6
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
         method: 'POST',
         headers: {

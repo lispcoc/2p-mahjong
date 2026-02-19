@@ -50,7 +50,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [] } = winInfo;
+    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -61,7 +61,7 @@ class ScoreCalculator {
     
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -85,7 +85,7 @@ class ScoreCalculator {
     
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -112,7 +112,7 @@ class ScoreCalculator {
     
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaTiles, isIppatsumari, isHaitei, isRinshan);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han === 0) continue; // 役なしはスキップ
@@ -214,8 +214,11 @@ class ScoreCalculator {
    * @param {Array} doraIndicators - ドラ表示牌
    * @param {Array} doraTiles - ドラ
    * @param {Array} urahaTiles - 裏ドラ（リーチ時）
+   * @param {boolean} isIppatsumari - 一発判定
+   * @param {boolean} isHaitei - 海底判定
+   * @param {boolean} isRinshan - 嶺上開花判定
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = []) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
     
@@ -290,6 +293,22 @@ class ScoreCalculator {
       console.log(`[detectYaku] リーチ役なし: menzen=${menzen}, melds.length=${melds.length}`);
     }
     
+    // 一発（イッパツ）- リーチ後、初ターンの和了（ロン・ツモ両方対応、門前のみ、リーチ必須）
+    // 注：七対子など他の役と複合可能
+    if (isIppatsumari && riichi && menzen) {
+      yaku.push({ name: '一発', han: 1 });
+    }
+    
+    // 海底撈月（ハイテイロウゲツ）- 壁の最後の牌でツモ和了（副露があっても成立）
+    if (isHaitei && isTsumo) {
+      yaku.push({ name: '海底撈月', han: 1 });
+    }
+    
+    // 嶺上開花（リンシャンカイホウ）- カン後、嶺上牌でツモ和了（副露があっても成立）
+    if (isRinshan && isTsumo) {
+      yaku.push({ name: '嶺上開花', han: 1 });
+    }
+    
     // 七対子（チートイツ） - 門前のみ（特殊形なのでcombinationがnull）
     if (!combination && melds.length === 0 && this.isChiitoitsu(hand)) {
       yaku.push({ name: '七対子', han: 2 });
@@ -300,11 +319,6 @@ class ScoreCalculator {
     if (!combination && melds.length === 0 && this.isKokushi(hand)) {
       yaku.push({ name: '国士無双', han: 13 });
       return yaku; // 国士無双は他の役と複合しない
-    }
-    
-    // ツモ（門前のみ）
-    if (isTsumo && melds.length === 0) {
-      yaku.push({ name: 'ツモ', han: 1 });
     }
     
     // 清一色（チンイツ）- 和了形に依存しない
