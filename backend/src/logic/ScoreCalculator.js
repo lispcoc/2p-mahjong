@@ -234,6 +234,12 @@ class ScoreCalculator {
       return yaku;
     }
     
+    // 大四喜（ダイスーシー）
+    if (this.isDaishushi(allTiles)) {
+      yaku.push({ name: '大四喜', han: 13 });
+      return yaku;
+    }
+    
     // 字一色（ツーイーソー）
     if (this.isTsuuiisou(allTiles)) {
       yaku.push({ name: '字一色', han: 13 });
@@ -243,6 +249,12 @@ class ScoreCalculator {
     // 清老頭（チンロウトウ）
     if (this.isChinroutou(allTiles)) {
       yaku.push({ name: '清老頭', han: 13 });
+      return yaku;
+    }
+    
+    // 小四喜（ショウスーシー） - 役満
+    if (this.isShousushi(allTiles)) {
+      yaku.push({ name: '小四喜', han: 13 });
       return yaku;
     }
     
@@ -326,7 +338,7 @@ class ScoreCalculator {
       yaku.push({ name: '三暗刻', han: 2 });
     }
     
-    // 対々和（トイトイ）- 和了形に依存（副露を含む）
+    // 対々和（トイトイホー）- 和了形に依存（副露を含む）
     if (this.isToitoiWithCombination(combination, melds)) {
       yaku.push({ name: '対々和', han: 2 });
     }
@@ -1206,6 +1218,43 @@ class ScoreCalculator {
     
     // 全て刻子（3枚以上）
     return Object.values(counts).every(c => c >= 3);
+  }
+  
+  /**
+   * 大四喜（ダイスウジ）判定
+   * 東西南北の4つの風牌が全て刻子
+   */
+  isDaishushi(tiles) {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0 }; // 東西南北
+    
+    tiles.forEach(tile => {
+      if (tile.suit === 'honor' && [1, 2, 3, 4].includes(tile.number)) {
+        counts[tile.number]++;
+      }
+    });
+    
+    // 全て刻子（3枚以上）
+    return Object.values(counts).every(c => c >= 3);
+  }
+  
+  /**
+   * 小四喜（ショウスウジ）判定
+   * 東西南北の4つのうち3つが刻子、1つが対子
+   */
+  isShousushi(tiles) {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0 }; // 東西南北
+    
+    tiles.forEach(tile => {
+      if (tile.suit === 'honor' && [1, 2, 3, 4].includes(tile.number)) {
+        counts[tile.number]++;
+      }
+    });
+    
+    // 3つが刻子（3枚以上）、1つが対子（2枚）
+    const threeOrMore = Object.values(counts).filter(c => c >= 3).length;
+    const exactlyTwo = Object.values(counts).filter(c => c === 2).length;
+    
+    return threeOrMore === 3 && exactlyTwo === 1;
   }
   
   /**
