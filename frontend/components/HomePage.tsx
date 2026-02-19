@@ -28,7 +28,7 @@ export default function HomePage({
   const defaultInitialScore = 25000
   // wallTiles: 配牌27枚が配られた後、壁に残す牌の枚数
   // 計算: 全牌136枚 - 配牌26枚 - 予約牌22枚 = 最大88枚がツモ可能
-  // バックエンドに送信する際は配牌26枚を加算して送信
+  // バックエンドに送信する際は配牌26枚と予約牌22枚を加算して送信
   const defaultWallTiles = 44
   const minWallTiles = 30
   const maxWallTiles = 88
@@ -99,8 +99,7 @@ export default function HomePage({
     try {
       const sanitizedInitialScore = sanitizeInitialScore(initialScore)
       const sanitizedWallTiles = clampWallTiles(wallTiles)
-      // バックエンドに送信する値: 配牌26枚を加算した値
-      const wallTilesToSend = sanitizedWallTiles + 26
+      const wallTilesToSend = sanitizedWallTiles + 26 + 22
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
         method: 'POST',
         headers: {

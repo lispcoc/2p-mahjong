@@ -201,19 +201,21 @@ class MahjongLogic {
       
       // ドラ表示牌とドラタイルの最初の1組を現在のドラとして設定
       if (this.candidateDoraIndicators.length > 0) {
-        this.doraIndicators.push(this.candidateDoraIndicators[0]);
-      }
-      if (this.candidateDoraTiles.length > 0) {
-        this.doraTiles.push(this.candidateDoraTiles[0]);
+        const indicator = this.candidateDoraIndicators[0];
+        this.doraIndicators.push(indicator);
+        // ドラ表示牌の次の牌を計算してドラとして設定
+        const nextTile = this.getNextTile(indicator);
+        this.doraTiles.push(nextTile);
       }
       
       // 裏ドラ表示牌と裏ドラタイルの最初の1組を現在の裏ドラとして設定
       // （リーチで和了したときに表示される）
       if (this.candidateUraDoraIndicators.length > 0) {
-        this.uraDoraIndicators.push(this.candidateUraDoraIndicators[0]);
-      }
-      if (this.candidateUraDoraTiles.length > 0) {
-        this.uraDoraTiles.push(this.candidateUraDoraTiles[0]);
+        const indicator = this.candidateUraDoraIndicators[0];
+        this.uraDoraIndicators.push(indicator);
+        // 裏ドラ表示牌の次の牌を計算して裏ドラとして設定
+        const nextTile = this.getNextTile(indicator);
+        this.uraDoraTiles.push(nextTile);
       }
       
       console.log(`[dealTiles] Kanning wall (嶺上牌): ${this.kanningWall.map(t => t.toString()).join(', ')}`);
@@ -229,6 +231,16 @@ class MahjongLogic {
     }
   }
   
+  /**
+   * 表示牌の次の牌を取得
+   * @param {Tile} tile - 表示牌
+   * @returns {Tile} 次の牌
+   */
+  getNextTile(tile) {
+    const nextNumber = tile.number === 9 ? 1 : (tile.number === 7 && tile.suit === 'honor' ? 1 : tile.number + 1);
+    return new Tile(tile.suit, nextNumber);
+  }
+
   shuffleWall() {
     for (let i = this.wall.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -825,14 +837,11 @@ class MahjongLogic {
       const newDoraIndicator = this.candidateDoraIndicators[this.doraIndicators.length];
       this.doraIndicators.push(newDoraIndicator);
       
-      // Get the corresponding dora tile
-      const newDoraIdx = this.doraIndicators.length - 1;
-      if (newDoraIdx < this.candidateDoraTiles.length) {
-        const newDoraTile = this.candidateDoraTiles[newDoraIdx];
-        this.doraTiles.push(newDoraTile);
-        
-        console.log(`[addNewDora] New dora indicator: ${newDoraIndicator.toString()}, dora tile: ${newDoraTile.toString()}`);
-      }
+      // ドラ表示牌の次の牌を計算してドラとして設定
+      const newDoraTile = this.getNextTile(newDoraIndicator);
+      this.doraTiles.push(newDoraTile);
+      
+      console.log(`[addNewDora] New dora indicator: ${newDoraIndicator.toString()}, dora tile: ${newDoraTile.toString()}`);
     }
   }
   
