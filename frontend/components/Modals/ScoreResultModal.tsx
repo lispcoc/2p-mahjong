@@ -131,18 +131,6 @@ export function ScoreResultModal({
                 ? `${winnerName} が${(scoreResult.winType || scoreResult.scoreType || '和了').replace('!', '')}で和了` 
                 : '役なし')}
         </h2>
-        
-        {scoreResult.valid && !isDrawOrAbort && winnerName && (
-          <div style={{
-            textAlign: 'center',
-            fontSize: '14px',
-            color: '#e0e0e0',
-            marginBottom: '15px',
-            fontWeight: '500',
-          }}>
-            {(scoreResult.winType || '').includes('ロン') ? '対手の捨て牌をすぐに和了' : 'ツモで和了'}
-          </div>
-        )}
 
         {/* ドラ・裏ドラ表示 */}
         {scoreResult.valid && !isDrawOrAbort && (
@@ -273,13 +261,14 @@ export function ScoreResultModal({
               <div style={{ fontSize: '16px', color: '#e0e0e0', marginBottom: '5px' }}>
                 {scoreResult.scoreType}
               </div>
-              <div style={{ fontSize: '14px', color: '#a0a0a0' }}>
+              <div className='hidden' style={{ fontSize: '14px', color: '#a0a0a0' }}>
                 {scoreResult.han}飜 {scoreResult.fu}符
               </div>
             </div>
 
             {scoreResult.calculation && (
-              <div style={{
+              <div className='hidden'
+                style={{
                 marginTop: '15px',
                 padding: '12px',
                 backgroundColor: '#1a2e0a',
