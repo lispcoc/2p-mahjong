@@ -847,6 +847,17 @@ class GameRoom {
       }
     }
 
+    // カン可能なら実行（加槓は積極的に、暗槓は慎重に）
+    if (drawnTile && this.gameLogic.canPlayerKan(userId)) {
+      console.log('🤖 Checking if CPU wants to kan...');
+      this.executeCPUKan(userId, () => {
+        // カン後、手牌が14枚でディスカード待ち状態
+        // ディスカード処理へ進む
+        this.executeCPUDiscard(userId, callback);
+      });
+      return;
+    }
+
     // ツモ和了できなければディスカード
     this.executeCPUDiscard(userId, callback);
   }
@@ -908,6 +919,41 @@ class GameRoom {
     } else {
       console.log('🤖 CPU will not pung, drawing instead');
       const drawResult = this.handlePlayerAction(userId, { type: 'draw' });
+      if (callback) callback();
+    }
+  }
+
+  // CPU自動カン処理
+  executeCPUKan(userId, callback) {
+    const hand = this.gameLogic.getPlayerHand(userId);
+    const melds = this.gameLogic.getPlayerMelds(userId);
+    const isRiichi = this.gameLogic.isPlayerRiichi(userId);
+    const aiPlayer = this.aiPlayers.get(userId);
+
+    console.log(`🤖 CPU kan decision...`);
+
+    // AIPlayerにカンすべきか判定させる
+    if (aiPlayer.shouldKan(hand, melds, isRiichi)) {
+      console.log('🤖 CPU will kan');
+      const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
+      
+      if (!kanResult.success) {
+        console.log('🤖 CPU kan failed:', kanResult.message);
+        // カン失敗時は続行（通常のディスカード処理へ）
+        if (callback) callback();
+      } else {
+        console.log('🤖 CPU カン 成功');
+        // カン後、このプレイヤーは手牌が14枚で嶺上牌を引いた状態
+        // 次のターンでディスカード待ち状態なので、続行
+        // テストモード時は遅延をスキップ
+        const kanDelay = this.testMode ? 0 : 100;
+        setTimeout(() => {
+          // カン後はディスカード待ちなのでそのまま進行
+          if (callback) callback();
+        }, kanDelay);
+      }
+    } else {
+      console.log('🤖 CPU will not kan');
       if (callback) callback();
     }
   }

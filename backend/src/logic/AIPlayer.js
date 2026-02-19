@@ -962,6 +962,174 @@ class AIPlayer {
 
     return complexityScore;
   }
+
+  /**
+   * カン（槓）をすべきかを判定
+   * @param {Array} hand - プレイヤーの手牌
+   * @param {Array} melds - 副露（ポン・チーなど）
+   * @param {boolean} isRiichi - リーチ状態かどうか
+   * @returns {boolean} - カンをすべき場合 true
+   */
+  shouldKan(hand, melds = [], isRiichi = false) {
+    // リーチ中はカンできない
+    if (isRiichi) {
+      return false;
+    }
+
+    //加槓（加えるカン）が可能か確認 - これが最も安全で価値のあるカン
+    const addedKanPossible = this.getValidAddedKan(hand, melds);
+
+    // 加槓が可能な場合は積極的に実行
+    // （ドラが増えるし既存メルドは崩れない）
+    if (addedKanPossible.length > 0) {
+      console.log(`[AIPlayer.shouldKan] ✅ Can do added kan (加槓), will execute`);
+      return true;
+    }
+
+    // 暗槓（隠れたカン）は複雑なので当面スキップ
+    // （状態管理が複雑で、バグの原因になりやすい）
+    console.log(`[AIPlayer.shouldKan] ❌ No safe kan opportunities (暗槓はスキップ)`);
+    return false;
+  }
+
+  /**
+   * 手牌から暗槓（4枚同じ牌）を取得
+   * @param {Array} hand - 手牌
+   * @returns {Array} - [牌オブジェクト, ...] 暗槓できる牌のリスト
+   */
+  getValidConcealedKan(hand) {
+    const tileGroups = {};
+    hand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!tileGroups[key]) {
+        tileGroups[key] = [];
+      }
+      tileGroups[key].push(tile);
+    });
+
+    const validKans = [];
+    for (const key in tileGroups) {
+      if (tileGroups[key].length === 4) {
+        validKans.push(tileGroups[key][0]); // 代表タイルを追加
+      }
+    }
+
+    return validKans;
+  }
+
+  /**
+   * メルド内のポン（3枚同じ牌）に加槓（4枚目を追加）できる牌を取得
+   * @param {Array} hand - 手牌
+   * @param {Array} melds - 副露
+   * @returns {Array} - [牌オブジェクト, ...] 加槓できる牌のリスト
+   */
+  getValidAddedKan(hand, melds = []) {
+    const validKans = [];
+
+    // メルド内の各ポンをチェック
+    for (const meld of melds) {
+      if (meld.length !== 3) continue; // ポン（3枚）のみ対象
+
+      const meldTile = meld[0];
+
+      // 手牌から対応する牌を探す
+      const matchingTile = hand.find(
+        t => t.suit === meldTile.suit && t.number === meldTile.number
+      );
+
+      if (matchingTile) {
+        validKans.push(matchingTile);
+      }
+    }
+
+    return validKans;
+  }
+
+  /**
+   * 暗槓が手の品質を改善するかを判定
+   * メルドがある場合の慎重な判定
+   * @param {Array} hand - 手牌
+   * @param {Array} melds - メルド
+   * @param {Array} concealedKans - 暗槓可能な牌リスト（getValidConcealedKanの結果）
+   * @returns {boolean}
+   */
+  canConcealedKanImproveHand(hand, melds, concealedKans = []) {
+    if (concealedKans.length === 0) return false;
+
+    const kanTile = concealedKans[0]; // 最初の暗槓候補を使用
+    const kanKey = `${kanTile.suit}-${kanTile.number}`;
+
+    // カン対象の4枚を除いた手牌をシミュレート
+    const handAfterKan = hand.filter(
+      t => !(t.suit === kanTile.suit && t.number === kanTile.number)
+    );
+
+    // カン後の待ちを確認
+    const kanWaitTiles = TenpaiChecker.getWinningTiles(handAfterKan, melds);
+    const kanWaitCount = new Set(
+      kanWaitTiles.map(t => `${t.suit}-${t.number}`)
+    ).size;
+
+    // カンしない場合の待ちを確認
+    const originalWaitTiles = TenpaiChecker.getWinningTiles(hand, melds);
+    const originalWaitCount = new Set(
+      originalWaitTiles.map(t => `${t.suit}-${t.number}`)
+    ).size;
+
+    // 待ち牌が増える or 変わらない場合は実行
+    // ただし、完全に待ちがなくなる場合は避ける
+    if (kanWaitCount === 0 && originalWaitCount > 0) {
+      console.log(`[AIPlayer.canConcealedKanImproveHand] ❌ Kan destroys waiting tiles (${originalWaitCount} → 0)`);
+      return false;
+    }
+
+    // 待ち牌が増えるか、メルド数が多い場合は実行
+    if (kanWaitCount >= originalWaitCount) {
+      console.log(`[AIPlayer.canConcealedKanImproveHand] ✅ Kan maintains or improves waiting (${originalWaitCount} → ${kanWaitCount})`);
+      return true;
+    }
+
+    // リャンメン待ちなど高品質な形が作れるかチェック
+    const kanHandQuality = this.evaluateHandQualityForKan(handAfterKan, melds, kanTile);
+    if (kanHandQuality > 0.6) {
+      console.log(`[AIPlayer.canConcealedKanImproveHand] ✅ Kan creates high-quality hand (quality: ${kanHandQuality})`);
+      return true;
+    }
+
+    console.log(`[AIPlayer.canConcealedKanImproveHand] ❌ Kan does not sufficiently improve hand quality`);
+    return false;
+  }
+
+  /**
+   * カン後の手の品質を評価（0-1スコア）
+   * 特に待ち牌の数と種類を重視
+   * @param {Array} hand - カン後の手牌
+   * @param {Array} melds - メルド
+   * @param {Object} kanTile - カンした牌（参考用）
+   * @returns {number} - 品質スコア（0-1）
+   */
+  evaluateHandQualityForKan(hand, melds, kanTile) {
+    let quality = 0.5; // 基本値
+
+    // 1. 待ち牌の数で評価
+    const waitingTiles = TenpaiChecker.getWinningTiles(hand, melds);
+    const uniqueWaitTiles = new Set(
+      waitingTiles.map(t => `${t.suit}-${t.number}`)
+    ).size;
+
+    if (uniqueWaitTiles >= 4) {
+      quality += 0.3; // 4種類以上の待ちがある
+    } else if (uniqueWaitTiles >= 2) {
+      quality += 0.15; // 2種類以上の待ちがある
+    }
+
+    // 2. メルド状態で評価
+    if (melds.length >= 3) {
+      quality -= 0.1; // メルドが多い場合は品質判定を厳しくする
+    }
+
+    return Math.max(0, Math.min(1, quality)); // 0-1でクリップ
+  }
 }
 
 module.exports = AIPlayer;
