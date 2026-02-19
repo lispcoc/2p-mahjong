@@ -35,6 +35,29 @@ class GameRoom {
       : maxWallTiles;
     this.oneRoundMatch = options.oneRoundMatch === true; // 1局勝負モード
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
+    this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
+    this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
+  }
+  
+  setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
+    this.pendingTsumoLuckSettings = {
+      my: Math.max(0, Math.min(3, Math.floor(myTsumoLuck))),
+      opponent: Math.max(0, Math.min(3, Math.floor(opponentTsumoLuck))),
+    };
+  }
+  
+  getPendingTsumoLuckSettings() {
+    return this.pendingTsumoLuckSettings;
+  }
+  
+  setTsumoLuck(userId, luckLevel) {
+    // luckLevel: 0=no luck, 1=light (30%), 2=medium (50%), 3=heavy (70%)
+    const level = Number.isFinite(luckLevel) ? Math.max(0, Math.min(3, Math.floor(luckLevel))) : 0;
+    this.tsumoLuckSettings.set(userId, level);
+  }
+  
+  getTsumoLuck(userId) {
+    return this.tsumoLuckSettings.get(userId) || 0;
   }
   
   addPlayer(userId, playerName, ws, isCPU = false) {
@@ -170,6 +193,13 @@ class GameRoom {
     };
     
     const seatWinds = this.buildSeatWinds(this.playerOrder);
+    
+    // Build tsumo luck settings for each player
+    const tsumoLuckSettings = {};
+    this.playerOrder.forEach((userId) => {
+      tsumoLuckSettings[userId] = this.getTsumoLuck(userId);
+    });
+    
     this.gameLogic = new MahjongLogic(
       this.playerOrder,
       playerScores,
@@ -179,6 +209,7 @@ class GameRoom {
         dealerIndex: this.dealerIndex,
         roundWindNumber: this.getRoundWindNumber(),
         seatWinds: seatWinds,
+        tsumoLuckSettings: tsumoLuckSettings,
       }
     );
     if (this.riichiDepositsCarryover > 0) {

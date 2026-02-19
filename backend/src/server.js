@@ -88,13 +88,27 @@ app.post('/api/rooms', (req, res) => {
     ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
     : maxWallTiles;
   const oneRoundMatch = req.body?.oneRoundMatch === true;
+  
+  // Extract and validate tsumo luck for both players
+  const rawMyTsumoLuck = Number(req.body?.myTsumoLuck);
+  const myTsumoLuck = Number.isFinite(rawMyTsumoLuck)
+    ? Math.max(0, Math.min(3, Math.floor(rawMyTsumoLuck)))
+    : 1;
+  
+  const rawOpponentTsumoLuck = Number(req.body?.opponentTsumoLuck);
+  const opponentTsumoLuck = Number.isFinite(rawOpponentTsumoLuck)
+    ? Math.max(0, Math.min(3, Math.floor(rawOpponentTsumoLuck)))
+    : 1;
+  
   const room = new GameRoom(roomId, { initialScore, wallTiles, oneRoundMatch });
+  // Store pending tsumo luck settings to be applied when players join
+  room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
   
   // 非アクティブタイマーを開始
   room.startInactivityTimer(createInactivityCallback(roomId));
   
-  console.log(`Room created: ${roomId}`);
+  console.log(`Room created: ${roomId} (myTsumoLuck=${myTsumoLuck}, opponentTsumoLuck=${opponentTsumoLuck})`);
   res.json({ roomId });
 });
 
@@ -286,7 +300,7 @@ function handleJoin(ws, payload) {
     return;
   }
   
-  const { roomId, playerName, userId: existingUserId } = payload;
+  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck } = payload;
   
   if (!roomId || !playerName) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
@@ -353,6 +367,31 @@ function handleJoin(ws, payload) {
       ws.send(JSON.stringify({ type: 'error', message: addPlayerResult.message }));
       return;
     }
+    
+    // Determine which player this is (1st or 2nd) to assign correct tsumo luck
+    const playerIndex = room.getPlayers().length; // 1 or 2
+    let assignedTsumoLuck = 1; // default
+    
+    // Try to use pending settings first (set during room creation)
+    const pendingSettings = room.getPendingTsumoLuckSettings?.();
+    if (pendingSettings) {
+      assignedTsumoLuck = playerIndex === 1 ? pendingSettings.my : pendingSettings.opponent;
+      console.log(`✓ Using pending tsumo luck for player ${playerIndex}: level ${assignedTsumoLuck}`);
+    } else if (playerIndex === 1) {
+      // First player - use myTsumoLuck from join message if provided
+      if (Number.isFinite(myTsumoLuck) && myTsumoLuck >= 0 && myTsumoLuck <= 3) {
+        assignedTsumoLuck = Math.floor(myTsumoLuck);
+      }
+      console.log(`✓ Set tsumo luck for ${playerName} (player 1): level ${assignedTsumoLuck}`);
+    } else {
+      // Second player - use opponentTsumoLuck from join message if provided
+      if (Number.isFinite(opponentTsumoLuck) && opponentTsumoLuck >= 0 && opponentTsumoLuck <= 3) {
+        assignedTsumoLuck = Math.floor(opponentTsumoLuck);
+      }
+      console.log(`✓ Set tsumo luck for ${playerName} (player 2): level ${assignedTsumoLuck}`);
+    }
+    
+    room.setTsumoLuck(userId, assignedTsumoLuck);
   }
   
   connections.set(ws, { userId, roomId, playerName });

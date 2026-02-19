@@ -43,6 +43,9 @@ class MahjongLogic {
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
     
+    // Tsumo luck settings: userId -> luck level (0=none, 1=light, 2=heavy)
+    this.tsumoLuckSettings = options.tsumoLuckSettings || {};
+    
     // Initialize players
     playerIds.forEach((id) => {
       this.players[id] = {
@@ -1260,8 +1263,8 @@ class MahjongLogic {
 
     console.log(`[wall] before draw: userId=${userId}, wall.length=${this.wall.length}`);
     
-    // ドラ候補牌を避けてツモを実行
-    const tile = this.drawTileAvoidingDoraCandidates();
+    // ドラ候補牌を避けてツモを実行（ツモ運を考慮、手牌分析に基づく動的補正）
+    const tile = this.drawTileWithLuckAdaptive(userId);
     
     if (!tile) {
       // ドラ候補のみが残っている場合は流局
@@ -1303,10 +1306,130 @@ class MahjongLogic {
   }
   
   /**
-   * ドラ候補牌を避けてツモを実行
-   * @returns {Tile} ドラ候補でない牌、または null
+   * 手牌を分析して、牌の傾向を判定
+   * @param {Array<Tile>} hand 手牌
+   * @returns {Object} 分析結果 { honors, mans, pins, sous, gaps }
    */
-  drawTileAvoidingDoraCandidates() {
+  analyzeHandTendency(hand) {
+    const analysis = {
+      honors: [],        // 字牌リスト
+      mans: [],          // 萬子リスト
+      pins: [],          // 筒子リスト
+      sous: [],          // 索子リスト
+      honorCount: 0,
+      suitCount: { man: 0, pin: 0, sou: 0 },
+      gapsByNumber: {}, // 各番号での不足を検出
+      dominantSuit: null, // 最も枚数が多い色
+      missingColors: [], // 0枚の色
+    };
+
+    // 手牌を色別に分類
+    hand.forEach(tile => {
+      if (tile.suit === 'honor') {
+        analysis.honors.push(tile);
+        analysis.honorCount++;
+      } else {
+        analysis.suitCount[tile.suit === 'man' ? 'man' : tile.suit === 'pin' ? 'pin' : 'sou']++;
+        if (tile.suit === 'man') analysis.mans.push(tile);
+        else if (tile.suit === 'pin') analysis.pins.push(tile);
+        else if (tile.suit === 'sou') analysis.sous.push(tile);
+      }
+    });
+
+    // 支配的な色を判定
+    const suitCounts = Object.values(analysis.suitCount);
+    const maxSuitCount = Math.max(...suitCounts);
+    if (analysis.suitCount.man === maxSuitCount) analysis.dominantSuit = 'man';
+    else if (analysis.suitCount.pin === maxSuitCount) analysis.dominantSuit = 'pin';
+    else if (analysis.suitCount.sou === maxSuitCount) analysis.dominantSuit = 'sou';
+
+    // 0枚の色を検出
+    if (analysis.suitCount.man === 0) analysis.missingColors.push('man');
+    if (analysis.suitCount.pin === 0) analysis.missingColors.push('pin');
+    if (analysis.suitCount.sou === 0) analysis.missingColors.push('sou');
+
+    // 各番号での頻度を計算（number 1-9）
+    for (let num = 1; num <= 9; num++) {
+      let count = 0;
+      hand.forEach(tile => {
+        if (tile.number === num && tile.suit !== 'honor') {
+          count++;
+        }
+      });
+      analysis.gapsByNumber[num] = 4 - count; // 4枚中何枚不足か
+    }
+
+    return analysis;
+  }
+  
+  /**
+   * 手牌を考慮した牌スコアの動的調整
+   * @param {Tile} tile 対象の牌
+   * @param {Array<Tile>} hand 現在の手牌
+   * @returns {number} 調整済みスコア
+   */
+  getTileScoreWithHandAnalysis(tile, hand) {
+    if (!tile) return 0;
+
+    let score = this.getTileScore(tile);
+    
+    if (!hand || hand.length === 0) {
+      return score;
+    }
+
+    const analysis = this.analyzeHandTendency(hand);
+    const totalTiles = hand.length;
+    const honorRatio = analysis.honorCount / totalTiles;
+
+    // 字牌が多い場合（30%以上）→字牌スコアをブースト
+    if (honorRatio >= 0.3 && tile.suit === 'honor') {
+      score += 15; // スコア12→27に向上
+    }
+    // 字牌が多い場合→数字牌のスコアを低下
+    else if (honorRatio >= 0.3 && tile.suit !== 'honor') {
+      score = Math.max(2, score - 3);
+    }
+
+    // 不足している色の牌をブースト
+    if (tile.suit !== 'honor' && analysis.missingColors.length > 0) {
+      // 不足している色のいずれかに該当
+      if (analysis.missingColors.includes(tile.suit)) {
+        // 足りない色の中張牌（4,5,6）は特に重要
+        if ([4, 5, 6].includes(tile.number)) {
+          score += 12; // スコア20→32に向上
+        } else if ([3, 7].includes(tile.number)) {
+          score += 8; // スコア15→23に向上
+        } else {
+          score += 4;
+        }
+      }
+    }
+
+    // 支配的な色の中張牌をブースト（すでに多いので、その色の中張を優先）
+    if (tile.suit === analysis.dominantSuit && [4, 5, 6].includes(tile.number)) {
+      score += 5; // 既に揃っている色で顔を増やす戦略
+    }
+
+    // 指定の番号が不足している場合、その番号の牌をブースト
+    if (tile.suit !== 'honor') {
+      const gap = analysis.gapsByNumber[tile.number];
+      if (gap >= 3) {
+        // その番号がほぼ足りていない場合
+        score += 8;
+      } else if (gap >= 2) {
+        score += 4;
+      }
+    }
+
+    return score;
+  }
+  
+  /**
+   * ツモを実行（ツモ運を考慮した選別、手牌分析を含む）
+   * @param {string} userId プレイヤーID
+   * @returns {Tile|null} 引いた牌、または null
+   */
+  drawTileWithLuckAdaptive(userId) {
     // ツモ対象から除外すべき牌のセット
     const excludedTiles = [
       ...this.kanningWall, // かん牌スペース
@@ -1317,7 +1440,8 @@ class MahjongLogic {
       ...this.candidateUraDoraTiles,
     ];
     
-    // 壁の前方から検索してドラ候補でない牌を見つける
+    // 引けるすべての牌を取得
+    const playableTiles = [];
     for (let i = this.wall.length - 1; i >= 0; i--) {
       const tile = this.wall[i];
       const isExcluded = excludedTiles.some(excluded => 
@@ -1325,14 +1449,101 @@ class MahjongLogic {
       );
       
       if (!isExcluded) {
-        // この牌はドラ候補ではなので、取り出して返す
-        return this.wall.splice(i, 1)[0];
+        playableTiles.push({ index: i, tile });
       }
     }
     
-    // ドラ候補のみが残っている場合は null を返す
-    console.log(`[drawTileAvoidingDoraCandidates] ⚠️ No playable tiles found in wall`);
-    return null;
+    if (playableTiles.length === 0) {
+      console.log(`[drawTileWithLuckAdaptive] ⚠️ No playable tiles found in wall`);
+      return null;
+    }
+    
+    // ツモ運レベルを取得
+    const luckLevel = this.tsumoLuckSettings[userId] || 0;
+    
+    if (luckLevel === 0) {
+      // 運なし：ランダムに牌を選ぶ
+      const randomIndex = Math.floor(Math.random() * playableTiles.length);
+      const selectedTile = playableTiles[randomIndex];
+      return this.wall.splice(selectedTile.index, 1)[0];
+    }
+    
+    // 運あり：スコアに基づいて確率的に選択（手牌分析を考慮）
+    // luckLevel 1: 30%, 2: 50%, 3: 70%
+    const selectionProbability = luckLevel === 1 ? 0.3 : luckLevel === 2 ? 0.5 : 0.7;
+    const useQualitySelection = Math.random() < selectionProbability;
+    
+    if (useQualitySelection) {
+      const currentHand = this.players[userId].hand;
+      
+      // スコアに基づいてソート（手牌分析を含める）
+      const tilesWithScores = playableTiles.map(item => ({
+        ...item,
+        score: this.getTileScoreWithHandAnalysis(item.tile, currentHand),
+      }));
+      
+      // スコアによって確率的に選ぶ（高スコアの牌が選ばれやすい）
+      const totalScore = tilesWithScores.reduce((sum, item) => sum + item.score, 0);
+      if (totalScore > 0) {
+        let random = Math.random() * totalScore;
+        for (const item of tilesWithScores) {
+          random -= item.score;
+          if (random <= 0) {
+            return this.wall.splice(item.index, 1)[0];
+          }
+        }
+      }
+    }
+    
+    // フォールバック：ランダムに選ぶ
+    const randomIndex = Math.floor(Math.random() * playableTiles.length);
+    const selectedTile = playableTiles[randomIndex];
+    return this.wall.splice(selectedTile.index, 1)[0];
+  }
+  
+  /**
+   * ツモ運を考慮して牌の質を評価（スコアが高いほど実用的）
+   * @param {Tile} tile 評価対象の牌
+   * @returns {number} スコア
+   */
+  getTileScore(tile) {
+    if (!tile) {
+      return 0;
+    }
+    
+    // 字牌の場合
+    if (tile.suit === 'honor') {
+      return 12; // 字牌は中程度の有用性
+    }
+    
+    // 数字牌の場合：中張牌（4, 5, 6）が最も有用
+    switch (tile.number) {
+      case 4:
+      case 5:
+      case 6:
+        return 20; // 最高スコア（最も多角的に利用可能）
+      case 3:
+      case 7:
+        return 15; // 中高スコア（比較的有用）
+      case 2:
+      case 8:
+        return 10; // 中低スコア（やや有用）
+      case 1:
+      case 9:
+        return 5; // 最低スコア（オタ風、雀頭、チャンタ用）
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * ドラ候補牌を避けてツモを実行（非推奨：drawTileWithLuckAdaptiveを推奨）
+   * @returns {Tile} ドラ候補でない牌、または null
+   */
+  drawTileAvoidingDoraCandidates() {
+    // This method is kept for backward compatibility but drawTileWithLuckAdaptive is recommended
+    const currentPlayer = this.playerIds[this.currentTurnIndex];
+    return this.drawTileWithLuckAdaptive(currentPlayer);
   }
   
   getPlayerHand(userId) {

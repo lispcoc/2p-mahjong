@@ -74,6 +74,8 @@ export default function GamePage({
   const pausedPendingPungTimeLeft = useRef<number | null>(null)
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
+  const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
+  const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)  // Prevent multiple connection attempts
   const autoNextTimerRef = useRef<number | null>(null)  // タイマーIDをRefで管理
@@ -224,6 +226,8 @@ export default function GamePage({
           userId: payload.userId,
           roomId: payload.roomId,
           playerName: payload.playerName,
+          myTsumoLuck: myTsumoLuck,
+          opponentTsumoLuck: opponentTsumoLuck,
           timestamp: Date.now(),
         }
         console.log('💾 Attempting to save session to localStorage:', sessionData)
@@ -706,6 +710,51 @@ export default function GamePage({
         attemptedReconnectUserId.current = savedSession.userId  // Remember we're trying to reconnect
         debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
         console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
+      }
+
+      // Read tsumo luck from sessionStorage (set during room creation) or from saved session
+      let myTsumoLuckValue = 0
+      let opponentTsumoLuckValue = 0
+      try {
+        const savedMyTsumoLuck = sessionStorage.getItem('mahjong-myTsumoLuck')
+        const savedOpponentTsumoLuck = sessionStorage.getItem('mahjong-opponentTsumoLuck')
+        
+        if (savedMyTsumoLuck && savedOpponentTsumoLuck) {
+          myTsumoLuckValue = parseInt(savedMyTsumoLuck, 10)
+          opponentTsumoLuckValue = parseInt(savedOpponentTsumoLuck, 10)
+          if (!Number.isNaN(myTsumoLuckValue) && !Number.isNaN(opponentTsumoLuckValue)) {
+            joinPayload.myTsumoLuck = myTsumoLuckValue
+            joinPayload.opponentTsumoLuck = opponentTsumoLuckValue
+            setMyTsumoLuck(myTsumoLuckValue)
+            setOpponentTsumoLuck(opponentTsumoLuckValue)
+            console.log(`📊 Using tsumo luck from sessionStorage: my=${myTsumoLuckValue}, opponent=${opponentTsumoLuckValue}`)
+          }
+        } else if (savedSession && savedSession.myTsumoLuck && savedSession.opponentTsumoLuck) {
+          myTsumoLuckValue = savedSession.myTsumoLuck
+          opponentTsumoLuckValue = savedSession.opponentTsumoLuck
+          joinPayload.myTsumoLuck = myTsumoLuckValue
+          joinPayload.opponentTsumoLuck = opponentTsumoLuckValue
+          setMyTsumoLuck(myTsumoLuckValue)
+          setOpponentTsumoLuck(opponentTsumoLuckValue)
+          console.log(`📊 Using tsumo luck from saved session: my=${myTsumoLuckValue}, opponent=${opponentTsumoLuckValue}`)
+        } else {
+          // Default to 1 (light bias) for both
+          myTsumoLuckValue = 1
+          opponentTsumoLuckValue = 1
+          joinPayload.myTsumoLuck = myTsumoLuckValue
+          joinPayload.opponentTsumoLuck = opponentTsumoLuckValue
+          setMyTsumoLuck(myTsumoLuckValue)
+          setOpponentTsumoLuck(opponentTsumoLuckValue)
+          console.log(`📊 Using default tsumo luck: my=${myTsumoLuckValue}, opponent=${opponentTsumoLuckValue}`)
+        }
+      } catch (err) {
+        console.error('Error reading tsumo luck:', err)
+        myTsumoLuckValue = 1
+        opponentTsumoLuckValue = 1
+        joinPayload.myTsumoLuck = myTsumoLuckValue
+        joinPayload.opponentTsumoLuck = opponentTsumoLuckValue
+        setMyTsumoLuck(myTsumoLuckValue)
+        setOpponentTsumoLuck(opponentTsumoLuckValue)
       }
 
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
