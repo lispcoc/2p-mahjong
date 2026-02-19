@@ -26,9 +26,11 @@ export default function HomePage({
   onRefreshed,
 }: HomePageProps) {
   const defaultInitialScore = 25000
-  const defaultWallTiles = 70
+  // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
+  // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 最大87枚
+  const defaultWallTiles = 44
   const minWallTiles = 30
-  const maxWallTiles = 136
+  const maxWallTiles = 87
   const [joinRoomId, setJoinRoomId] = useState('')
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -321,7 +323,7 @@ export default function HomePage({
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-gray-300 text-xs" htmlFor="wallTilesModal">
-                  壁の枚数
+                  ツモ牌の枚数（配牌を含まない）
                 </label>
                 <input
                   id="wallTilesModal"
@@ -334,6 +336,7 @@ export default function HomePage({
                   className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
                 />
                 <p className="text-xs text-gray-300 m-0">{minWallTiles}〜{maxWallTiles}（通常 {defaultWallTiles}）</p>
+                <p className="text-xs text-gray-400 m-0 mt-1">配牌27枚と予約牌22枚を除いた、ゲーム進行中にツモできる牌の枚数です</p>
               </div>
               <div className="flex items-center gap-2">
                 <input

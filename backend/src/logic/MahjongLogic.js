@@ -16,7 +16,14 @@ class MahjongLogic {
     this.wall = [];
     this.doraIndicators = []; // ドラ表示牌
     this.doraTiles = []; // ドラ（表示牌の次の牌）
-    this.kanningWall = []; // 嶺上牌（かん牌スペース）
+    this.uraDoraIndicators = []; // 裏ドラ表示牌
+    this.uraDoraTiles = []; // 裏ドラ（裏ドラ表示牌の次の牌）
+    this.kanningWall = []; // 嶺上牌（かん牌スペース：3枚）
+    this.kanningWallSupply = []; // かん牌補充用（3枚：最大3回のカン補充）
+    this.candidateDoraIndicators = []; // ドラ表示牌の候補（4枚：カン最大4回分）
+    this.candidateDoraTiles = []; // ドラタイルの候補（4枚）
+    this.candidateUraDoraIndicators = []; // 裏ドラ表示牌の候補（4枚）
+    this.candidateUraDoraTiles = []; // 裏ドラタイルの候補（4枚）
     this.winner = null;
     this.finished = false;
     this.lastDiscard = null;
@@ -28,8 +35,10 @@ class MahjongLogic {
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
     const rawWallTiles = Number(options.wallTiles);
+    // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
+    // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
     const minWallTiles = 30;
-    const maxWallTiles = 136;
+    const maxWallTiles = 87; // Updated for usable wall tiles (excluding deal and reserved)
     this.wallTiles = Number.isFinite(rawWallTiles)
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
@@ -132,19 +141,87 @@ class MahjongLogic {
       console.log(`[dealTiles] Player ${playerId} has ${this.players[playerId].hand.length} tiles`);
     });
 
-    // Set up dora indicator and dora tile
-    // ドラ表示牌は通常、嶺上牌の配置の一部として管理される
-    // ここでは単に壁の先頭からドラ表示牌を設定する
-    if (this.wall.length > 3) {
-      // 嶺上牌スペース（通常3枚指定可能）
+    // Set up dora indicator and dora tile candidates
+    // 壁の最後に予約する牌（合計22枚）：
+    // - かん牌スペース（嶺上牌）：3枚
+    // - かん牌補充用：3枚（最大3回のカン補充）
+    // - ドラ表示牌候補：4枚（最大4回のカン増加）
+    // - ドラタイル候補：4枚
+    // - 裏ドラ表示牌候補：4枚
+    // - 裏ドラタイル候補：4枚
+    if (this.wall.length > 22) {
+      // かん牌スペース（嶺上牌）3枚（壁の最後から1-3番目）
       for (let i = 0; i < 3 && this.wall.length > 0; i++) {
-        this.kanningWall.push(this.wall[this.wall.length - 1 - i]); // 嶺上牌
+        this.kanningWall.push(this.wall[this.wall.length - 1 - i]);
       }
-      this.doraIndicators.push(this.wall[this.wall.length - 4]); // ドラ表示牌（嶺上牌の次）
-      this.doraTiles.push(this.wall[this.wall.length - 5]); // ドラ（表示牌の次の牌）
+      
+      // かん牌補充用3枚（壁の最後から4-6番目）
+      for (let i = 0; i < 3; i++) {
+        const idx = this.wall.length - 4 - i;
+        if (idx >= 0) {
+          this.kanningWallSupply.push(this.wall[idx]);
+        }
+      }
+      
+      // ドラ表示牌の候補4枚（壁の最後から7-10番目：カン最大4回分）
+      for (let i = 0; i < 4; i++) {
+        const idx = this.wall.length - 7 - i;
+        if (idx >= 0) {
+          this.candidateDoraIndicators.push(this.wall[idx]);
+        }
+      }
+      
+      // ドラタイル候補4枚（壁の最後から11-14番目）
+      for (let i = 0; i < 4; i++) {
+        const idx = this.wall.length - 11 - i;
+        if (idx >= 0) {
+          this.candidateDoraTiles.push(this.wall[idx]);
+        }
+      }
+      
+      // 裏ドラ表示牌候補4枚（壁の最後から15-18番目）
+      for (let i = 0; i < 4; i++) {
+        const idx = this.wall.length - 15 - i;
+        if (idx >= 0) {
+          this.candidateUraDoraIndicators.push(this.wall[idx]);
+        }
+      }
+      
+      // 裏ドラタイル候補4枚（壁の最後から19-22番目）
+      for (let i = 0; i < 4; i++) {
+        const idx = this.wall.length - 19 - i;
+        if (idx >= 0) {
+          this.candidateUraDoraTiles.push(this.wall[idx]);
+        }
+      }
+      
+      // ドラ表示牌とドラタイルの最初の1組を現在のドラとして設定
+      if (this.candidateDoraIndicators.length > 0) {
+        this.doraIndicators.push(this.candidateDoraIndicators[0]);
+      }
+      if (this.candidateDoraTiles.length > 0) {
+        this.doraTiles.push(this.candidateDoraTiles[0]);
+      }
+      
+      // 裏ドラ表示牌と裏ドラタイルの最初の1組を現在の裏ドラとして設定
+      // （リーチで和了したときに表示される）
+      if (this.candidateUraDoraIndicators.length > 0) {
+        this.uraDoraIndicators.push(this.candidateUraDoraIndicators[0]);
+      }
+      if (this.candidateUraDoraTiles.length > 0) {
+        this.uraDoraTiles.push(this.candidateUraDoraTiles[0]);
+      }
+      
       console.log(`[dealTiles] Kanning wall (嶺上牌): ${this.kanningWall.map(t => t.toString()).join(', ')}`);
-      console.log(`[dealTiles] Dora indicator: ${this.doraIndicators[0].toString()}`);
-      console.log(`[dealTiles] Dora tile: ${this.doraTiles[0].toString()}`);
+      console.log(`[dealTiles] Kanning wall supply (かん牌補充用): ${this.kanningWallSupply.map(t => t.toString()).join(', ')}`);
+      console.log(`[dealTiles] Dora indicator candidates (${this.candidateDoraIndicators.length}): ${this.candidateDoraIndicators.map(t => t.toString()).join(', ')}`);
+      console.log(`[dealTiles] Dora tile candidates (${this.candidateDoraTiles.length}): ${this.candidateDoraTiles.map(t => t.toString()).join(', ')}`);
+      console.log(`[dealTiles] Ura dora indicator candidates (${this.candidateUraDoraIndicators.length}): ${this.candidateUraDoraIndicators.map(t => t.toString()).join(', ')}`);
+      console.log(`[dealTiles] Ura dora tile candidates (${this.candidateUraDoraTiles.length}): ${this.candidateUraDoraTiles.map(t => t.toString()).join(', ')}`);
+      console.log(`[dealTiles] Current dora indicator: ${this.doraIndicators[0]?.toString()}`);
+      console.log(`[dealTiles] Current dora tile: ${this.doraTiles[0]?.toString()}`);
+    } else {
+      console.log(`[dealTiles] ⚠️ Not enough tiles in wall (${this.wall.length}) to set up dora candidates`);
     }
   }
   
@@ -926,7 +1003,24 @@ class MahjongLogic {
     }
 
     console.log(`[wall] before draw: userId=${userId}, wall.length=${this.wall.length}`);
-    const tile = this.wall.pop();
+    
+    // ドラ候補牌を避けてツモを実行
+    const tile = this.drawTileAvoidingDoraCandidates();
+    
+    if (!tile) {
+      // ドラ候補のみが残っている場合は流局
+      console.log(`[drawForTurn] ⚠️ WALL EXHAUSTED: Only dora candidate tiles remaining, game ending in draw`);
+      this.finished = true;
+      return { 
+        success: true, 
+        finished: true, 
+        message: 'Draw - no more playable tiles',
+        isDraw: true,
+        tileCount: hand.length + (this.players[this.playerIds[0]].melds.reduce((s, m) => s + m.length, 0) + 
+                                  this.players[this.playerIds[1]].melds.reduce((s, m) => s + m.length, 0))
+      };
+    }
+    
     hand.push(tile);
     this.players[userId].drawnTile = tile;
     this.players[userId].drawnTileIndex = hand.length - 1;
@@ -950,6 +1044,39 @@ class MahjongLogic {
     }
 
     return { success: true };
+  }
+  
+  /**
+   * ドラ候補牌を避けてツモを実行
+   * @returns {Tile} ドラ候補でない牌、または null
+   */
+  drawTileAvoidingDoraCandidates() {
+    // ツモ対象から除外すべき牌のセット
+    const excludedTiles = [
+      ...this.kanningWall, // かん牌スペース
+      ...this.kanningWallSupply, // かん牌補充用
+      ...this.candidateDoraIndicators,
+      ...this.candidateDoraTiles,
+      ...this.candidateUraDoraIndicators,
+      ...this.candidateUraDoraTiles,
+    ];
+    
+    // 壁の前方から検索してドラ候補でない牌を見つける
+    for (let i = this.wall.length - 1; i >= 0; i--) {
+      const tile = this.wall[i];
+      const isExcluded = excludedTiles.some(excluded => 
+        excluded.suit === tile.suit && excluded.number === tile.number
+      );
+      
+      if (!isExcluded) {
+        // この牌はドラ候補ではなので、取り出して返す
+        return this.wall.splice(i, 1)[0];
+      }
+    }
+    
+    // ドラ候補のみが残っている場合は null を返す
+    console.log(`[drawTileAvoidingDoraCandidates] ⚠️ No playable tiles found in wall`);
+    return null;
   }
   
   getPlayerHand(userId) {
@@ -1018,8 +1145,24 @@ class MahjongLogic {
     return this.ronPossibleFor;
   }
   
+  /**
+   * 壁の状況を取得（ツモ可能な牌数）
+   * 予約牌（ドラ関連とかん牌）を除いた実際にツモ可能な牌数を返す
+   */
   getWallCount() {
-    return this.wall.length;
+    // 予約牌の総数
+    const reservedCount = this.kanningWall.length +
+                         this.kanningWallSupply.length +
+                         this.candidateDoraIndicators.length +
+                         this.candidateDoraTiles.length +
+                         this.candidateUraDoraIndicators.length +
+                         this.candidateUraDoraTiles.length;
+    
+    // 壁にある牌からツモ済みの牌を引いて、さらに予約牌を引く
+    // wall.length = 壁にある牌数（初期109枚）
+    // ツモ済みの牌 = wall.length が減る度に減少
+    // ツモ可能な牌 = wall.length（残っている壁の牌） - 予約牌
+    return Math.max(0, this.wall.length - reservedCount);
   }
   
   getDiscards() {
@@ -1459,23 +1602,28 @@ class MahjongLogic {
         number: tile.number,
         display: tile.toString(),
       })),
+      uraIndicators: this.uraDoraIndicators.map((tile) => ({
+        suit: tile.suit,
+        number: tile.number,
+        display: tile.toString(),
+      })),
+      uraTiles: this.uraDoraTiles.map((tile) => ({
+        suit: tile.suit,
+        number: tile.number,
+        display: tile.toString(),
+      })),
     };
   }
 
   /**
    * 裏ドラを取得
-   * 裏ドラは、ドラ表示牌の下の牌
+   * リーチで和了した場合のみ適用
    */
   getUrahaTiles() {
-    // 注：実装簡略化のため、このゲームでは裏ドラはドラ表示牌の下にある牌
-    // 実装では、ドラ表示牌の次のインデックスにある牌を返す
     const uraha = [];
-    if (this.doraIndicators.length > 0 && this.doraTiles.length > 0) {
-      // 簡略版：各ドラ表示牌に対応する実際のドラが下の牌
-      // 通常のドラが n 番目なら、裏ドラはドラの次の牌
-      // ここでは単純に doraTiles を使用する
-      // 実装簡略化：壁にある次の牌を返す
-      uraha.push(...this.doraTiles);
+    // 裏ドラ表示牌と裏ドラタイルがある場合、裏ドラタイルを返す
+    if (this.uraDoraIndicators.length > 0 && this.uraDoraTiles.length > 0) {
+      uraha.push(...this.uraDoraTiles);
     }
     return uraha;
   }

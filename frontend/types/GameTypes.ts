@@ -26,6 +26,8 @@ export interface GameState {
   dora?: {
     indicators: Tile[]
     tiles: Tile[]
+    uraIndicators?: Tile[]
+    uraTiles?: Tile[]
   }
   kanningWall?: {
     remaining: number
