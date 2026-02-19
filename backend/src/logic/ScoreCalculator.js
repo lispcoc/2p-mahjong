@@ -222,6 +222,17 @@ class ScoreCalculator {
     console.log(`[detectYaku] riichi=${riichi}, menzen=${menzen}, isTsumo=${isTsumo}, isRon=${isRon}`);
     
     // 役満チェック（和了形に依存しない）
+    // 四槓子（スーカンコ）
+    if (this.isSukankou(melds)) {
+      yaku.push({ name: '四槓子', han: 13 });
+      return yaku;
+    }
+    
+    // 三槓子（サンカンコ）- 2翻役
+    if (this.isSankankouWithMelds(melds)) {
+      yaku.push({ name: '三槓子', han: 2 });
+    }
+    
     // 四暗刻（スーアンコー）
     if (combination && this.isSuuankouWithCombination(combination, isTsumo)) {
       yaku.push({ name: '四暗刻', han: 13 });
@@ -249,6 +260,18 @@ class ScoreCalculator {
     // 清老頭（チンロウトウ）
     if (this.isChinroutou(allTiles)) {
       yaku.push({ name: '清老頭', han: 13 });
+      return yaku;
+    }
+    
+    // 緑一色（リョクイッショク）
+    if (this.isRyokuisshoku(allTiles)) {
+      yaku.push({ name: '緑一色', han: 13 });
+      return yaku;
+    }
+    
+    // 大車輪（ダイシャリン）
+    if (this.isDaisharin(allTiles)) {
+      yaku.push({ name: '大車輪', han: 13 });
       return yaku;
     }
     
@@ -1460,6 +1483,109 @@ class ScoreCalculator {
   getNextTile(tile) {
     const nextNumber = tile.number === 9 ? 1 : (tile.number === 7 && tile.suit === 'honor' ? 1 : tile.number + 1);
     return new Tile(tile.suit, nextNumber);
+  }
+
+  /**
+   * 三槓子（サンカンコ）判定
+   * 3つの槓（4枚同じ牌）を含む手牌
+   * @param {Array} melds - メルド配列
+   * @returns {boolean}
+   */
+  isSankankouWithMelds(melds) {
+    let kanCount = 0;
+    
+    // メルド内で4要素（槓）のものをカウント
+    melds.forEach(meld => {
+      if (meld.length === 4 &&
+          meld[0].equals(meld[1]) && 
+          meld[1].equals(meld[2]) && 
+          meld[2].equals(meld[3])) {
+        kanCount++;
+      }
+    });
+    
+    return kanCount === 3;
+  }
+
+  /**
+   * 四槓子（スーカンコ）判定
+   * 4つの槓（4枚同じ牌）を含む手牌
+   * @param {Array} melds - メルド配列
+   * @returns {boolean}
+   */
+  isSukankou(melds) {
+    let kanCount = 0;
+    
+    // メルド内で4要素（槓）のものをカウント
+    melds.forEach(meld => {
+      if (meld.length === 4 &&
+          meld[0].equals(meld[1]) && 
+          meld[1].equals(meld[2]) && 
+          meld[2].equals(meld[3])) {
+        kanCount++;
+      }
+    });
+    
+    return kanCount === 4;
+  }
+
+  /**
+   * 緑一色（リョクイッショク）判定
+   * 發（pin 6）と2、3、4、6、8の筒子のみで構成
+   * @param {Array} tiles - 全牌（手牌+メルド）
+   * @returns {boolean}
+   */
+  isRyokuisshoku(tiles) {
+    // 許可されている牌：發（pin 6）と 2、3、4、6、8の筒子
+    const allowedTiles = [
+      { suit: 'pin', number: 2 },
+      { suit: 'pin', number: 3 },
+      { suit: 'pin', number: 4 },
+      { suit: 'pin', number: 6 },
+      { suit: 'pin', number: 8 },
+      { suit: 'honor', number: 6 }, // 發
+    ];
+    
+    // すべての牌が許可されている牌に含まれるかチェック
+    for (const tile of tiles) {
+      const isAllowed = allowedTiles.some(allowed =>
+        allowed.suit === tile.suit && allowed.number === tile.number
+      );
+      if (!isAllowed) {
+        return false;
+      }
+    }
+    
+    // 少なくとも1枚以上の牌があることを確認
+    return tiles.length > 0;
+  }
+
+  /**
+   * 大車輪（ダイシャリン）判定
+   * 筒子の2,3,4,5,6,7,8で構成される特殊な役（清老頭のような扱い）
+   * @param {Array} tiles - 全牌（手牌+メルド）
+   * @returns {boolean}
+   */
+  isDaisharin(tiles) {
+    // すべての牌が筒子（pin）の2～8に含まれるかチェック
+    const isAllValidTile = tiles.every(tile => {
+      return tile.suit === 'pin' && tile.number >= 2 && tile.number <= 8;
+    });
+    
+    if (!isAllValidTile) {
+      return false;
+    }
+    
+    // 2～8の各数字が少なくとも1つ存在するかチェック
+    const numberSet = new Set();
+    tiles.forEach(tile => {
+      if (tile.suit === 'pin' && tile.number >= 2 && tile.number <= 8) {
+        numberSet.add(tile.number);
+      }
+    });
+    
+    // 7種類すべてが含まれているか確認
+    return numberSet.size === 7;
   }
 }
 
