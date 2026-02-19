@@ -27,11 +27,10 @@ export default function HomePage({
 }: HomePageProps) {
   const defaultInitialScore = 25000
   // wallTiles: 配牌27枚が配られた後、壁に残す牌の枚数
-  // 計算: 全牌136枚 - 配牌26枚 - 予約牌22枚 = 最大88枚がツモ可能
-  // バックエンドに送信する際は配牌26枚と予約牌22枚を加算して送信
+  // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 最大87枚がツモ可能
   const defaultWallTiles = 44
   const minWallTiles = 30
-  const maxWallTiles = 88
+  const maxWallTiles = 87
   const defaultAutoActionTimerSeconds = 10
   const minAutoActionTimerSeconds = 3
   const maxAutoActionTimerSeconds = 60
@@ -109,7 +108,7 @@ export default function HomePage({
       const sanitizedInitialScore = sanitizeInitialScore(initialScore)
       const sanitizedWallTiles = clampWallTiles(wallTiles)
       const sanitizedAutoActionTimerSeconds = clampAutoActionTimerSeconds(autoActionTimerSeconds)
-      const wallTilesToSend = sanitizedWallTiles + 26 + 22 + 6
+      const wallTilesToSend = sanitizedWallTiles
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
         method: 'POST',
         headers: {

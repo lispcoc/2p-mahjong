@@ -83,9 +83,9 @@ app.post('/api/rooms', (req, res) => {
   // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
   // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
   const minWallTiles = 30;
-  const maxWallTiles = 87; // Updated for usable wall tiles (excluding deal and reserved)
+  const maxWallTiles = 136;
   const wallTiles = Number.isFinite(rawWallTiles)
-    ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
+    ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles) + 27 + 22))
     : maxWallTiles;
   const oneRoundMatch = req.body?.oneRoundMatch === true;
   

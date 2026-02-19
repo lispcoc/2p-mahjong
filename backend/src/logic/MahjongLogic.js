@@ -39,7 +39,7 @@ class MahjongLogic {
     // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
     // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
     const minWallTiles = 30;
-    const maxWallTiles = 87; // Updated for usable wall tiles (excluding deal and reserved)
+    const maxWallTiles = 136;
     this.wallTiles = Number.isFinite(rawWallTiles)
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
@@ -1614,11 +1614,7 @@ class MahjongLogic {
     return this.ronPossibleFor;
   }
   
-  /**
-   * 壁の状況を取得（ツモ可能な牌数）
-   * 予約牌（ドラ関連とかん牌）を除いた実際にツモ可能な牌数を返す
-   */
-  getWallCount() {
+  getReservedCount() {
     // 予約牌の総数
     const reservedCount = this.kanningWall.length +
                          this.kanningWallSupply.length +
@@ -1626,12 +1622,15 @@ class MahjongLogic {
                          this.candidateDoraTiles.length +
                          this.candidateUraDoraIndicators.length +
                          this.candidateUraDoraTiles.length;
-    
-    // 壁にある牌からツモ済みの牌を引いて、さらに予約牌を引く
-    // wall.length = 壁にある牌数（初期109枚）
-    // ツモ済みの牌 = wall.length が減る度に減少
-    // ツモ可能な牌 = wall.length（残っている壁の牌） - 予約牌
-    return Math.max(0, this.wall.length - reservedCount);
+    return reservedCount;
+  }
+
+  /**
+   * 壁の状況を取得（ツモ可能な牌数）
+   * 予約牌（ドラ関連とかん牌）を除いた実際にツモ可能な牌数を返す
+   */
+  getWallCount() {
+    return Math.max(0, this.wall.length - this.getReservedCount());
   }
   
   getDiscards() {
