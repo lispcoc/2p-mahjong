@@ -239,8 +239,7 @@ class MahjongLogic {
    * @returns {Tile} 次の牌
    */
   getNextTile(tile) {
-    const nextNumber = tile.number === 9 ? 1 : (tile.number === 7 && tile.suit === 'honor' ? 1 : tile.number + 1);
-    return new Tile(tile.suit, nextNumber);
+    return tile.getNextTile();
   }
 
   shuffleWall() {
