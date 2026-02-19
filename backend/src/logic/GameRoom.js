@@ -34,6 +34,12 @@ class GameRoom {
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
     this.oneRoundMatch = options.oneRoundMatch === true; // 1局勝負モード
+    const rawAutoActionTimerSeconds = Number(options.autoActionTimerSeconds);
+    const minAutoActionTimerSeconds = 3;
+    const maxAutoActionTimerSeconds = 60;
+    this.autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
+      ? Math.min(maxAutoActionTimerSeconds, Math.max(minAutoActionTimerSeconds, Math.floor(rawAutoActionTimerSeconds)))
+      : 10; // Default 10 seconds
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
@@ -399,6 +405,7 @@ class GameRoom {
       seatWinds: this.buildSeatWinds(this.playerOrder),
       nextRoundReadyCount: this.nextRoundReady.size, // 次の局への準備完了人数
       totalPlayers: this.players.size, // 総プレイヤー数
+      autoActionTimerSeconds: this.autoActionTimerSeconds, // ツモ切り・ポン見逃しのタイマー秒数
     };
     
     // Send each player their own hand and public information

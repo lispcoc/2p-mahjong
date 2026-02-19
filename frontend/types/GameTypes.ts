@@ -44,4 +44,5 @@ export interface GameState {
   seatWinds?: Record<string, number>
   nextRoundReadyCount?: number
   totalPlayers?: number
+  autoActionTimerSeconds?: number
 }

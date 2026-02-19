@@ -32,6 +32,9 @@ export default function HomePage({
   const defaultWallTiles = 44
   const minWallTiles = 30
   const maxWallTiles = 88
+  const defaultAutoActionTimerSeconds = 10
+  const minAutoActionTimerSeconds = 3
+  const maxAutoActionTimerSeconds = 60
   const [joinRoomId, setJoinRoomId] = useState('')
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
@@ -40,8 +43,9 @@ export default function HomePage({
   const [initialScore, setInitialScore] = useState(defaultInitialScore)
   const [wallTiles, setWallTiles] = useState(defaultWallTiles)
   const [oneRoundMatch, setOneRoundMatch] = useState(false)
-  const [myTsumoLuck, setMyTsumoLuck] = useState(1)
-  const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(1)
+  const [myTsumoLuck, setMyTsumoLuck] = useState(0)
+  const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0)
+  const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(defaultAutoActionTimerSeconds)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
 
   const fetchRooms = async () => {
@@ -87,6 +91,11 @@ export default function HomePage({
     return Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(value)))
   }
 
+  const clampAutoActionTimerSeconds = (value: number) => {
+    if (!Number.isFinite(value)) return defaultAutoActionTimerSeconds
+    return Math.min(maxAutoActionTimerSeconds, Math.max(minAutoActionTimerSeconds, Math.floor(value)))
+  }
+
   const sanitizeInitialScore = (value: number) => {
     if (!Number.isFinite(value) || value < 0) return defaultInitialScore
     return Math.floor(value)
@@ -99,6 +108,7 @@ export default function HomePage({
     try {
       const sanitizedInitialScore = sanitizeInitialScore(initialScore)
       const sanitizedWallTiles = clampWallTiles(wallTiles)
+      const sanitizedAutoActionTimerSeconds = clampAutoActionTimerSeconds(autoActionTimerSeconds)
       const wallTilesToSend = sanitizedWallTiles + 26 + 22 + 6
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
         method: 'POST',
@@ -111,6 +121,7 @@ export default function HomePage({
           oneRoundMatch: oneRoundMatch,
           myTsumoLuck: myTsumoLuck,
           opponentTsumoLuck: opponentTsumoLuck,
+          autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
         }),
       })
 
@@ -409,6 +420,23 @@ export default function HomePage({
                     {opponentTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
                   </div>
                 </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs" htmlFor="autoActionTimerSecondsModal">
+                  ツモ切り・ポン見逃しのタイマー（秒）
+                </label>
+                <input
+                  id="autoActionTimerSecondsModal"
+                  type="number"
+                  min={minAutoActionTimerSeconds}
+                  max={maxAutoActionTimerSeconds}
+                  step={1}
+                  value={autoActionTimerSeconds}
+                  onChange={(e) => setAutoActionTimerSeconds(Number(e.target.value))}
+                  className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
+                />
+                <p className="text-xs text-gray-300 m-0">{minAutoActionTimerSeconds}〜{maxAutoActionTimerSeconds}秒（通常 {defaultAutoActionTimerSeconds}秒）</p>
+                <p className="text-xs text-gray-400 m-0 mt-1">ツモ切りまたはポン見逃しの際の自動実行までの待機時間</p>
               </div>
               <div className="flex items-center gap-2">
                 <input

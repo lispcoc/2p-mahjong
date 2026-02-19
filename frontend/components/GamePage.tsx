@@ -76,6 +76,7 @@ export default function GamePage({
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
   const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
+  const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)  // Prevent multiple connection attempts
   const autoNextTimerRef = useRef<number | null>(null)  // タイマーIDをRefで管理
@@ -278,6 +279,11 @@ export default function GamePage({
 
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
+        
+        // Set autoActionTimerSeconds from gameState
+        if (payload.gameState?.autoActionTimerSeconds) {
+          setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
+        }
 
         if (payload.isReconnecting) {
           setMessage('ゲームに再接続しました')
@@ -344,6 +350,12 @@ export default function GamePage({
 
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
+        
+        // Set autoActionTimerSeconds from gameState
+        if (payload.autoActionTimerSeconds) {
+          setAutoActionTimerSeconds(payload.autoActionTimerSeconds)
+        }
+        
         setMessage('ゲームが始まりました！')
         break
       case 'gameStateUpdate':
@@ -984,7 +996,7 @@ export default function GamePage({
     }
   }, [roomId, isAddingCPU])
 
-  // 10-second auto-action timer
+  // N-second auto-action timer (configurable per game)
   React.useEffect(() => {
     if (!gameState || !userId || gameState.status !== 'playing') {
       return;
@@ -1047,10 +1059,10 @@ export default function GamePage({
     // Check if player needs to discard
     const canDiscard = isYourTurn && fullHand.length % 3 === 2;
 
-    // Handle pending pung waiting - auto-draw after 10 seconds (unless in no-meld mode)
+    // Handle pending pung waiting - auto-draw after N seconds (unless in no-meld mode)
     if (canPung && !isNoMeldMode) {
-      // Start countdown from 10秒 or 一時停止復帰時は残り秒数から
-      setPendingPungTimeLeft(pausedPendingPungTimeLeft.current ?? 10);
+      // Start countdown from autoActionTimerSeconds or 一時停止復帰時は残り秒数から
+      setPendingPungTimeLeft(pausedPendingPungTimeLeft.current ?? autoActionTimerSeconds);
       pausedPendingPungTimeLeft.current = null;
 
       // Update countdown every second
@@ -1066,11 +1078,11 @@ export default function GamePage({
       pendingPungIntervalRef.current = interval;
 
       const timer = setTimeout(() => {
-        // Auto-draw after 10 seconds of pung waiting
+        // Auto-draw after N seconds of pung waiting
         console.log('⏱️ Auto-drawing after pending pung timeout');
         sendAction({ type: 'draw' });
         setPendingPungTimeLeft(null);
-      }, (pausedPendingPungTimeLeft.current ?? 10) * 1000);
+      }, (pausedPendingPungTimeLeft.current ?? autoActionTimerSeconds) * 1000);
 
       return () => {
         clearTimeout(timer);
@@ -1116,10 +1128,10 @@ export default function GamePage({
       }
     }
 
-    // Set timer if player needs to discard (10 second fallback)
+    // Set timer if player needs to discard (N second fallback)
     if (!autoDrawMode && canDiscard && drawnTileIndex >= 0) {
-      // Start countdown from 10秒 or 一時停止復帰時は残り秒数から
-      setAutoDiscardTimeLeft(pausedAutoDiscardTimeLeft.current ?? 10);
+      // Start countdown from autoActionTimerSeconds or 一時停止復帰時は残り秒数から
+      setAutoDiscardTimeLeft(pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds);
       pausedAutoDiscardTimeLeft.current = null;
 
       // Update countdown every second
@@ -1135,13 +1147,13 @@ export default function GamePage({
       autoDiscardIntervalRef.current = interval;
 
       const timer = setTimeout(() => {
-        // Auto-discard the drawn tile after 10 seconds
+        // Auto-discard the drawn tile after N seconds
         const drawnTile = fullHand[drawnTileIndex];
         if (drawnTile) {
           sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
         }
         setAutoDiscardTimeLeft(null);
-      }, (pausedAutoDiscardTimeLeft.current ?? 10) * 1000);
+      }, (pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds) * 1000);
 
       return () => {
         clearTimeout(timer);
@@ -1158,7 +1170,7 @@ export default function GamePage({
         autoDiscardIntervalRef.current = null;
       }
     }
-  }, [gameState, userId, autoDrawMode, sendAction, isTimerPaused]);
+  }, [gameState, userId, autoDrawMode, sendAction, isTimerPaused, autoActionTimerSeconds]);
 
   if (!gameState) {
     const debugLogs = JSON.parse(localStorage.getItem('debugLogs') || '[]')

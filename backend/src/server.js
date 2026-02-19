@@ -100,7 +100,13 @@ app.post('/api/rooms', (req, res) => {
     ? Math.max(0, Math.min(3, Math.floor(rawOpponentTsumoLuck)))
     : 1;
   
-  const room = new GameRoom(roomId, { initialScore, wallTiles, oneRoundMatch });
+  // Extract and validate auto-action timer
+  const rawAutoActionTimerSeconds = Number(req.body?.autoActionTimerSeconds);
+  const autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
+    ? Math.max(3, Math.min(60, Math.floor(rawAutoActionTimerSeconds)))
+    : 10;
+  
+  const room = new GameRoom(roomId, { initialScore, wallTiles, oneRoundMatch, autoActionTimerSeconds });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
