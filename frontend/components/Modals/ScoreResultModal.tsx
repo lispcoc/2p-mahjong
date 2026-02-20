@@ -337,7 +337,7 @@ export function ScoreResultModal({
             width: '100%',
           }}
         >
-          {nextRoundReady ? '準備完了' : '次の局へ'}
+          {nextRoundReady ? '準備完了' : '次へ'}
         </button>
       </div>
     </div>

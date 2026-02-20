@@ -139,7 +139,9 @@ export function useGameConnection({
         break
       case 'gameFinished':
         debugLog(`🏁 Game finished`)
-        console.log('🏁 Game finished', payload)
+        console.log('🏁 Game finished - payload:', JSON.stringify(payload, null, 2))
+        console.log('🏁 payload.gameOver:', payload?.gameOver)
+        console.log('🏁 payload.finalResults:', payload?.finalResults?.length ?? 'undefined/null')
         
         const noYaku =
           payload?.scoreResult?.valid === false ||
@@ -151,6 +153,7 @@ export function useGameConnection({
         }
         
         if (payload.gameOver) {
+          console.log('🏁 Game Over confirmed! Calling onFinalResults with:', payload.finalResults?.length ?? 'undefined', 'results')
           onFinalResults(payload.finalResults)
           setMessage('ゲーム終了（誰かの点数がマイナスになりました）')
           // Clear session on game over

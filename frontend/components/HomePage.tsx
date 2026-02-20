@@ -41,7 +41,7 @@ export default function HomePage({
   const [roomsLoading, setRoomsLoading] = useState(false)
   const [initialScore, setInitialScore] = useState(defaultInitialScore)
   const [wallTiles, setWallTiles] = useState(defaultWallTiles)
-  const [oneRoundMatch, setOneRoundMatch] = useState(false)
+  const [gameMode, setGameMode] = useState('oneRound') // 'oneRound' | 'easternsouthern' | 'endless'
   const [myTsumoLuck, setMyTsumoLuck] = useState(0)
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0)
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(defaultAutoActionTimerSeconds)
@@ -117,7 +117,7 @@ export default function HomePage({
         body: JSON.stringify({
           initialScore: sanitizedInitialScore,
           wallTiles: wallTilesToSend,
-          oneRoundMatch: oneRoundMatch,
+          gameMode: gameMode,
           myTsumoLuck: myTsumoLuck,
           opponentTsumoLuck: opponentTsumoLuck,
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
@@ -437,17 +437,52 @@ export default function HomePage({
                 <p className="text-xs text-gray-300 m-0">{minAutoActionTimerSeconds}〜{maxAutoActionTimerSeconds}秒（通常 {defaultAutoActionTimerSeconds}秒）</p>
                 <p className="text-xs text-gray-400 m-0 mt-1">ツモ切りまたはポン見逃しの際の自動実行までの待機時間</p>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="oneRoundMatchModal"
-                  type="checkbox"
-                  checked={oneRoundMatch}
-                  onChange={(e) => setOneRoundMatch(e.target.checked)}
-                  className="w-4 h-4 cursor-pointer"
-                />
-                <label className="text-gray-300 text-xs cursor-pointer" htmlFor="oneRoundMatchModal">
-                  1局勝負（どちらかが和了したらその時点で終了）
-                </label>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">ゲームモード</label>
+                <div className="flex flex-col gap-2 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="gameMode-oneRound"
+                      type="radio"
+                      name="gameMode"
+                      value="oneRound"
+                      checked={gameMode === 'oneRound'}
+                      onChange={(e) => setGameMode(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="gameMode-oneRound">
+                      1局勝負（最初に和了したプレイヤーが勝ち）
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="gameMode-easternsouthern"
+                      type="radio"
+                      name="gameMode"
+                      value="easternsouthern"
+                      checked={gameMode === 'easternsouthern'}
+                      onChange={(e) => setGameMode(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="gameMode-easternsouthern">
+                      東南戦
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="gameMode-endless"
+                      type="radio"
+                      name="gameMode"
+                      value="endless"
+                      checked={gameMode === 'endless'}
+                      onChange={(e) => setGameMode(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="gameMode-endless">
+                      エンドレス（どちらかが箱割れするまで継続）
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
 

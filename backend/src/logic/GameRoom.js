@@ -33,7 +33,14 @@ class GameRoom {
     this.wallTiles = Number.isFinite(rawWallTiles)
       ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
       : maxWallTiles;
-    this.oneRoundMatch = options.oneRoundMatch === true; // 1局勝負モード
+    // gameMode: 'oneRound' (1局勝負) | 'easternsouthern' (東南戦: 2回目の東1局に入る時点で終了) | 'endless' (エンドレス: 0点になるまで継続)
+    const supportedModes = ['oneRound', 'easternsouthern', 'endless'];
+    this.gameMode = supportedModes.includes(options.gameMode) ? options.gameMode : 'oneRound';
+    // 後方互換性: oneRoundMatch が true の場合は gameMode を 'oneRound' に設定
+    if (options.oneRoundMatch === true && !options.gameMode) {
+      this.gameMode = 'oneRound';
+    }
+    this.oneRoundMatch = this.gameMode === 'oneRound'; // 後方互換性のため保持
     const rawAutoActionTimerSeconds = Number(options.autoActionTimerSeconds);
     const minAutoActionTimerSeconds = 3;
     const maxAutoActionTimerSeconds = 60;
@@ -335,27 +342,52 @@ class GameRoom {
           : 0;
         this.nextRoundState = this.computeNextRoundState(roundResult);
         
-        // 1局勝負モードで和了が発生した場合、ゲームオーバー
-        if (this.oneRoundMatch && !result.isDraw) {
-          console.log(`[GameRoom.handlePlayerAction] 🏁 One-round match - game over after win`);
-          this.status = 'gameOver';
-          result.gameOver = true;
-          result.finalResults = this.roundHistory;
-        } else {
-          // 誰かの点数がマイナスになったかチェック
+        // ゲーム終了判定ロジック
+        let shouldGameEnd = false;
+        let endReason = '';
+        
+        if (this.gameMode === 'oneRound') {
+          // 1局勝負: 和了があったらゲーム終了
+          if (!result.isDraw) {
+            shouldGameEnd = true;
+            endReason = 'One-round match';
+          }
+        } else if (this.gameMode === 'easternsouthern') {
+          // 東南戦: 2回目の東1局に入る条件を満たした時点で終了
+          // 南2局で和了または流局（親が聴牌しない場合も含む）して、次局が東1局になればゲーム終了
+          console.log(`[GameRoom.easternsouthern check] currentRound: ${this.currentRound}, roundName: ${this.getRoundName()}`);
+          console.log(`[GameRoom.easternsouthern check] nextRoundState:`, this.nextRoundState);
+          if (this.nextRoundState && 
+              this.nextRoundState.roundWindIndex === 0 && 
+              this.nextRoundState.roundNumber === 1) {
+            shouldGameEnd = true;
+            endReason = 'Eastern-Southern match - reached second east round';
+            console.log(`[GameRoom.easternsouthern] ✅ Game will end: nextRound is 東1局`);
+          } else {
+            console.log(`[GameRoom.easternsouthern] ❌ Game will NOT end: nextRound is NOT 東1局`);
+          }
+        } else if (this.gameMode === 'endless') {
+          // エンドレス: 誰かの点数がマイナスになったらゲーム終了
           let hasNegativeScore = false;
           this.players.forEach((player) => {
             if (player.score < 0) {
               hasNegativeScore = true;
             }
           });
-          
           if (hasNegativeScore) {
-            console.log(`[GameRoom.handlePlayerAction] ⚠️ Game over - negative score detected`);
-            this.status = 'gameOver';
-            result.gameOver = true;
-            result.finalResults = this.roundHistory;
+            shouldGameEnd = true;
+            endReason = 'Endless - negative score detected';
           }
+        }
+        
+        if (shouldGameEnd) {
+          console.log(`[GameRoom.handlePlayerAction] 🏁 Game over - ${endReason}`);
+          console.log(`[GameRoom.handlePlayerAction] 📊 roundHistory length: ${this.roundHistory.length}`);
+          console.log(`[GameRoom.handlePlayerAction] 📊 roundHistory:`, this.roundHistory.map(r => ({ round: r.roundName, winner: r.winner })));
+          this.status = 'gameOver';
+          result.gameOver = true;
+          result.finalResults = this.roundHistory;
+          console.log(`[GameRoom.handlePlayerAction] ✅ result.finalResults set:`, result.finalResults.length, 'rounds');
         }
       } catch (err) {
         console.error(`[GameRoom.handlePlayerAction] ❌ Error while processing finished game state:`, err);
@@ -529,10 +561,14 @@ class GameRoom {
   }
 
   computeNextRoundState(roundResult) {
+    // 次の局の状態を計算する
+    // shouldDealerContinueで親が続くかどうかを判定し、
+    // 親が変わる場合は局を進める
     const dealerId = this.getDealerId();
     const dealerContinues = this.shouldDealerContinue(roundResult, dealerId);
 
     if (dealerContinues) {
+      // 親が続く場合：同じ親で同じ局
       return {
         roundWindIndex: this.roundWindIndex,
         roundNumber: this.roundNumber,
@@ -540,12 +576,14 @@ class GameRoom {
       };
     }
 
+    // 親が変わる場合（和了した仔か、聴牌しなかった親）：次の親に交代して局を進める
     const nextDealerIndex = this.playerOrder.length > 0
       ? (this.dealerIndex + 1) % this.playerOrder.length
       : 0;
     let nextRoundNumber = this.roundNumber;
     let nextRoundWindIndex = this.roundWindIndex;
 
+    // 局数を進める：1局→2局→1局（場風も進むので東→南へ）
     if (nextRoundNumber < 2) {
       nextRoundNumber += 1;
     } else {
@@ -561,13 +599,18 @@ class GameRoom {
   }
 
   shouldDealerContinue(roundResult, dealerId) {
+    // 2人麻雀の局進行ルール：
+    // 1. 和了の場合：親が和了したら親が続く、仔が和了したら親が変わる（局進）
+    // 2. 流局の場合：親が聴牌したら親が続く、親が聴牌しなかったら親が変わる（局進）
     if (!dealerId) {
       return false;
     }
     if (roundResult.isDraw) {
+      // 流局時の処理：親が聴牌していたら親が続く
       const dealerTenpai = roundResult.tenpai && roundResult.tenpai[dealerId];
       return dealerTenpai === true;
     }
+    // 和了時の処理：親が和了したら親が続く、親以外が和了したら親が変わる
     return roundResult.winner === dealerId;
   }
 
@@ -577,6 +620,10 @@ class GameRoom {
 
   isGameOver() {
     return this.status === 'gameOver';
+  }
+
+  getGameMode() {
+    return this.gameMode;
   }
 
   // 10秒のタイマーを開始して、準備完了していないプレイヤーを自動準備完了にする

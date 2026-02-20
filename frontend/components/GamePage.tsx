@@ -462,8 +462,10 @@ export default function GamePage({
         console.log('🏁 [DEBUG] gameFinished - payload.gameOver:', payload.gameOver)
         console.log('🏁 [DEBUG] gameFinished - payload.finalResults:', payload.finalResults)
         if (payload.gameOver) {
-          // 最終局の場合はまずスコア結果を表示し、ボタン押下で最終結果を表示する
+          // 最終結果が来た場合
+          console.log('🏁 setFinalResults called with:', payload.finalResults?.length ?? 'undefined', 'results')
           setFinalResults(payload.finalResults)
+          // 最終局の結果（scoreResult）を先に表示し、ボタンで FinalResultModal に遷移
           setShowFinalResults(false)
           // スコア結果は以下で処理される
         }
@@ -496,8 +498,9 @@ export default function GamePage({
           scheduleOpponentResultDisplay(() => {
             setScoreResult(resultToShow)
           }, resultDelayMs)
-        } else if (!payload.gameOver) {
-          // 勝者もいない場合のみ、流局などの結果として簡易情報を作成
+        } else {
+          // 勝者がない場合（流局など）の結果として簡易情報を作成
+          // gameOverでも流局結果を表示する必要があるため、条件から除外
           const resultToShow = {
             valid: true,
             score: 0,
@@ -507,6 +510,7 @@ export default function GamePage({
             yaku: [],
             isDraw: true,  // 流局・引き分けフラグ
           }
+          console.log('🏁 Creating scoreResult for draw:', resultToShow)
           scheduleOpponentResultDisplay(() => {
             setScoreResult(resultToShow)
           }, resultDelayMs)
@@ -1674,16 +1678,8 @@ export default function GamePage({
 
           </div>
         ) : gameState.status === 'gameOver' ? (
-          // Game Over - Don't show game content, only show final results modal
-          <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5 gap-2">
-            <p>最終結果を表示中...</p>
-            <p className="text-xs text-gray-600">
-              finalResults: {finalResults ? `${finalResults.length}局` : 'null/undefined'}
-            </p>
-            <p className="text-xs text-gray-600">
-              コンソールでデバッグログを確認してください
-            </p>
-          </div>
+          // Game Over - Show modals (ScoreResultModal then FinalResultModal)
+          <div className="hidden" />
         ) : (
           <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
             <p>ゲーム開始を待機中...</p>
@@ -2059,13 +2055,16 @@ export default function GamePage({
             <ScoreResultModal
               scoreResult={scoreResult}
               gameState={gameState}
-              nextRoundReady={(gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0}
+              nextRoundReady={finalResults ? false : ((gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0)}
               onNextRound={() => {
+                console.log('🏁 ScoreResultModal onNextRound clicked:', { finalResults: !!finalResults, showFinalResults })
                 // 最終局かつfinalResultsがある場合は最終結果モーダルを表示
                 if (finalResults && !showFinalResults) {
+                  console.log('🏁 Showing final results modal')
                   setScoreResult(null)
                   setShowFinalResults(true)
                 } else {
+                  console.log('🏁 Handling next round')
                   handleNextRound()
                 }
               }}

@@ -87,7 +87,18 @@ app.post('/api/rooms', (req, res) => {
   const wallTiles = Number.isFinite(rawWallTiles)
     ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles) + 27 + 22))
     : maxWallTiles;
-  const oneRoundMatch = req.body?.oneRoundMatch === true;
+  
+  // ゲームモード: 'oneRound' (1局勝負), 'easternsouthern' (東南戦), 'endless' (エンドレス)
+  const supportedGameModes = ['oneRound', 'easternsouthern', 'endless'];
+  const gameMode = supportedGameModes.includes(req.body?.gameMode) 
+    ? req.body.gameMode 
+    : 'oneRound';
+  
+  // 後方互換性: oldoneRoundMatch パラメーターがある場合を処理
+  let finalGameMode = gameMode;
+  if (req.body?.oneRoundMatch === true && !req.body?.gameMode) {
+    finalGameMode = 'oneRound';
+  }
   
   // Extract and validate tsumo luck for both players
   const rawMyTsumoLuck = Number(req.body?.myTsumoLuck);
@@ -106,7 +117,7 @@ app.post('/api/rooms', (req, res) => {
     ? Math.max(3, Math.min(60, Math.floor(rawAutoActionTimerSeconds)))
     : 10;
   
-  const room = new GameRoom(roomId, { initialScore, wallTiles, oneRoundMatch, autoActionTimerSeconds });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
@@ -497,6 +508,13 @@ function handleAction(ws, payload) {
   
   const result = room.handlePlayerAction(userId, payload);
   
+  console.log(`[🔵 ${requestId}] [CHECK] handlePlayerAction returned:`, {
+    success: result.success,
+    finished: result.finished,
+    gameOver: result.gameOver,
+    message: result.message,
+  });
+  
   if (!result.success) {
     ws.send(JSON.stringify({ 
       type: 'actionResponse',
@@ -580,7 +598,7 @@ function handleAction(ws, payload) {
   // Check if CPU should play next
   executeCPUTurnIfNeeded(room);
   
-  console.log(`[🔵 ${requestId}] After CPU check, room.isFinished()=${room.isFinished()}`);
+  console.log(`[🔵 ${requestId}] After CPU check, room.isFinished()=${room.isFinished()}, room.status=${room.status}`);
   
   // Check if game is finished
   if (room.isFinished()) {
@@ -636,10 +654,22 @@ function handleAction(ws, payload) {
       if (result.gameOver) {
         finishedPayload.gameOver = true;
         finishedPayload.finalResults = result.finalResults;
+        const finalResultsLength = result.finalResults?.length ?? 'null/undefined';
+        console.log(`[🔵 ${requestId}] 🏁 Game Over detected! finalResults: ${finalResultsLength} rounds`);
+        if (result.finalResults && result.finalResults.length > 0) {
+          const summary = result.finalResults.map(r => `${r.roundName}(winner:${r.winner})`).join(', ');
+          console.log(`[🔵 ${requestId}] 🏁 finalResults: ${summary}`);
+        }
       }
 
       console.log(`[🔵 ${requestId}] 📢 Broadcasting gameFinished to all players in room ${roomId}`);
-      console.log(`[🔵 ${requestId}] finishedPayload:`, JSON.stringify(finishedPayload, null, 2));
+      console.log(`[🔵 ${requestId}] 📢 gameFinished payload:`, {
+        gameOver: finishedPayload.gameOver,
+        finalResults_length: finishedPayload.finalResults?.length ?? 'undefined',
+        winner: finishedPayload.winner,
+        isDraw: finishedPayload.isDraw,
+        roundName: finishedPayload.roundName,
+      });
       
       broadcastToRoom(roomId, {
         type: 'gameFinished',
