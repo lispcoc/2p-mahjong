@@ -441,8 +441,8 @@ class GameRoom {
     };
     
     // Send each player their own hand and public information
-    // Only if game is in progress
-    if (this.status === 'playing' || this.status === 'finished') {
+    // Only if game is in progress or finished (including gameOver to show winning hand)
+    if (this.status === 'playing' || this.status === 'finished' || this.status === 'gameOver') {
       playerIds.forEach((userId) => {
         try {
           const hand = this.gameLogic.getPlayerHand(userId);
