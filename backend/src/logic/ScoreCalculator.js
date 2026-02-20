@@ -77,7 +77,8 @@ class ScoreCalculator {
           fu: fu,
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
-          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType)
+          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType),
+          winningTile: winningTile
         };
         maxScore = scoreResult.score;
       }
@@ -101,7 +102,8 @@ class ScoreCalculator {
           fu: fu,
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
-          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType)
+          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType),
+          winningTile: winningTile
         };
         maxScore = scoreResult.score;
       }
@@ -137,7 +139,8 @@ class ScoreCalculator {
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
           calculation: this.formatCalculation(yaku, han, this.roundFu(fu), scoreResult.score, scoreResult.scoreType),
-          combination: combination
+          combination: combination,
+          winningTile: winningTile
         };
       }
     }
@@ -149,7 +152,8 @@ class ScoreCalculator {
         yaku: [],
         han: 0,
         fu: 0,
-        score: 0
+        score: 0,
+        winningTile: winningTile
       };
     }
     

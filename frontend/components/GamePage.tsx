@@ -124,6 +124,9 @@ export default function GamePage({
 
     // Schedule toast with 500ms delay
     opponentActionDelayRef.current = window.setTimeout(() => {
+      // Clear any previous toasts
+      toast.dismiss()
+      
       toast.custom(
         (t) => (
           <div
@@ -176,8 +179,23 @@ export default function GamePage({
     const prevMelds = (prevState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
     const nextMelds = (nextState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
 
+    // Check for newly added meld (pon or ankan)
     if (nextMelds.length > prevMelds.length) {
+      // Check if the newly added meld is a kan (4 tiles) or pung (3 tiles)
+      const lastMeld = nextMelds[nextMelds.length - 1]
+      if (lastMeld && lastMeld.length === 4) {
+        return `カン`
+      }
       return `ポン`
+    }
+
+    // Check for added kan (existing meld expanded from 3 to 4 tiles)
+    if (nextMelds.length === prevMelds.length && nextMelds.length > 0) {
+      for (let i = 0; i < nextMelds.length; i++) {
+        if (prevMelds[i] && prevMelds[i].length === 3 && nextMelds[i].length === 4) {
+          return `カン`
+        }
+      }
     }
 
     return ''
@@ -510,24 +528,46 @@ export default function GamePage({
             const winnerMelds = ((winnerTiles?.melds as Array<Array<Tile | string>>) || [])
               .map((meld) => meld.map((tile) => normalizeTile(tile)))
             
-            // ロン時は scoreResult.winningTile、ツモ時は scoreResult.winningTile または hand[drawnTileIndex] を使用
+            // 和了牌を優先順位で取得：scoreResult.winningTile > drawnTile > 推測
             let winnerDrawn = null
             const isRon = payload.winType && payload.winType.includes('ロン')
+            
+            // 優先1: scoreResult.winningTile（バックエンドから明示的に送信された和了牌）
             if (payload.scoreResult?.winningTile) {
               winnerDrawn = normalizeTile(payload.scoreResult.winningTile)
               console.log((isRon ? 'ロン' : 'ツモ') + ': scoreResult.winningTile から取得:', winnerDrawn)
-            } else if (winnerTiles?.drawnTileIndex !== undefined && winnerHand[winnerTiles.drawnTileIndex]) {
-              // ツモ時は drawnTileIndex から和了牌を取得
+            } 
+            // 優先2: ツモ時のドローン牌（drawnTile 存在時）
+            else if (!isRon && winnerTiles?.drawnTile) {
+              winnerDrawn = normalizeTile(winnerTiles.drawnTile)
+              console.log('ツモ: drawnTile から取得:', winnerDrawn)
+            }
+            // 優先3: ツモ時のhand[drawnTileIndex]
+            else if (!isRon && winnerTiles?.drawnTileIndex !== undefined && winnerTiles.drawnTileIndex >= 0 && winnerHand[winnerTiles.drawnTileIndex]) {
               winnerDrawn = winnerHand[winnerTiles.drawnTileIndex]
               console.log('ツモ: hand[drawnTileIndex] から取得:', winnerDrawn, 'index:', winnerTiles.drawnTileIndex)
-            } else if (winnerHand.length > 0) {
-              // それでもない場合は hand の最後の牌を和了牌として使用
+            } 
+            // 優先4: 手牌が存在する場合は最後の牌（デフォルト）
+            else if (winnerHand.length > 0) {
               winnerDrawn = winnerHand[winnerHand.length - 1]
               console.log('デフォルト: hand の最後の牌を使用:', winnerDrawn)
             }
             
-            console.log('winnerHand:', winnerHand, 'winnerDrawn:', winnerDrawn)
-            setLastWinnerHand(winnerDrawn ? [...winnerHand.slice(0, -1), winnerDrawn] : winnerHand)
+            console.log('winnerHand:', winnerHand, 'winnerDrawn:', winnerDrawn, 'isRon:', isRon)
+            
+            // ロン時は和了牌を手牌に追加、ツモ時は来自drawnTileの場合は除く
+            if (winnerDrawn) {
+              if (isRon) {
+                // ロン時：和了牌は原来の手牌に含まれていないので追加
+                setLastWinnerHand([...winnerHand, winnerDrawn])
+              } else {
+                // ツモ時：手牌に既に含まれている可能性があるため、最後に和了牌を配置
+                const handWithoutLast = winnerHand.slice(0, -1)
+                setLastWinnerHand([...handWithoutLast, winnerDrawn])
+              }
+            } else {
+              setLastWinnerHand(winnerHand)
+            }
             setLastWinnerMelds(winnerMelds)
           } else if (winnerId && payload.finalResults) {
             // payload.finalResults から winner の hand を取得
@@ -555,6 +595,8 @@ export default function GamePage({
               
               if (winningTile && winnerHand.length > 0) {
                 setLastWinnerHand([...winnerHand, winningTile])
+              } else if (winningTile) {
+                setLastWinnerHand([winningTile])
               } else {
                 setLastWinnerHand(winnerHand)
               }
@@ -1602,6 +1644,12 @@ export default function GamePage({
                 className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
               >
                 ポン表示テスト
+              </button>
+              <button
+                onClick={() => triggerOpponentActionModal('カン')}
+                className="px-4 py-2 bg-blue-400 text-white rounded hover:bg-blue-500 font-bold"
+              >
+                カン表示テスト
               </button>
               <button
                 onClick={() => triggerOpponentActionModal('リーチ')}

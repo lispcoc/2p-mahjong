@@ -31,6 +31,20 @@ export function ScoreResultModal({
     ? (gameState?.players?.find((player: any) => player.userId === winnerId)?.playerName || winnerId)
     : null
   const hasWinnerTiles = winnerHand.length > 0 || winnerMelds.length > 0
+  
+  // デバッグログ
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[ScoreResultModal] render:', {
+      winnerId,
+      winnerName,
+      scoreResult_valid: scoreResult?.valid,
+      isDrawOrAbort,
+      hasWinnerTiles,
+      winnerHand_length: winnerHand.length,
+      winnerMelds_length: winnerMelds.length,
+      winningTile: scoreResult?.winningTile
+    });
+  }
 
   return (
     <div style={{
@@ -56,7 +70,7 @@ export function ScoreResultModal({
         boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
         border: '3px solid #ffffff',
       }}>
-        {winnerName && !isDrawOrAbort && scoreResult.valid && hasWinnerTiles && (
+        {(winnerName || winnerId) && !isDrawOrAbort && scoreResult.valid && (hasWinnerTiles || scoreResult.winningTile) && (
           <div style={{
             marginBottom: '12px',
             padding: '12px',
