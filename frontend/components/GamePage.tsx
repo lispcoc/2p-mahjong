@@ -6,6 +6,7 @@ import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState } from '../types/GameTypes'
 import { normalizeTile, getTileKey } from '../utils/TileUtils'
 import { TileImage } from './TileImage'
+import { FuroDisplay } from './FuroDisplay'
 import { DebugPanel } from './GameBoard/DebugPanel'
 import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
@@ -1454,19 +1455,7 @@ export default function GamePage({
               </div>
               <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
-                {otherMelds.length > 0 && (
-                  <div className="flex max-sm:flex-col gap-4">
-                    {otherMelds.map((meld, meldIdx) => (
-                      <div key={`meld-${meldIdx}`} className="flex gap-px">
-                        {meld.map((tile, tileIdx) => (
-                          <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
-                            <TileImage tile={tile} />
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <FuroDisplay melds={otherMelds} />
 
                 {/* 手牌（裏向きまたは表示） */}
                 <div className="flex gap-px flex-wrap">
@@ -1841,19 +1830,7 @@ export default function GamePage({
           </div>
           <div>
             {/* Melds display - positioned to the right */}
-            {melds.length > 0 && (
-              <div className="flex flex-col items-end flex-shrink-0 gap-2 min-w-max">
-                <div className="flex max-sm:flex-col gap-2 flex-wrap justify-end">
-                  {melds.map((meld: Tile[], idx: number) => (
-                    <div key={idx} className="flex gap-px">
-                      {meld.map((tile: Tile, tileIdx: number) => (
-                        <TileImage key={tileIdx} tile={tile} />
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <FuroDisplay melds={melds} layout="vertical" />
           </div>
         </div>
 

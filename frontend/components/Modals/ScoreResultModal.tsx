@@ -1,6 +1,7 @@
 import React from 'react'
 import { GameState, Tile } from '../../types/GameTypes'
 import { TileImage } from '../TileImage'
+import { FuroDisplay } from '../FuroDisplay'
 
 interface ScoreResultModalProps {
   scoreResult: any
@@ -63,13 +64,11 @@ export function ScoreResultModal({
             <div className="flex gap-3 items-start flex-wrap">
               {winnerMelds.length > 0 && (
                 <div className="flex gap-2 flex-wrap">
-                  {winnerMelds.map((meld, meldIdx) => (
-                    <div key={`winner-meld-${meldIdx}`} className="flex gap-px p-1.5 bg-mahjong-dark-tertiary border-2 border-white">
-                      {meld.map((tile, tileIdx) => (
-                        <TileImage key={`winner-meld-${meldIdx}-${tileIdx}`} tile={tile} />
-                      ))}
-                    </div>
-                  ))}
+                  <FuroDisplay 
+                    melds={winnerMelds} 
+                    layout="horizontal"
+                    wrapperClassName="flex gap-2 flex-wrap"
+                  />
                 </div>
               )}
               <div className="flex gap-px flex-wrap items-center">
@@ -233,13 +232,11 @@ export function ScoreResultModal({
                         <div className="flex gap-3 items-start flex-wrap">
                           {melds.length > 0 && (
                             <div className="flex gap-2 flex-wrap">
-                              {melds.map((meld: Tile[], meldIdx: number) => (
-                                <div key={`meld-${playerId}-${meldIdx}`} className="flex gap-px p-1.5 bg-green-950/50 border-2 border-white">
-                                  {meld.map((tile: Tile, tileIdx: number) => (
-                                    <TileImage key={`meld-${playerId}-${meldIdx}-${tileIdx}`} tile={tile} />
-                                  ))}
-                                </div>
-                              ))}
+                              <FuroDisplay 
+                                melds={melds} 
+                                layout="horizontal"
+                                wrapperClassName="flex gap-2 flex-wrap"
+                              />
                             </div>
                           )}
                           <div className="flex gap-px flex-wrap items-center">
