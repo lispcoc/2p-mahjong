@@ -16,6 +16,9 @@ module.exports = {
           warning: '#ff9800',
           info: '#2196f3',
           muted: '#6c757d',
+          'dark-primary': '#2d5016',
+          'dark-secondary': '#3d6b20',
+          'dark-tertiary': '#1a2e0a',
         }
       },
       fontSize: {

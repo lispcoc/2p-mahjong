@@ -53,62 +53,18 @@ export function ScoreResultModal({
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.7)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 2000,
-    }}>
-      <div style={{
-        backgroundColor: '#2d5016',
-        padding: '20px',
-        borderRadius: '0px',
-        maxWidth: '90vw',
-        width: '1200px',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-        border: '3px solid #ffffff',
-      }}>
+    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
+      <div className="bg-mahjong-dark-primary p-5 max-w-[90vw] w-[1200px] max-h-[90vh] overflow-auto shadow-2xl border-4 border-white">
         {(winnerName || winnerId) && !isDrawOrAbort && scoreResult.valid && (hasWinnerTiles || scoreResult.winningTile) && (
-          <div style={{
-            marginBottom: '12px',
-            padding: '12px',
-            backgroundColor: '#3d6b20',
-            borderRadius: '0px',
-            border: '2px solid #ffffff',
-          }}>
-            <div style={{
-              fontSize: '14px',
-              fontWeight: 'bold',
-              color: '#ffffff',
-              marginBottom: '8px',
-            }}>
+          <div className="mb-3 p-3 bg-mahjong-dark-secondary border-2 border-white">
+            <div className="text-sm font-bold text-white mb-2">
               勝者: {winnerName}
             </div>
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              alignItems: 'flex-start',
-              flexWrap: 'wrap',
-            }}>
+            <div className="flex gap-3 items-start flex-wrap">
               {winnerMelds.length > 0 && (
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div className="flex gap-2 flex-wrap">
                   {winnerMelds.map((meld, meldIdx) => (
-                    <div key={`winner-meld-${meldIdx}`} style={{
-                      display: 'flex',
-                      gap: '1px',
-                      padding: '6px',
-                      backgroundColor: '#1a2e0a',
-                      borderRadius: '0px',
-                      border: '2px solid #ffffff',
-                    }}>
+                    <div key={`winner-meld-${meldIdx}`} className="flex gap-px p-1.5 bg-mahjong-dark-tertiary border-2 border-white">
                       {meld.map((tile, tileIdx) => (
                         <TileImage key={`winner-meld-${meldIdx}-${tileIdx}`} tile={tile} />
                       ))}
@@ -116,19 +72,19 @@ export function ScoreResultModal({
                   ))}
                 </div>
               )}
-              <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="flex gap-px flex-wrap items-center">
                 {winnerHand.slice(0, winnerHand.length - 1).map((tile, idx) => (
                   <TileImage key={`winner-hand-${idx}`} tile={tile} />
                 ))}
                 {/* 和了牌を右端にスペースを空けて表示 */}
                 {scoreResult.winningTile && (
-                  <span style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                  <span className="flex items-center ml-4">
                     <TileImage tile={scoreResult.winningTile} />
                   </span>
                 )}
                 {/* winningTileがなければ最後の牌を和了牌として表示 */}
                 {!scoreResult.winningTile && winnerHand.length > 0 && (
-                  <span style={{ display: 'flex', alignItems: 'center', marginLeft: '16px' }}>
+                  <span className="flex items-center ml-4">
                     <TileImage tile={winnerHand[winnerHand.length - 1]} />
                   </span>
                 )}
@@ -137,14 +93,9 @@ export function ScoreResultModal({
           </div>
         )}
 
-        <h2 style={{ 
-          marginTop: 0, 
-          color: isDrawOrAbort ? '#ffcc66' : (scoreResult.valid ? '#90ee90' : '#ff6b6b'),
-          textAlign: 'center',
-          fontSize: '22px',
-          marginBottom: '8px',
-          fontWeight: 'bold',
-        }}>
+        <h2 className={`text-2xl font-bold text-center mb-2 ${
+          isDrawOrAbort ? 'text-yellow-300' : (scoreResult.valid ? 'text-green-300' : 'text-red-400')
+        }`}>
           {isDrawOrAbort 
             ? (scoreResult.scoreType?.includes('Draw') ? '流局' : (scoreResult.scoreType || 'ゲーム終了'))
             : (scoreResult.valid 
@@ -154,41 +105,22 @@ export function ScoreResultModal({
 
         {/* ドラ・裏ドラ表示 */}
         {scoreResult.valid && !isDrawOrAbort && (
-          <div style={{
-            marginTop: '15px',
-            padding: '15px',
-            backgroundColor: '#3d6b20',
-            borderRadius: '0px',
-            border: '2px solid #FFD700',
-            display: 'flex',
-            gap: '40px',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-          }}>
+          <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-yellow-400 flex gap-10 items-center justify-center flex-wrap">
             {/* 表ドラ表示 */}
             {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '8px 12px',
-                backgroundColor: '#FFFACD',
-                borderRadius: '4px',
-                border: '1px solid #DAA520'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', minWidth: '65px' }}>
+              <div className="flex items-center gap-3 px-3 py-2 bg-yellow-100 rounded border border-yellow-600">
+                <div className="text-xs text-gray-600 font-bold w-[65px]">
                   表ドラ
                 </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div className="flex gap-1.5 items-center">
                   {gameState.dora.indicators.map((tile, idx) => (
                     <TileImage key={`dora-ind-${idx}`} tile={tile} />
                   ))}
                 </div>
                 {gameState.dora.tiles && gameState.dora.tiles.length > 0 && (
                   <>
-                    <div style={{ fontSize: '10px', color: '#999' }}>→</div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <div className="text-xs text-gray-400">→</div>
+                    <div className="flex gap-1.5 items-center">
                       {gameState.dora.tiles.map((tile, idx) => (
                         <TileImage key={`dora-tile-${idx}`} tile={tile} />
                       ))}
@@ -200,27 +132,19 @@ export function ScoreResultModal({
 
             {/* 裏ドラ表示 */}
             {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '8px 12px',
-                backgroundColor: '#F0E68C',
-                borderRadius: '4px',
-                border: '1px solid #CD853F'
-              }}>
-                <div style={{ fontSize: '12px', color: '#666', fontWeight: 'bold', minWidth: '65px' }}>
+              <div className="flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
+                <div className="text-xs text-gray-600 font-bold w-[65px]">
                   裏ドラ
                 </div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div className="flex gap-1.5 items-center">
                   {gameState.dora.uraIndicators.map((tile, idx) => (
                     <TileImage key={`ura-ind-${idx}`} tile={tile} />
                   ))}
                 </div>
                 {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
                   <>
-                    <div style={{ fontSize: '10px', color: '#999' }}>→</div>
-                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <div className="text-xs text-gray-400">→</div>
+                    <div className="flex gap-1.5 items-center">
                       {gameState.dora.uraTiles.map((tile, idx) => (
                         <TileImage key={`ura-tile-${idx}`} tile={tile} />
                       ))}
@@ -234,108 +158,63 @@ export function ScoreResultModal({
         
         {scoreResult.valid && !isDrawOrAbort ? (
           <>
-            <div style={{
-              marginTop: '15px',
-              padding: '15px',
-              backgroundColor: '#3d6b20',
-              borderRadius: '0px',
-              border: '2px solid #ffffff',
-            }}>
-              <h3 style={{ marginTop: 0, marginBottom: '10px', color: '#ffffff', fontSize: '16px' }}>役</h3>
+            <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-white">
+              <h3 className="mt-0 mb-2.5 text-white text-base font-bold">役</h3>
               {scoreResult.yaku && scoreResult.yaku.length > 0 ? (
-                <div style={{ fontSize: '14px' }}>
+                <div className="text-sm">
                   {scoreResult.yaku.map((y: any, idx: number) => (
-                    <div key={idx} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      padding: '6px 0',
-                      borderBottom: idx < scoreResult.yaku.length - 1 ? '1px solid #ffffff' : 'none',
-                      color: '#ffffff',
-                    }}>
-                      <span style={{ fontWeight: 'bold' }}>{y.name}</span>
-                      <span style={{ color: '#90ee90' }}>{y.han}飜</span>
+                    <div key={idx} className={`flex justify-between py-1.5 px-0 ${idx < scoreResult.yaku.length - 1 ? 'border-b border-white' : ''} text-white`}>
+                      <span className="font-bold">{y.name}</span>
+                      <span className="text-green-300">{y.han}飜</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p style={{ color: '#e0e0e0', fontStyle: 'italic', margin: 0, fontSize: '13px' }}>役なし</p>
+                <p className="text-gray-300 italic text-xs m-0">役なし</p>
               )}
             </div>
 
-            <div style={{
-              marginTop: '15px',
-              padding: '15px',
-              backgroundColor: '#1a2e0a',
-              borderRadius: '0px',
-              border: '2px solid #ffffff',
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ffcc66', marginBottom: '8px' }}>
+            <div className="mt-4 p-4 bg-mahjong-dark-tertiary border-2 border-white text-center">
+              <div className="text-4xl font-bold text-yellow-300 mb-2">
                 {scoreResult.score}点
               </div>
               {typeof scoreResult.riichiDeposits === 'number' && scoreResult.riichiDeposits > 0 && (
-                <div style={{ fontSize: '14px', color: '#90ee90', marginBottom: '6px' }}>
+                <div className="text-sm text-green-300 mb-1.5">
                   供託 +{scoreResult.riichiDeposits.toLocaleString()}点
                 </div>
               )}
-              <div style={{ fontSize: '16px', color: '#e0e0e0', marginBottom: '5px' }}>
+              <div className="text-base text-gray-300 mb-1">
                 {scoreResult.scoreType}
               </div>
-              <div className='hidden' style={{ fontSize: '14px', color: '#a0a0a0' }}>
+              <div className="hidden text-xs text-gray-400">
                 {scoreResult.han}飜 {scoreResult.fu}符
               </div>
             </div>
 
             {scoreResult.calculation && (
-              <div className='hidden'
-                style={{
-                marginTop: '15px',
-                padding: '12px',
-                backgroundColor: '#1a2e0a',
-                borderRadius: '0px',
-                border: '2px solid #ffffff',
-                fontSize: '12px',
-                whiteSpace: 'pre-wrap',
-                fontFamily: 'monospace',
-                color: '#e0e0e0',
-                maxHeight: '200px',
-                overflow: 'auto',
-              }}>
+              <div className="hidden mt-4 p-3 bg-mahjong-dark-tertiary border-2 border-white text-xs whitespace-pre-wrap font-mono text-gray-300 max-h-50 overflow-auto">
                 {scoreResult.calculation}
               </div>
             )}
           </>
         ) : isDrawOrAbort ? (
           <>
-            <div style={{
-              marginTop: '15px',
-              padding: '15px',
-              backgroundColor: '#3d2e0a',
-              borderRadius: '0px',
-              border: '2px solid #ffcc66',
-              textAlign: 'center',
-            }}>
-              <p style={{ fontSize: '16px', color: '#ffcc66', margin: '10px 0' }}>
+            <div className="mt-4 p-4 bg-yellow-900/60 border-2 border-yellow-300 text-center">
+              <p className="text-base text-yellow-300 my-2.5">
                 {scoreResult.scoreType || 'ゲームが終了しました'}
               </p>
-              <p style={{ fontSize: '14px', color: '#e0e0e0', margin: '10px 0' }}>
+              <p className="text-sm text-gray-300 my-2.5">
                 (このラウンドは引き分けです)
               </p>
             </div>
 
             {/* 流局時の手牌と聴牌情報表示 */}
             {gameState?.players && playerOrder && tenpaiStatus && (
-              <div style={{
-                marginTop: '15px',
-                padding: '15px',
-                backgroundColor: '#3d6b20',
-                borderRadius: '0px',
-                border: '2px solid #ffffff',
-              }}>
-                <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#ffffff', fontSize: '16px' }}>
+              <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-white">
+                <h3 className="mt-0 mb-4 text-white text-base font-bold">
                   手牌・聴牌情報
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                <div className="flex flex-col gap-4">
                   {playerOrder.map((playerId) => {
                     const player = gameState.players?.find((p) => p.userId === playerId)
                     const playerName = playerNames?.[playerId] || player?.playerName || playerId
@@ -344,50 +223,18 @@ export function ScoreResultModal({
                     const isTenpai = tenpaiStatus[playerId]
                     
                     return (
-                      <div key={playerId} style={{
-                        padding: '12px',
-                        backgroundColor: '#1a2e0a',
-                        borderRadius: '0px',
-                        border: '1px solid #ffffff',
-                      }}>
-                        <div style={{
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          color: '#ffffff',
-                          marginBottom: '8px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '12px',
-                        }}>
+                      <div key={playerId} className="p-3 bg-mahjong-dark-tertiary border border-white">
+                        <div className="text-sm font-bold text-white mb-2 flex items-center gap-3">
                           <span>{playerName}</span>
-                          <span style={{
-                            backgroundColor: isTenpai ? '#90ee90' : '#ff6b6b',
-                            color: '#000',
-                            padding: '4px 8px',
-                            borderRadius: '3px',
-                            fontSize: '12px',
-                            fontWeight: 'bold',
-                          }}>
+                          <span className={`${isTenpai ? 'bg-green-300 text-black' : 'bg-red-400 text-white'} px-2 py-1 text-xs font-bold rounded`}>
                             {isTenpai ? '聴牌' : 'ノーテン'}
                           </span>
                         </div>
-                        <div style={{
-                          display: 'flex',
-                          gap: '12px',
-                          alignItems: 'flex-start',
-                          flexWrap: 'wrap',
-                        }}>
+                        <div className="flex gap-3 items-start flex-wrap">
                           {melds.length > 0 && (
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <div className="flex gap-2 flex-wrap">
                               {melds.map((meld: Tile[], meldIdx: number) => (
-                                <div key={`meld-${playerId}-${meldIdx}`} style={{
-                                  display: 'flex',
-                                  gap: '1px',
-                                  padding: '6px',
-                                  backgroundColor: '#0a1e00',
-                                  borderRadius: '0px',
-                                  border: '2px solid #ffffff',
-                                }}>
+                                <div key={`meld-${playerId}-${meldIdx}`} className="flex gap-px p-1.5 bg-green-950/50 border-2 border-white">
                                   {meld.map((tile: Tile, tileIdx: number) => (
                                     <TileImage key={`meld-${playerId}-${meldIdx}-${tileIdx}`} tile={tile} />
                                   ))}
@@ -395,7 +242,7 @@ export function ScoreResultModal({
                               ))}
                             </div>
                           )}
-                          <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <div className="flex gap-px flex-wrap items-center">
                             {hand.map((tile: Tile, idx: number) => (
                               <TileImage key={`hand-${playerId}-${idx}`} tile={tile} />
                             ))}
@@ -409,7 +256,7 @@ export function ScoreResultModal({
             )}
           </>
         ) : (
-          <p style={{ textAlign: 'center', color: '#e0e0e0', fontSize: '14px' }}>
+          <p className="text-center text-gray-300 text-sm">
             {scoreResult.error || '役がありません'}
           </p>
         )}
@@ -417,18 +264,11 @@ export function ScoreResultModal({
         <button
           onClick={onNextRound}
           disabled={nextRoundReady}
-          style={{
-            marginTop: '15px',
-            padding: '10px 20px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            border: '2px solid #ffffff',
-            borderRadius: '0px',
-            backgroundColor: nextRoundReady ? '#555' : '#3d6b20',
-            color: '#fff',
-            cursor: nextRoundReady ? 'not-allowed' : 'pointer',
-            width: '100%',
-          }}
+          className={`mt-4 px-5 py-2.5 text-sm font-bold border-2 border-white w-full transition-colors ${
+            nextRoundReady 
+              ? 'bg-gray-600 cursor-not-allowed text-white' 
+              : 'bg-mahjong-dark-secondary hover:bg-green-700 text-white cursor-pointer'
+          }`}
         >
           {nextRoundReady ? '準備完了' : '次へ'}
         </button>
