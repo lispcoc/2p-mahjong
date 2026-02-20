@@ -61,6 +61,7 @@ export default function GamePage({
   const [tenpaiInfoMap, setTenpaiInfoMap] = useState<Record<number, { isTenpai: boolean; winningTiles: any[] }>>({})
   const [nextRoundReady, setNextRoundReady] = useState(false)
   const [finalResults, setFinalResults] = useState<any[] | null>(null)
+  const [tenpaiStatus, setTenpaiStatus] = useState<Record<string, boolean> | null>(null) // 流局時の聴牌状態
   // 最終結果を表示するかどうか
   const [showFinalResults, setShowFinalResults] = useState(false)
   const [lastWinnerId, setLastWinnerId] = useState<string | null>(null)
@@ -420,6 +421,14 @@ export default function GamePage({
         console.log('🏁 payload.tiles has winnerId:', payload.tiles && payload.winner in payload.tiles)
         console.log('🏁 payload.finalResults:', payload.finalResults)
         console.log('🏁 payload.finalResults detailed:', JSON.stringify(payload.finalResults, null, 2))
+        console.log('🏁 payload.tenpaiStatus:', payload.tenpaiStatus)
+        
+        // 流局時の聴牌状態を保存
+        if (payload.isDraw && payload.tenpaiStatus) {
+          setTenpaiStatus(payload.tenpaiStatus)
+        } else {
+          setTenpaiStatus(null)
+        }
         
         // finalResults から winner の hand 情報を取得
         const winnerDataFromFinalResults = payload.finalResults?.find((result: any) => result.userId === payload.winner)
@@ -2071,6 +2080,9 @@ export default function GamePage({
               winnerId={lastWinnerId}
               winnerHand={lastWinnerHand}
               winnerMelds={lastWinnerMelds}
+              tenpaiStatus={tenpaiStatus}
+              playerOrder={gameState?.players?.map((p) => p.userId) || []}
+              playerNames={gameState?.players?.reduce((acc, p) => ({ ...acc, [p.userId]: p.playerName }), {}) || {}}
             />
           )}
           {/* Final Results Modal (Game Over) */}

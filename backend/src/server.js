@@ -648,6 +648,7 @@ function handleAction(ws, payload) {
         nextRoundReadyCount: room.getNextRoundReadyCount(),
         totalPlayers: room.players.size,
         tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
+        tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,  // 流局時の聴牌状態
       };
 
       // ゲームオーバー（誰かの点数がマイナス）の場合
@@ -870,6 +871,7 @@ function executeCPUTurnIfNeeded(room) {
             nextRoundReadyCount: room.getNextRoundReadyCount(),
             totalPlayers: room.players.size,
             tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
+            tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,  // 流局時の聴牌状態
           };
           
           if (room.isGameOver()) {

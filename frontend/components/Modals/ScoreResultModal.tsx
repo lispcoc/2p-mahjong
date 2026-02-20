@@ -10,6 +10,9 @@ interface ScoreResultModalProps {
   winnerId: string | null
   winnerHand: Tile[]
   winnerMelds: Tile[][]
+  tenpaiStatus?: Record<string, boolean> | null
+  playerOrder?: string[]
+  playerNames?: Record<string, string>
 }
 
 export function ScoreResultModal({
@@ -20,6 +23,9 @@ export function ScoreResultModal({
   winnerId,
   winnerHand,
   winnerMelds,
+  tenpaiStatus,
+  playerOrder,
+  playerNames,
 }: ScoreResultModalProps) {
   if (!scoreResult) return null
 
@@ -300,21 +306,108 @@ export function ScoreResultModal({
             )}
           </>
         ) : isDrawOrAbort ? (
-          <div style={{
-            marginTop: '15px',
-            padding: '15px',
-            backgroundColor: '#3d2e0a',
-            borderRadius: '0px',
-            border: '2px solid #ffcc66',
-            textAlign: 'center',
-          }}>
-            <p style={{ fontSize: '16px', color: '#ffcc66', margin: '10px 0' }}>
-              {scoreResult.scoreType || 'ゲームが終了しました'}
-            </p>
-            <p style={{ fontSize: '14px', color: '#e0e0e0', margin: '10px 0' }}>
-              (このラウンドは引き分けです)
-            </p>
-          </div>
+          <>
+            <div style={{
+              marginTop: '15px',
+              padding: '15px',
+              backgroundColor: '#3d2e0a',
+              borderRadius: '0px',
+              border: '2px solid #ffcc66',
+              textAlign: 'center',
+            }}>
+              <p style={{ fontSize: '16px', color: '#ffcc66', margin: '10px 0' }}>
+                {scoreResult.scoreType || 'ゲームが終了しました'}
+              </p>
+              <p style={{ fontSize: '14px', color: '#e0e0e0', margin: '10px 0' }}>
+                (このラウンドは引き分けです)
+              </p>
+            </div>
+
+            {/* 流局時の手牌と聴牌情報表示 */}
+            {gameState?.players && playerOrder && tenpaiStatus && (
+              <div style={{
+                marginTop: '15px',
+                padding: '15px',
+                backgroundColor: '#3d6b20',
+                borderRadius: '0px',
+                border: '2px solid #ffffff',
+              }}>
+                <h3 style={{ marginTop: 0, marginBottom: '15px', color: '#ffffff', fontSize: '16px' }}>
+                  手牌・聴牌情報
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  {playerOrder.map((playerId) => {
+                    const player = gameState.players?.find((p) => p.userId === playerId)
+                    const playerName = playerNames?.[playerId] || player?.playerName || playerId
+                    const hand = gameState?.tiles?.[playerId]?.hand || []
+                    const melds = gameState?.tiles?.[playerId]?.melds || []
+                    const isTenpai = tenpaiStatus[playerId]
+                    
+                    return (
+                      <div key={playerId} style={{
+                        padding: '12px',
+                        backgroundColor: '#1a2e0a',
+                        borderRadius: '0px',
+                        border: '1px solid #ffffff',
+                      }}>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: 'bold',
+                          color: '#ffffff',
+                          marginBottom: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                        }}>
+                          <span>{playerName}</span>
+                          <span style={{
+                            backgroundColor: isTenpai ? '#90ee90' : '#ff6b6b',
+                            color: '#000',
+                            padding: '4px 8px',
+                            borderRadius: '3px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                          }}>
+                            {isTenpai ? '聴牌' : 'ノーテン'}
+                          </span>
+                        </div>
+                        <div style={{
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'flex-start',
+                          flexWrap: 'wrap',
+                        }}>
+                          {melds.length > 0 && (
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {melds.map((meld: Tile[], meldIdx: number) => (
+                                <div key={`meld-${playerId}-${meldIdx}`} style={{
+                                  display: 'flex',
+                                  gap: '1px',
+                                  padding: '6px',
+                                  backgroundColor: '#0a1e00',
+                                  borderRadius: '0px',
+                                  border: '2px solid #ffffff',
+                                }}>
+                                  {meld.map((tile: Tile, tileIdx: number) => (
+                                    <TileImage key={`meld-${playerId}-${meldIdx}-${tileIdx}`} tile={tile} />
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', gap: '1px', flexWrap: 'wrap', alignItems: 'center' }}>
+                            {hand.map((tile: Tile, idx: number) => (
+                              <TileImage key={`hand-${playerId}-${idx}`} tile={tile} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <p style={{ textAlign: 'center', color: '#e0e0e0', fontSize: '14px' }}>
             {scoreResult.error || '役がありません'}
