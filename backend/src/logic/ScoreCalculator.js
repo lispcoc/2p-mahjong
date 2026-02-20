@@ -1474,20 +1474,25 @@ class ScoreCalculator {
   countDora(hand, doraIndicators, doraTiles) {
     let doraCount = 0;
     
-    // ドラ表示牌がない場合はドラなし
-    if (!doraIndicators || doraIndicators.length === 0) {
+    // 使用するドラタイルを決定（doraTilesが提供されていたらそれを使う、そうでなければdoraIndicatorsから計算）
+    let tilesToCount = [];
+    
+    if (doraTiles && doraTiles.length > 0) {
+      // MahjongLogicから既に計算されたdoraTilesを使用
+      tilesToCount = doraTiles;
+    } else if (doraIndicators && doraIndicators.length > 0) {
+      // ドラ表示牌から計算（テストや後方互換性のため）
+      doraIndicators.forEach(indicator => {
+        const nextTile = this.getNextTile(indicator);
+        tilesToCount.push(nextTile);
+      });
+    } else {
+      // ドラがない
       return { dora: 0 };
     }
     
-    // ドラ表示牌から実際のドラを計算
-    const actualDoraTiles = [];
-    doraIndicators.forEach(indicator => {
-      const nextTile = this.getNextTile(indicator);
-      actualDoraTiles.push(nextTile);
-    });
-    
     // 手牌の中でドラの枚数をカウント
-    actualDoraTiles.forEach(doraTile => {
+    tilesToCount.forEach(doraTile => {
       hand.forEach(handTile => {
         if (handTile.suit === doraTile.suit && handTile.number === doraTile.number) {
           doraCount++;
