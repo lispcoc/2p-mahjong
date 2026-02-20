@@ -15,6 +15,7 @@ interface RoomInfo {
   roomId: string
   status: string
   playersCount: number
+  playerNames: string[]
 }
 
 export default function HomePage({
@@ -293,12 +294,17 @@ export default function HomePage({
               <div className="flex flex-col gap-2">
                 {rooms.map((room) => (
                   <div key={room.roomId} className="flex items-center justify-between gap-3 p-3 border-2 border-white bg-[#3d6b20]">
-                    <div className="flex flex-col gap-0">
+                    <div className="flex flex-col gap-1">
                       <div className="font-bold text-[#ffffff] text-sm">#{room.roomId}</div>
                       <div className="text-xs text-gray-300">
                         {room.status === 'playing' ? 'プレイ中' : room.status === 'finished' ? '終了' : '待機中'}
                         {' '}・{room.playersCount}/2
                       </div>
+                      {room.playerNames && room.playerNames.length > 0 && (
+                        <div className="text-xs text-gray-200 mt-1">
+                          {room.playerNames.join(', ')}
+                        </div>
+                      )}
                     </div>
                     <button
                       onClick={() => handleJoinFromList(room.roomId)}

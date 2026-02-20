@@ -137,10 +137,12 @@ app.get('/api/rooms', (req, res) => {
     // or are waiting for players
     const connectedCount = room.getConnectedPlayersCount();
     if (connectedCount > 0 || room.getStatus() === 'waiting') {
+      const players = room.getPlayers();
       roomsInfo.push({
         roomId,
         status: room.getStatus(),
         playersCount: connectedCount,
+        playerNames: players.map(p => p.playerName),
       });
     }
   });
