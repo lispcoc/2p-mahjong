@@ -20,27 +20,12 @@ export function DebugPanel({
   wall,
 }: DebugPanelProps) {
   return (
-    <div style={{
-      bottom: 0,
-      left: 0,
-      right: 0,
-      background: '#fffacd',
-      border: '2px solid #daa520',
-      borderBottom: 'none',
-      borderRadius: '0px',
-      padding: '12px',
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      maxHeight: '150px',
-      overflow: 'auto',
-      zIndex: 999,
-      boxShadow: '0 -4px 12px rgba(0,0,0,0.15)'
-    }}>
+    <div className="fixed bottom-0 left-0 right-0 bg-yellow-200 border-2 border-yellow-600 border-b-0 rounded-none p-3 text-xs font-mono max-h-[150px] overflow-auto z-[999] shadow-lg">
       <details>
-        <summary style={{ cursor: 'pointer', marginBottom: '8px', fontWeight: 'bold', color: '#888' }}>
+        <summary className="cursor-pointer mb-2 font-bold text-gray-500">
           🔧 デバッグ情報
         </summary>
-        <div style={{ marginTop: '8px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', color: '#666' }}>
+        <div className="mt-2 whitespace-pre-wrap break-words text-gray-600">
 WebSocket: {wsReadyState === 1 ? '✅' : '❌'} | Status: {gameStatus} | Players: {playersCount} | Turn: {currentTurn} | userId: {userId} | yourTurn: {isYourTurn ? '✓' : '✗'} | Wall: {wall}
         </div>
       </details>

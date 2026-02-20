@@ -170,13 +170,7 @@ export default function Page() {
   // Show loading state while checking for saved session
   if (pageState === 'loading') {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontSize: '1.5rem'
-      }}>
+      <div className="flex justify-center items-center h-screen text-2xl">
         🔄 読み込み中...
       </div>
     )

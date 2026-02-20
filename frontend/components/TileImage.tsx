@@ -34,10 +34,8 @@ export function TileImage({
       style={{
         width: containerWidth,
         height: containerHeight,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
       }}
+      className="flex items-center justify-center"
     >
       <img
         src={src}
@@ -50,10 +48,9 @@ export function TileImage({
         onError={(event) => {
           event.currentTarget.src = '/tiles/missing.png'
         }}
+        className={`transition-all duration-200 ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         style={{
-          cursor: onClick ? 'pointer' : 'default',
           filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? 'drop-shadow(0 0 10px #4CAF50)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
-          transition: 'all 0.2s',
           transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
           borderRadius: '0px',
           transformOrigin: 'center',

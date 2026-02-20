@@ -13,48 +13,26 @@ export function OpponentDiscards({ discards, gameState, otherUserId }: OpponentD
   const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId]
 
   return (
-    <div style={{
-      width: '100%',
-      marginBottom: '12px',
-      background: '#f7f7f7',
-      borderRadius: '0px',
-      padding: '12px',
-      border: '1px solid #e0e0e0'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <strong style={{ minWidth: '70px', color: '#555' }}>相手の河</strong>
+    <div className="w-full mb-3 bg-gray-100 rounded-none p-3 border border-gray-300">
+      <div className="flex items-center gap-2.5">
+        <strong className="font-bold min-w-[70px] text-gray-600">相手の河</strong>
         {isOtherRiichi && (
-          <div style={{
-            backgroundColor: '#ff4444',
-            color: 'white',
-            padding: '4px 12px',
-            borderRadius: '0px',
-            fontSize: '14px',
-            fontWeight: 'bold',
-            boxShadow: '0 2px 6px rgba(255,68,68,0.4)',
-            animation: 'pulse 2s infinite'
-          }}>
+          <div className="bg-red-500 text-white px-3 py-1 rounded-none text-sm font-bold shadow-md animate-pulse">
             🔴 リーチ中
           </div>
         )}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1px'
-        }}>
+        <div className="flex flex-wrap gap-px">
           {discards.length === 0 ? (
-            <span style={{ color: '#999', fontSize: '12px' }}>なし</span>
+            <span className="text-gray-400 text-xs">なし</span>
           ) : (
             discards.map((tile, idx) => {
               const isRiichiDiscard = (gameState?.riichiDiscards?.[otherUserId ?? ''] ?? -1) === idx
               return (
                 <div 
                   key={`od-${idx}`} 
+                  className={`inline-block ${isRiichiDiscard ? 'rotate-90 my-2' : ''}`}
                   style={{
-                    display: 'inline-block',
-                    transform: isRiichiDiscard ? 'rotate(90deg)' : 'none',
                     transformOrigin: 'center',
-                    margin: isRiichiDiscard ? '8px 0' : '0'
                   }}
                 >
                   <TileImage tile={tile} />

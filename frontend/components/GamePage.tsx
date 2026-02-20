@@ -1398,12 +1398,12 @@ export default function GamePage({
 
         {/* Toast Notification - Server Messages */}
         {error && (
-          <div className="fixed top-5 right-5 p-5 bg-red-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
+          <div className="fixed top-5 right-5 p-5 bg-red-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium animate-slideIn">
             {error}
           </div>
         )}
         {message && (
-          <div className="max-sm:hidden fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium" style={{ animation: 'slideIn 0.3s ease-out' }}>
+          <div className="max-sm:hidden fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium animate-slideIn">
             {message}
           </div>
         )}
@@ -1515,9 +1515,7 @@ export default function GamePage({
                     <img
                       src="/tiles/1000.gif"
                       alt="リーチ棒"
-                      style={{
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-                      }}
+                      className="drop-shadow"
                     />
                   </div>
                 ) : null;
@@ -1607,9 +1605,7 @@ export default function GamePage({
                     <img
                       src="/tiles/1000.gif"
                       alt="リーチ棒"
-                      style={{
-                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-                      }}
+                      className="drop-shadow"
                     />
                   </div>
                 ) : null;
@@ -1672,8 +1668,7 @@ export default function GamePage({
               </button>
               <button
                 onClick={() => setIsTimerPaused((prev) => !prev)}
-                className={`px-4 py-2 font-bold rounded transition-all ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-white text-blue-700 border-2 border-blue-700'}`}
-                style={{ minWidth: '120px' }}
+                className={`px-4 py-2 font-bold rounded transition-all min-w-[120px] ${isTimerPaused ? 'bg-red-500 text-white' : 'bg-white text-blue-700 border-2 border-blue-700'}`}
               >
                 {isTimerPaused ? '▶ タイマー再開' : '⏸ タイマー一時停止'}
               </button>
@@ -1719,10 +1714,7 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : ''}`}
-                      style={{
-                        opacity: riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 0.3 : (idx === drawnTileIndex ? 1 : 0.9),
-                      }}
+                      className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
@@ -1788,40 +1780,11 @@ export default function GamePage({
                       />
                       {/* Tenpai popup */}
                       {hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          backgroundColor: 'rgba(76, 175, 80, 0.95)',
-                          padding: '10px 12px',
-                          borderRadius: '8px',
-                          marginBottom: '10px',
-                          whiteSpace: 'nowrap',
-                          zIndex: 1000,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                          pointerEvents: 'none',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}>
-                          <div style={{
-                            color: 'white',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            marginBottom: '2px',
-                          }}>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
+                          <div className="text-white text-xs font-bold mb-0.5">
                             🀄 聴牌
                           </div>
-                          <div style={{
-                            display: 'flex',
-                            gap: '2px',
-                            flexDirection: 'row',
-                            flexWrap: 'nowrap',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          }}>
+                          <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
                               const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
                               const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
@@ -1835,10 +1798,7 @@ export default function GamePage({
                                   alt={tile.display}
                                   width={22}
                                   height={31}
-                                  style={{
-                                    borderRadius: '2px',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                                  }}
+                                  className="rounded shadow-sm"
                                   onError={(e) => {
                                     console.error(`Failed to load tile image: ${imagePath}`, tile);
                                   }}
@@ -1846,11 +1806,7 @@ export default function GamePage({
                               );
                             })}
                             {tenpaiInfo.winningTiles.length > 8 && (
-                              <div style={{
-                                color: 'white',
-                                fontSize: '10px',
-                                marginLeft: '4px',
-                              }}>
+                              <div className="text-white text-[10px] ml-1">
                                 +{tenpaiInfo.winningTiles.length - 8}
                               </div>
                             )}
@@ -1880,7 +1836,7 @@ export default function GamePage({
                 </div>
               </>
             ) : (
-              <p style={{ color: '#666', fontStyle: 'italic' }}>手札を読み込み中...</p>
+              <p className="text-gray-600 italic">手札を読み込み中...</p>
             )}
           </div>
           <div>
@@ -1913,18 +1869,7 @@ export default function GamePage({
                     sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
                   }
                 }}
-                style={{
-                  backgroundColor: '#ff6b6b',
-                  borderColor: '#c92a2a',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  padding: '8px 12px',
-                  border: '2px solid',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  color: 'white',
-                  transition: 'all 0.2s'
-                }}
+                className="px-3 py-2 bg-red-500 border-2 border-red-700 text-xs font-bold rounded text-white cursor-pointer transition-all hover:bg-red-600"
               >
                 ツモ切り
               </button>
@@ -1986,37 +1931,14 @@ export default function GamePage({
                     setTimeout(() => setMessage(''), 5000);
                   }
                 }}
-                style={{
-                  backgroundColor: riichiMode ? '#4CAF50' : '#ff4444',
-                  borderColor: riichiMode ? '#388E3C' : '#cc0000',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
-                  padding: '8px 12px',
-                  border: '2px solid',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  color: 'white',
-                  boxShadow: riichiMode ? '0 0 10px rgba(76, 175, 80, 0.5)' : 'none',
-                  transition: 'all 0.2s'
-                }}
+                className={`px-3 py-2 text-xs font-bold rounded text-white cursor-pointer transition-all ${riichiMode ? 'bg-green-600 border-2 border-green-700 shadow-lg' : 'bg-red-600 border-2 border-red-700'}`}
               >
                 {riichiMode ? '✓ 待機' : '🔴 リーチ'}
               </button>
             )}
             {/* リーチ中の表示 */}
             {gameState.riichi?.[userId] && (
-              <div style={{
-                padding: '8px 12px',
-                backgroundColor: '#ffebee',
-                border: '2px solid #ff4444',
-                borderRadius: '6px',
-                fontWeight: 'bold',
-                fontSize: '12px',
-                color: '#d32f2f',
-                textAlign: 'center',
-                boxShadow: '0 4px 8px rgba(255,68,68,0.3)',
-                animation: 'pulse 2s infinite'
-              }}>
+              <div className="px-3 py-2 bg-red-100 border-2 border-red-500 rounded font-bold text-sm text-red-800 text-center shadow-md animate-pulse">
                 🔴 リーチ中
               </div>
             )}

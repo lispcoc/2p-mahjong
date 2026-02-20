@@ -10,34 +10,21 @@ interface YourDiscardsProps {
 
 export function YourDiscards({ discards, gameState, userId }: YourDiscardsProps) {
   return (
-    <div style={{
-      width: '100%',
-      marginBottom: '12px',
-      background: '#f7f7f7',
-      borderRadius: '0px',
-      padding: '12px',
-      border: '1px solid #e0e0e0'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <strong style={{ minWidth: '70px', color: '#555' }}>あなたの河</strong>
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1px'
-        }}>
+    <div className="w-full mb-3 bg-gray-100 rounded-none p-3 border border-gray-300">
+      <div className="flex items-center gap-2.5">
+        <strong className="font-bold min-w-[70px] text-gray-600">あなたの河</strong>
+        <div className="flex flex-wrap gap-px">
           {discards.length === 0 ? (
-            <span style={{ color: '#999', fontSize: '12px' }}>なし</span>
+            <span className="text-gray-400 text-xs">なし</span>
           ) : (
             discards.map((tile, idx) => {
               const isRiichiDiscard = gameState.riichiDiscards?.[userId] === idx
               return (
                 <div 
                   key={`yd-${idx}`} 
+                  className={`inline-block ${isRiichiDiscard ? 'rotate-90 my-2' : ''}`}
                   style={{
-                    display: 'inline-block',
-                    transform: isRiichiDiscard ? 'rotate(90deg)' : 'none',
                     transformOrigin: 'center',
-                    margin: isRiichiDiscard ? '8px 0' : '0'
                   }}
                 >
                   <TileImage tile={tile} />

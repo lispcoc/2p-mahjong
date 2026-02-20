@@ -23,57 +23,30 @@ export function GameHeader({
   onBack,
 }: GameHeaderProps) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <div className="flex justify-between items-center mb-5">
       <div>
         <h1>ルームID: {roomId}</h1>
         <p>ステータス: {gameState.status} | userId: {userId}</p>
       </div>
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div className="flex gap-2.5">
         {gameState.status === 'waiting' && gameState.players.length < 2 && (
           <button
             onClick={onAddCPU}
             disabled={isAddingCPU}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: isAddingCPU ? '#555' : '#3d6b20',
-              color: 'white',
-              border: '2px solid #ffffff',
-              borderRadius: '0px',
-              cursor: isAddingCPU ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold',
-              fontSize: '14px',
-            }}
+            className={`px-4 py-2 text-white border-2 border-white rounded-none font-bold text-sm cursor-pointer transition-all ${isAddingCPU ? 'bg-gray-600 cursor-not-allowed' : 'bg-mahjong-dark-secondary hover:bg-green-800'}`}
           >
             {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
           </button>
         )}
         <button
           onClick={onToggleGrayscale}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#1a2e0a',
-            color: 'white',
-            border: '2px solid #ffffff',
-            borderRadius: '0px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}
+          className="px-4 py-2 bg-mahjong-dark-tertiary text-white border-2 border-white rounded-none font-bold text-sm cursor-pointer hover:bg-green-900"
         >
           {isGrayscale ? '彩度ON' : '彩度OFF'}
         </button>
         <button
           onClick={onBack}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: '#8b1a1a',
-            color: 'white',
-            border: '2px solid #ffffff',
-            borderRadius: '0px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '14px',
-          }}
+          className="px-4 py-2 bg-red-900 text-white border-2 border-white rounded-none font-bold text-sm cursor-pointer hover:bg-red-800"
         >
           戻る
         </button>
