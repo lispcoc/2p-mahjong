@@ -52,19 +52,22 @@ export function FuroDisplay({
             // Concealed Kan (4 tiles): [hand, hand, hand, hand] → don't rotate (all from hand)
             
             let isRotated = false
+            let isFaceDown = false
             
-            if (!concealedMeldIndices?.has(meldIdx)) {
+            if (concealedMeldIndices?.has(meldIdx)) {
+              // Concealed kan (暗槓)：両端のタイルを裏向きにする
+              // Both end tiles should be face-down: [face-down, face-up, face-up, face-down]
+              isFaceDown = tileIdx === 0 || tileIdx === meld.length - 1
+            } else {
               // Not a concealed kan - check if this is an opponent's tile
               // Opponent's tile is always at index 2 in pung/added-kan
               const isOpponentTile = tileIdx === 2 && meld.length >= 3
               isRotated = isOpponentTile && shouldRotateOpponentTile
             }
-            // If it's a concealed kan (concealedMeldIndices.has(meldIdx)),
-            // don't rotate any tiles - all are from hand
             
             return (
               <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
-                <TileImage tile={tile} isRotated={isRotated} />
+                <TileImage tile={tile} isRotated={isRotated} faceDown={isFaceDown} />
               </div>
             )
           })}
