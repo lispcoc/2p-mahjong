@@ -324,8 +324,8 @@ export default function HomePage({
       </div>
 
       {isRuleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5">
-          <div className="w-full max-w-[520px] border-4 border-white bg-[#2d5016] p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
+          <div className="w-full max-w-[520px] border-2 border-white bg-[#2d5016] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="mb-5 border-b-2 border-gray-300 pb-3">
               <h3 className="text-xl font-bold text-white m-0">ルール設定</h3>
               <p className="text-xs text-gray-300 mt-2 mb-0">持ち点と壁の枚数を設定してください</p>
