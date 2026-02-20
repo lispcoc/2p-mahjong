@@ -68,6 +68,9 @@ export function ScoreResultModal({
                     melds={winnerMelds} 
                     layout="horizontal"
                     wrapperClassName="flex gap-2 flex-wrap"
+                    seatWindYou={gameState?.seatWinds?.[winnerId ?? '']}
+                    seatWindOpponent={gameState?.seatWinds?.[gameState?.players?.find((p: any) => p.userId !== winnerId)?.userId ?? '']}
+                    concealedMeldIndices={new Set(gameState?.tiles?.[winnerId ?? '']?.concealedMeldIndices ?? [])}
                   />
                 </div>
               )}
@@ -236,6 +239,9 @@ export function ScoreResultModal({
                                 melds={melds} 
                                 layout="horizontal"
                                 wrapperClassName="flex gap-2 flex-wrap"
+                                seatWindYou={gameState?.seatWinds?.[playerId]}
+                                seatWindOpponent={gameState?.seatWinds?.[gameState?.players?.find((p: any) => p.userId !== playerId)?.userId ?? '']}
+                                concealedMeldIndices={new Set(gameState?.tiles?.[playerId]?.concealedMeldIndices ?? [])}
                               />
                             </div>
                           )}

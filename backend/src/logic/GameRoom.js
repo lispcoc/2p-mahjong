@@ -449,10 +449,12 @@ class GameRoom {
           const melds = this.gameLogic.getPlayerMelds(userId);
           const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
           const player = this.players.get(userId);
+          const concealedMeldIndices = Array.from(this.gameLogic.players[userId].concealedMeldIndices);
           state.tiles[userId] = {
             hand,
             melds,
             drawnTileIndex, // Index of the tile drawn this turn in the hand array
+            concealedMeldIndices, // Indices of concealed kans (暗槓)
           };
           state.autoDrawMode[userId] = player?.autoDrawMode || false;
           state.noMeldMode[userId] = player?.noMeldMode || false;

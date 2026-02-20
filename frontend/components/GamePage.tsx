@@ -1455,7 +1455,12 @@ export default function GamePage({
               </div>
               <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
-                <FuroDisplay melds={otherMelds} />
+                <FuroDisplay 
+                  melds={otherMelds}
+                  seatWindYou={gameState.seatWinds?.[userId]}
+                  seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
+                  concealedMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.concealedMeldIndices ?? [])}
+                />
 
                 {/* 手牌（裏向きまたは表示） */}
                 <div className="flex gap-px flex-wrap">
@@ -1830,7 +1835,13 @@ export default function GamePage({
           </div>
           <div>
             {/* Melds display - positioned to the right */}
-            <FuroDisplay melds={melds} layout="vertical" />
+            <FuroDisplay 
+              melds={melds} 
+              layout="vertical"
+              seatWindYou={gameState.seatWinds?.[userId]}
+              seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
+              concealedMeldIndices={new Set(gameState.tiles?.[userId]?.concealedMeldIndices ?? [])}
+            />
           </div>
         </div>
 
