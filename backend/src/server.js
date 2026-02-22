@@ -116,8 +116,9 @@ app.post('/api/rooms', (req, res) => {
   const autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
     ? Math.max(3, Math.min(60, Math.floor(rawAutoActionTimerSeconds)))
     : 10;
+  const broadcastFunction = (payload) => broadcastToRoom(roomId, { type: 'gameStateUpdate', payload });
   
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, broadcastFunction });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
@@ -210,7 +211,7 @@ app.delete('/api/rooms/:roomId/players/:userId', (req, res) => {
 });
 
 // Add CPU player to room
-app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
+app.post('/api/rooms/:roomId/add-cpu', async (req, res) => {
   const { roomId } = req.params;
   const room = rooms.get(roomId);
   
@@ -260,7 +261,7 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
     room.startInactivityTimer(createInactivityCallback(roomId));
     
     // Check if CPU should play first
-    executeCPUTurnIfNeeded(room);
+    await executeCPUTurnIfNeeded(room);
   }
   
   res.json({
@@ -275,11 +276,11 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
 wss.on('connection', (ws) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);
   
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       console.log(`📨 Received message: ${message}`);
       const data = JSON.parse(message);
-      handleMessage(ws, data);
+      await handleMessage(ws, data);
     } catch (error) {
       console.error('Error parsing message:', error);
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
@@ -297,7 +298,7 @@ wss.on('connection', (ws) => {
 });
 
 // Message handlers
-function handleMessage(ws, data) {
+async function handleMessage(ws, data) {
   const { type, payload } = data;
   
   switch (type) {
@@ -305,7 +306,7 @@ function handleMessage(ws, data) {
       handleJoin(ws, payload);
       break;
     case 'action':
-      handleAction(ws, payload);
+      await handleAction(ws, payload);
       break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
@@ -482,7 +483,7 @@ function handleJoin(ws, payload) {
   }
 }
 
-function handleAction(ws, payload) {
+async function handleAction(ws, payload) {
   const connection = connections.get(ws);
   if (!connection) {
     ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
@@ -508,7 +509,7 @@ function handleAction(ws, payload) {
     console.log(`[🔵 ${requestId}] >>> Discard action with tileId='${payload.tileId}'`);
   }
   
-  const result = room.handlePlayerAction(userId, payload);
+  const result = await room.handlePlayerAction(userId, payload);
   
   console.log(`[🔵 ${requestId}] [CHECK] handlePlayerAction returned:`, {
     success: result.success,
@@ -528,6 +529,11 @@ function handleAction(ws, payload) {
     return;
   }
 
+  if (result.finished && result.isDraw) {
+    // Fake draw handling: if the round ended in a draw, we need to trigger the next round start logic
+    await room.handlePlayerAction(userId, {type: 'forceFinish'});
+  }
+
   // Handle next round start
   if (result.startNextRound) {
     console.log(`\n🎮 Starting next round in room: ${roomId}`);
@@ -541,7 +547,7 @@ function handleAction(ws, payload) {
     room.startInactivityTimer(createInactivityCallback(roomId));
     
     // Check if CPU should play first
-    executeCPUTurnIfNeeded(room);
+    await executeCPUTurnIfNeeded(room);
     return;
   }
 
@@ -563,7 +569,7 @@ function handleAction(ws, payload) {
       });
       
       // Check if CPU should play first
-      executeCPUTurnIfNeeded(room);
+      await executeCPUTurnIfNeeded(room);
       return;
     }
     
@@ -598,7 +604,7 @@ function handleAction(ws, payload) {
   console.log(`[🔵 ${requestId}] After broadcast, checking: room.isFinished()=${room.isFinished()}, result.finished=${result.finished}`);
   
   // Check if CPU should play next
-  executeCPUTurnIfNeeded(room);
+  await executeCPUTurnIfNeeded(room);
   
   console.log(`[🔵 ${requestId}] After CPU check, room.isFinished()=${room.isFinished()}, room.status=${room.status}`);
   
@@ -694,7 +700,7 @@ function handleAction(ws, payload) {
     console.log(`[🔵 ${requestId}] [TIMER] gameOver=${result.gameOver}`);
     if (!result.gameOver) {
       console.log(`[🔵 ${requestId}] [TIMER] Setting up auto-ready timer...`);
-      room.startAutoReadyTimer(() => {
+      room.startAutoReadyTimer(async () => {
         // タイマー満了時に全員が準備完了状態になっているので、
         // 自動的に次のラウンドを開始する
         console.log(`🎮 [AUTO] Auto-starting next round for room ${roomId} (timer expired)`);
@@ -716,7 +722,7 @@ function handleAction(ws, payload) {
           
           // Check if CPU should play first
           console.log(`🎮 [AUTO] Checking if CPU should play...`);
-          executeCPUTurnIfNeeded(room);
+          await executeCPUTurnIfNeeded(room);
           console.log(`🎮 [AUTO] CPU turn check complete`);
         } catch (err) {
           console.error(`🎮 [ERROR] Exception in auto-ready callback:`, err);
@@ -824,14 +830,14 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
 }
 
 // CPU自動プレイを実行（必要な場合）
-function executeCPUTurnIfNeeded(room) {
+async function executeCPUTurnIfNeeded(room) {
   if (!room || room.status !== 'playing') {
     return;
   }
   
   if (room.isCurrentTurnCPU()) {
     console.log('🤖 Executing CPU turn...');
-    room.executeCPUTurn(() => {
+    await room.executeCPUTurn(() => {
       // CPUのターンが終わったら、状態をブロードキャスト
       const roomId = room.roomId;
       broadcastToRoom(roomId, {
@@ -901,7 +907,7 @@ function executeCPUTurnIfNeeded(room) {
         // ゲームオーバーでない場合、10秒のタイマーを開始
         if (!cpuCallbackGameOver) {
           console.log(`[🔵 CPU CALLBACK] [TIMER] Setting up auto-ready timer...`);
-          room.startAutoReadyTimer(() => {
+          room.startAutoReadyTimer(async () => {
             console.log(`🎮 [AUTO] Auto-starting next round for room ${roomId} (timer expired)`);
             try {
               console.log(`🎮 [AUTO] Calling room.start()...`);
@@ -921,7 +927,7 @@ function executeCPUTurnIfNeeded(room) {
               
               // Check if CPU should play first
               console.log(`🎮 [AUTO] Checking if CPU should play...`);
-              executeCPUTurnIfNeeded(room);
+              await executeCPUTurnIfNeeded(room);
               console.log(`🎮 [AUTO] CPU turn check complete`);
             } catch (err) {
               console.error(`🎮 [ERROR] Exception in auto-ready callback:`, err);
@@ -947,7 +953,7 @@ function executeCPUTurnIfNeeded(room) {
         }
       } else {
         // 次のターンがCPUなら再度実行
-        setTimeout(() => executeCPUTurnIfNeeded(room), 100);
+        setTimeout(async () => await executeCPUTurnIfNeeded(room), 100);
       }
     });
   }
