@@ -1717,6 +1717,9 @@ export default function GamePage({
                           if (isRiichi) {
                             return;
                           }
+                          if (canPung || canKan || canRon) {
+                            return; // ポン・カン・ロン可能な場合は手牌クリック無効
+                          }
                           if (isYourTurn && gameState.status === 'playing') {
                             // リーチモードONの場合、聴牌形になる牌のみクリック可能
                             if (riichiMode) {
