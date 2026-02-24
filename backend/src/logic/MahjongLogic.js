@@ -343,6 +343,13 @@ class MahjongLogic {
     const { type, tileId, tileIndex } = action;
     
     if (type === 'discard') {
+      // ポン・カン・ロンの選択待ち中は打牌を禁止（小牌防止）
+      if (this.pendingPungFor === userId) {
+        return { success: false, message: 'ポン/カンの選択待ち中は打牌できません。ツモ（スキップ）かポン/カンを選択してください。' };
+      }
+      if (this.ronPossibleFor === userId) {
+        return { success: false, message: 'ロンの選択待ち中は打牌できません。ロンかツモ（スキップ）を選択してください。' };
+      }
       // Support both tileId (new format) and tileIndex (legacy format)
       return this.handleDiscard(userId, tileId || tileIndex);
     } else if (type === 'draw') {
