@@ -427,6 +427,12 @@ class MahjongLogic {
       // Move to next turn
       this.nextTurn();
       
+      // 両方リーチ中の場合は自動ドローを呼び出し側に委譲（遅延付き自動進行のため）
+      if (!this.pendingPungFor && otherPlayerId && this.areBothPlayersInRiichi()) {
+        console.log(`[handleDiscard] Both players in riichi - deferring auto-draw to caller`);
+        return { success: true, autoDiscard: true, bothRiichiAutoPlay: true };
+      }
+      
       // Auto-draw if no pung is possible
       if (!this.pendingPungFor && otherPlayerId) {
         const drawResult = this.drawForTurn(otherPlayerId);
@@ -1301,6 +1307,11 @@ class MahjongLogic {
     if (this.players[userId].riichi) {
       const canWin = this.isWinningHand(userId);
       if (!canWin) {
+        // 両方リーチ中の場合は自動ツモ切りを呼び出し側に委譲（遅延付き自動進行のため）
+        if (this.areBothPlayersInRiichi()) {
+          console.log(`[drawForTurn] Both players in riichi - deferring auto-discard for ${userId} to caller`);
+          return { success: true, bothRiichiAutoPlay: true };
+        }
         // 和了できない場合は自動的にツモ切り
         console.log(`[drawForTurn] Player ${userId} is in riichi but cannot win, auto-discarding drawn tile`);
         const drawnTile = this.players[userId].drawnTile;
@@ -1995,6 +2006,19 @@ class MahjongLogic {
     // Move to next turn
     this.nextTurn();
     
+    // 両方リーチ中の場合は自動ドローを呼び出し側に委譲（遅延付き自動進行のため）
+    if (!this.pendingPungFor && otherPlayerId && this.areBothPlayersInRiichi()) {
+      console.log(`🔴 [declareRiichi] Both players in riichi - deferring auto-draw to caller`);
+      return {
+        success: true,
+        message: `リーチ！（待ち: ${waitingTiles.map(t => t.display).join(', ')}）`,
+        deposit: 1000,
+        waitingTiles: waitingTiles,
+        riichi: true,
+        bothRiichiAutoPlay: true,
+      };
+    }
+    
     // Auto-draw if no pung is possible
     if (!this.pendingPungFor && otherPlayerId) {
       const drawResult = this.drawForTurn(otherPlayerId);
@@ -2031,8 +2055,16 @@ class MahjongLogic {
   }
 
   /**
+   * 両プレイヤーがリーチ状態かどうかを判定
+   */
+  areBothPlayersInRiichi() {
+    return this.playerIds.every(id => this.players[id]?.riichi === true);
+  }
+
+  /**
    * 最後に捨てられた牌を取得
    */
+
   getLastDiscard() {
     return this.lastDiscard;
   }
