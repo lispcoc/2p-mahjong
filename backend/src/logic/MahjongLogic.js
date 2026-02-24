@@ -129,6 +129,11 @@ class MahjongLogic {
       });
     }
     
+    // 配牌運の適用：ツモ運レベルに応じて配牌を複数回試行し、最良の手牌を選ぶ
+    this.playerIds.forEach((playerId) => {
+      this.applyHaipaiLuck(playerId);
+    });
+    
     // Player 0 draws one more
     if (this.wall.length > 0) {
       const tile = this.wall.pop();
@@ -247,6 +252,189 @@ class MahjongLogic {
       const j = Math.floor(Math.random() * (i + 1));
       [this.wall[i], this.wall[j]] = [this.wall[j], this.wall[i]];
     }
+  }
+
+  /**
+   * 配牌運の試行回数を取得
+   * @param {number} luckLevel ツモ運レベル (0-3)
+   * @returns {number} 試行回数
+   */
+  getHaipaiAttempts(luckLevel) {
+    switch (luckLevel) {
+      case 1: return 1;  // レベル1: 1回（通常配牌）
+      case 2: return 5;  // レベル2: 5回試行
+      case 3: return 10; // レベル3: 10回試行
+      default: return 1; // レベル0: 通常配牌
+    }
+  }
+
+  /**
+   * 配牌運を適用：ツモ運レベルに応じて配牌を複数回試行し、最良の手牌を選ぶ
+   * 壁と手牌を合わせたプールから毎回シャッフルして13枚取り、最良を選択する
+   * （牌の重複・消失が起きないよう、プールベースで管理）
+   * @param {string} playerId プレイヤーID
+   */
+  applyHaipaiLuck(playerId) {
+    const luckLevel = this.tsumoLuckSettings[playerId] || 0;
+    const attempts = this.getHaipaiAttempts(luckLevel);
+    
+    if (attempts <= 1) {
+      return; // 試行1回以下なら何もしない
+    }
+    
+    const currentHand = this.players[playerId].hand;
+    let bestHand = currentHand; // オブジェクト参照のまま保持
+    let bestScore = this.evaluateHaipaiQuality(currentHand);
+    
+    console.log(`[haipaiLuck] Player ${playerId} luck level ${luckLevel}: trying ${attempts} hands (initial score: ${bestScore})`);
+    
+    // 手牌 + 壁のプールを作成（他プレイヤーの牌は含まない）
+    const availablePool = [...currentHand, ...this.wall];
+    
+    // 残りの試行回数分、プールをシャッフルして評価
+    for (let attempt = 1; attempt < attempts; attempt++) {
+      // プールをシャッフル
+      for (let i = availablePool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [availablePool[i], availablePool[j]] = [availablePool[j], availablePool[i]];
+      }
+      
+      // プールの先頭13枚を候補手牌として評価
+      const candidateHand = availablePool.slice(0, 13);
+      const candidateScore = this.evaluateHaipaiQuality(candidateHand);
+      
+      if (candidateScore > bestScore) {
+        bestHand = candidateHand;
+        bestScore = candidateScore;
+        console.log(`[haipaiLuck] Attempt ${attempt + 1}: score ${candidateScore} → new best!`);
+      }
+    }
+    
+    // 最良の手牌をセットし、壁を再構築（プールからbestHandを除いた残り）
+    const bestHandSet = new Set(bestHand);
+    this.players[playerId].hand = bestHand;
+    this.wall = availablePool.filter(tile => !bestHandSet.has(tile));
+    
+    // 壁を再シャッフル（次のプレイヤーのためにランダム性を保証）
+    this.shuffleWall();
+    
+    console.log(`[haipaiLuck] Player ${playerId} final hand score: ${bestScore}`);
+  }
+
+  /**
+   * 配牌の品質を評価する（スコアが高いほど良い手牌）
+   * 対子、面子候補、連続牌、字牌の価値などを総合的に評価
+   * @param {Array<Tile>} hand 評価対象の手牌
+   * @returns {number} 品質スコア
+   */
+  evaluateHaipaiQuality(hand) {
+    if (!hand || hand.length === 0) return 0;
+    
+    let score = 0;
+    
+    // 牌の種類ごとにカウント
+    const tileCounts = {}; // "suit-number" -> count
+    hand.forEach(tile => {
+      const key = `${tile.suit}-${tile.number}`;
+      tileCounts[key] = (tileCounts[key] || 0) + 1;
+    });
+    
+    // === 対子・刻子の評価 ===
+    for (const [key, count] of Object.entries(tileCounts)) {
+      if (count >= 3) {
+        score += 10; // 刻子（暗刻）は非常に価値が高い
+      } else if (count >= 2) {
+        score += 5;  // 対子（雀頭候補や碰候補）
+      }
+    }
+    
+    // === 順子候補の評価（連続牌・間隔1の牌） ===
+    for (const suit of ['man', 'pin', 'sou']) {
+      const numbers = hand
+        .filter(t => t.suit === suit)
+        .map(t => t.number)
+        .sort((a, b) => a - b);
+      
+      const uniqueNumbers = [...new Set(numbers)];
+      
+      for (let i = 0; i < uniqueNumbers.length; i++) {
+        for (let j = i + 1; j < uniqueNumbers.length; j++) {
+          const diff = uniqueNumbers[j] - uniqueNumbers[i];
+          if (diff === 1) {
+            score += 3; // 連続牌（e.g., 3-4）→ 両面待ち候補
+          } else if (diff === 2) {
+            score += 1; // 間隔1（e.g., 3-5）→ 嵌張待ち候補
+          } else {
+            break; // 差が2以上なら以降のペアはチェック不要
+          }
+        }
+      }
+      
+      // 完成順子のチェック（3連続の数字）
+      for (let i = 0; i < uniqueNumbers.length - 2; i++) {
+        if (uniqueNumbers[i + 1] === uniqueNumbers[i] + 1 &&
+            uniqueNumbers[i + 2] === uniqueNumbers[i] + 2) {
+          score += 4; // 完成順子ボーナス
+        }
+      }
+    }
+    
+    // === 役牌の評価 ===
+    hand.forEach(tile => {
+      if (tile.suit === 'honor') {
+        // 三元牌（白=5, 發=6, 中=7）は常に役牌
+        if (tile.number >= 5) {
+          score += 3;
+        }
+        // 場風・自風はコンテキスト依存だが、基本的に字牌は雀頭や刻子で有用
+        else {
+          score += 1;
+        }
+      }
+    });
+    
+    // === 色の集中度（染め手ポテンシャル） ===
+    const suitCounts = { man: 0, pin: 0, sou: 0 };
+    hand.forEach(tile => {
+      if (tile.suit !== 'honor') suitCounts[tile.suit]++;
+    });
+    const maxSuitCount = Math.max(suitCounts.man, suitCounts.pin, suitCounts.sou);
+    const nonHonorCount = hand.filter(t => t.suit !== 'honor').length;
+    if (nonHonorCount > 0) {
+      const concentration = maxSuitCount / nonHonorCount;
+      if (concentration >= 0.85) score += 6;      // 混一色ポテンシャル大
+      else if (concentration >= 0.7) score += 3;   // 混一色ポテンシャル中
+    }
+    
+    // === 孤立牌のペナルティ ===
+    hand.forEach(tile => {
+      if (tile.suit === 'honor') return; // 字牌は別評価済み
+      const key = `${tile.suit}-${tile.number}`;
+      // この牌が1枚だけで、かつ隣接牌もない場合はペナルティ
+      if (tileCounts[key] === 1) {
+        const hasNeighbor =
+          (tile.number > 1 && (tileCounts[`${tile.suit}-${tile.number - 1}`] || 0) > 0) ||
+          (tile.number < 9 && (tileCounts[`${tile.suit}-${tile.number + 1}`] || 0) > 0) ||
+          (tile.number > 2 && (tileCounts[`${tile.suit}-${tile.number - 2}`] || 0) > 0) ||
+          (tile.number < 8 && (tileCounts[`${tile.suit}-${tile.number + 2}`] || 0) > 0);
+        if (!hasNeighbor) {
+          score -= 2; // 完全孤立牌ペナルティ
+        }
+      }
+    });
+    
+    // === 端牌ペナルティ（1, 9は使い道が少ない） ===
+    hand.forEach(tile => {
+      if (tile.suit !== 'honor' && (tile.number === 1 || tile.number === 9)) {
+        // 既に対子以上なら端牌でも有用（チャンタ系）
+        const key = `${tile.suit}-${tile.number}`;
+        if (tileCounts[key] < 2) {
+          score -= 1; // 孤立した端牌は軽いペナルティ
+        }
+      }
+    });
+    
+    return score;
   }
   
   getCurrentTurn() {
