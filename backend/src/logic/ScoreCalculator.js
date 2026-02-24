@@ -420,6 +420,12 @@ class ScoreCalculator {
       yaku.push({ name: 'ドラ', han: doraCounts.dora, isDora: true });
     }
     
+    // 赤ドラをカウント（各赤牌は1翻）
+    const redDoraCount = this.countRedDora(allTiles);
+    if (redDoraCount > 0) {
+      yaku.push({ name: '赤ドラ', han: redDoraCount, isDora: true });
+    }
+    
     // リーチ時の裏ドラをカウント
     if (riichi) {
       const urahaCounts = this.countDora(allTiles, urahaIndicators, urahaTiles);
@@ -1522,6 +1528,21 @@ class ScoreCalculator {
     });
     
     return { dora: doraCount };
+  }
+
+  /**
+   * 赤ドラをカウント
+   * @param {Array} tiles - 全タイル（手牌＋副露）
+   * @returns {number} 赤ドラの数
+   */
+  countRedDora(tiles) {
+    let count = 0;
+    tiles.forEach(tile => {
+      if (tile.isRed) {
+        count++;
+      }
+    });
+    return count;
   }
 
   /**

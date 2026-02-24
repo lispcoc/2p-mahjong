@@ -42,7 +42,20 @@ export function getTileKey(tile: Tile): string {
     'sou': 's',
   }
   const suitCode = suitMap[tile.suit] || 'unknown'
+  // 赤ドラの場合は0を使用（例：m0, p0, s0）
+  if (tile.isRed && tile.number === 5) {
+    return `${suitCode}0`
+  }
   return `${suitCode}${tile.number}`
+}
+
+/**
+ * 牌をサーバーに送信するためのtileId文字列を生成
+ * 赤ドラの場合は "suit_number_red" 形式
+ */
+export function getTileId(tile: Tile): string {
+  const base = `${tile.suit}_${tile.number}`
+  return tile.isRed ? `${base}_red` : base
 }
 
 export function normalizeTile(tile: Tile | string): Tile {

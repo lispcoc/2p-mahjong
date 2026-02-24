@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState } from '../types/GameTypes'
-import { normalizeTile, getTileKey } from '../utils/TileUtils'
+import { normalizeTile, getTileKey, getTileId } from '../utils/TileUtils'
 import { TileImage } from './TileImage'
 import { FuroDisplay } from './FuroDisplay'
 import { DebugPanel } from './GameBoard/DebugPanel'
@@ -1180,7 +1180,7 @@ export default function GamePage({
         autoDiscardIntervalRef.current = null;
       }
       const drawnTile = fullHand[drawnTileIndex];
-      const autoDiscardKey = drawnTile ? `${drawnTile.suit}_${drawnTile.number}_${drawnTileIndex}` : null;
+      const autoDiscardKey = drawnTile ? `${getTileId(drawnTile)}_${drawnTileIndex}` : null;
       if (autoDiscardKey && autoDiscardKeyRef.current !== autoDiscardKey) {
         if (autoDiscardTimeoutRef.current !== null) {
           clearTimeout(autoDiscardTimeoutRef.current);
@@ -1188,7 +1188,7 @@ export default function GamePage({
         autoDiscardKeyRef.current = autoDiscardKey;
         autoDiscardTimeoutRef.current = window.setTimeout(() => {
           if (drawnTile) {
-            sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
+            sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
           }
         }, 500); // 500ms delay for auto-discard
       }
@@ -1222,7 +1222,7 @@ export default function GamePage({
         // Auto-discard the drawn tile after N seconds
         const drawnTile = fullHand[drawnTileIndex];
         if (drawnTile) {
-          sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
+          sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
         }
         setAutoDiscardTimeLeft(null);
       }, (pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds) * 1000);
@@ -1756,17 +1756,17 @@ export default function GamePage({
                               }
                               // リーチ宣言
                               const tileToRiichi = fullHand[idx];
-                              console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${tileToRiichi?.suit}_${tileToRiichi?.number}`);
+                              console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
                               sendAction({
                                 type: 'riichi',
-                                tileId: `${tileToRiichi.suit}_${tileToRiichi.number}`
+                                tileId: getTileId(tileToRiichi)
                               });
                               setRiichiMode(false); // リーチモード解除
                               return;
                             }
                             // 通常の捨て牌
                             const tileToDiscard = fullHand[idx];
-                            const tileId = `${tileToDiscard?.suit}_${tileToDiscard?.number}`;
+                            const tileId = getTileId(tileToDiscard);
                             console.log(`🟢 [Discard] Selected tile index: ${idx}`);
                             console.log(`   fullHand length: ${fullHand.length}`);
                             console.log(`   fullHand[${idx}]: suit=${tileToDiscard?.suit}, number=${tileToDiscard?.number}`);
@@ -1888,7 +1888,7 @@ export default function GamePage({
                 onClick={() => {
                   const drawnTile = fullHand[drawnTileIndex];
                   if (drawnTile) {
-                    sendAction({ type: 'discard', tileId: `${drawnTile.suit}_${drawnTile.number}` });
+                    sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
                   }
                 }}
                 className="px-3 py-2 bg-red-500 border-2 border-red-700 text-xs font-bold rounded text-white cursor-pointer transition-all hover:bg-red-600"

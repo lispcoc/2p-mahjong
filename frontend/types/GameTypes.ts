@@ -2,6 +2,7 @@ export interface Tile {
   suit: string
   number: number
   display: string
+  isRed?: boolean
 }
 
 export interface GamePageProps {

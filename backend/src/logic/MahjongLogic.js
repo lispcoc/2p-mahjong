@@ -35,6 +35,7 @@ class MahjongLogic {
     this.scoreCalculator = new ScoreCalculator();
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
+    this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     const rawWallTiles = Number(options.wallTiles);
     // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
     // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
@@ -109,6 +110,12 @@ class MahjongLogic {
     
     // Shuffle wall
     this.shuffleWall();
+
+    // 赤ドラの適用：各色の5を赤ドラに置き換え
+    // ピンズ2枚、マンズ1枚、ソウズ1枚
+    if (this.useRedDora) {
+      this.applyRedDora();
+    }
 
     if (this.wallTiles < this.wall.length) {
       this.wall = this.wall.slice(0, this.wallTiles);
@@ -251,6 +258,29 @@ class MahjongLogic {
     for (let i = this.wall.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [this.wall[i], this.wall[j]] = [this.wall[j], this.wall[i]];
+    }
+  }
+
+  /**
+   * 赤ドラの適用：壁牌の各色5を赤ドラに置き換え
+   * ピンズ2枚、マンズ1枚、ソウズ1枚
+   */
+  applyRedDora() {
+    const redDoraConfig = {
+      pin: 2, // ピンズ：赤5を2枚
+      man: 1, // マンズ：赤5を1枚
+      sou: 1, // ソウズ：赤5を1枚
+    };
+
+    for (const [suit, count] of Object.entries(redDoraConfig)) {
+      let replaced = 0;
+      for (let i = 0; i < this.wall.length && replaced < count; i++) {
+        if (this.wall[i].suit === suit && this.wall[i].number === 5 && !this.wall[i].isRed) {
+          this.wall[i] = new Tile(suit, 5, true);
+          replaced++;
+        }
+      }
+      console.log(`[applyRedDora] ${suit}: replaced ${replaced}/${count} tiles with red 5`);
     }
   }
 
@@ -573,7 +603,7 @@ class MahjongLogic {
       
       // drawnTileオブジェクトを使って実際の牌を手牌から探して削除
       const drawnTile = player.drawnTile;
-      const actualIndex = hand.findIndex(t => t.suit === drawnTile.suit && t.number === drawnTile.number);
+      const actualIndex = hand.findIndex(t => t === drawnTile);
       
       if (actualIndex < 0) {
         return { success: false, message: '引いた牌が見つかりません' };
@@ -641,13 +671,22 @@ class MahjongLogic {
     let actualIndex = -1;
     if (typeof tileIndexInput === 'string') {
       // tileIndexInput は "suit_number" 形式（例："man_3" や "pin_5"）
-      const [suit, numberStr] = tileIndexInput.split('_');
-      const number = parseInt(numberStr);
+      // 赤ドラの場合は "suit_number_red" 形式（例："man_5_red"）
+      const parts = tileIndexInput.split('_');
+      const suit = parts[0];
+      const number = parseInt(parts[1]);
+      const isRed = parts[2] === 'red';
       
-      // 手牌の中から該当する牌を探す
+      // 手牌の中から該当する牌を探す（赤ドラの区別あり）
       actualIndex = hand.findIndex(
-        t => t.suit === suit && t.number === number
+        t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
       );
+      // 赤ドラ指定で見つからない場合、赤を無視して検索（フォールバック）
+      if (actualIndex < 0) {
+        actualIndex = hand.findIndex(
+          t => t.suit === suit && t.number === number
+        );
+      }
       
       if (actualIndex < 0) {
         return { success: false, message: 'Tile not found in hand: ' + tileIndexInput };
@@ -1936,6 +1975,7 @@ class MahjongLogic {
       suit: tile.suit,
       number: tile.number,
       display: tile.toString(),
+      isRed: tile.isRed || false,
     }));
   }
   
@@ -1949,6 +1989,7 @@ class MahjongLogic {
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       }))
     );
   }
@@ -2018,6 +2059,7 @@ class MahjongLogic {
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       }));
       riichiDiscards[playerId] = this.players[playerId].riichiDiscardIndex;
     });
@@ -2276,14 +2318,23 @@ class MahjongLogic {
     
     // 牌IDから手牌を探す
     // tileIdInput は "suit_number" 形式（例："man_3" や "pin_5"）
+    // 赤ドラの場合は "suit_number_red" 形式（例："man_5_red"）
     const hand = player.hand;
-    const [suit, numberStr] = tileIdInput.split('_');
-    const number = parseInt(numberStr);
+    const parts = tileIdInput.split('_');
+    const suit = parts[0];
+    const number = parseInt(parts[1]);
+    const isRed = parts[2] === 'red';
     
-    // 手牌の中から該当する牌を探す
-    const discardIndex = hand.findIndex(
-      t => t.suit === suit && t.number === number
+    // 手牌の中から該当する牌を探す（赤ドラの区別あり）
+    let discardIndex = hand.findIndex(
+      t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
     );
+    // フォールバック：赤を無視して検索
+    if (discardIndex < 0) {
+      discardIndex = hand.findIndex(
+        t => t.suit === suit && t.number === number
+      );
+    }
     
     if (discardIndex < 0) {
       return { success: false, message: '指定された牌が手牌に見つかりません: ' + tileIdInput };
@@ -2482,21 +2533,25 @@ class MahjongLogic {
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       })),
       tiles: this.doraTiles.map((tile) => ({
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       })),
       uraIndicators: this.uraDoraIndicators.map((tile) => ({
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       })),
       uraTiles: this.uraDoraTiles.map((tile) => ({
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       })),
     };
   }
@@ -2524,6 +2579,7 @@ class MahjongLogic {
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
+        isRed: tile.isRed || false,
       })),
     };
   }

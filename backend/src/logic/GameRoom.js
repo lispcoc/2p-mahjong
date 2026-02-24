@@ -50,6 +50,7 @@ class GameRoom {
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
+    this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
   }
   
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
@@ -223,6 +224,7 @@ class GameRoom {
         roundWindNumber: this.getRoundWindNumber(),
         seatWinds: seatWinds,
         tsumoLuckSettings: tsumoLuckSettings,
+        useRedDora: this.useRedDora,
       }
     );
     if (this.riichiDepositsCarryover > 0) {
@@ -962,7 +964,7 @@ class GameRoom {
       const riichiDecision = aiPlayer.shouldDeclareRiichi(hand, melds, currentScore, riichiGameState);
       if (riichiDecision.shouldRiichi && riichiDecision.discardIndex >= 0) {
         const riichiTile = hand[riichiDecision.discardIndex];
-        const tileId = `${riichiTile.suit}_${riichiTile.number}`;
+        const tileId = riichiTile.isRed ? `${riichiTile.suit}_${riichiTile.number}_red` : `${riichiTile.suit}_${riichiTile.number}`;
         console.log(`🤖 CPU declaring riichi with discard: ${tileId}`);
         const riichiResult = this.handlePlayerAction(userId, { type: 'riichi', tileId });
         if (riichiResult.success) {
@@ -1122,7 +1124,7 @@ class GameRoom {
     };
     const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];
-    const tileId = `${tileToDiscard.suit}_${tileToDiscard.number}`;
+    const tileId = tileToDiscard.isRed ? `${tileToDiscard.suit}_${tileToDiscard.number}_red` : `${tileToDiscard.suit}_${tileToDiscard.number}`;
     
     console.log(`🤖 CPU discarding tile: ${tileId} (index: ${discardIndex}, drawnIndex: ${drawnTileIndex})`);
 

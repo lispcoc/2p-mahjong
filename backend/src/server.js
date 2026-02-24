@@ -117,7 +117,10 @@ app.post('/api/rooms', (req, res) => {
     ? Math.max(3, Math.min(60, Math.floor(rawAutoActionTimerSeconds)))
     : 10;
   
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds });
+  // 赤ドラの使用
+  const useRedDora = req.body?.useRedDora === true;
+  
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

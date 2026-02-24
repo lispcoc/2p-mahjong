@@ -1,11 +1,19 @@
 class Tile {
-  constructor (suit, number) {
+  constructor (suit, number, isRed = false) {
     this.suit = suit // 'man' (萬子), 'pin' (筒子), 'sou' (索子), 'honor' (字牌)
     this.number = number // 1-9 for suits, 1-7 for honors
+    this.isRed = isRed // 赤ドラかどうか
   }
 
   equals (other) {
     return this.suit === other.suit && this.number === other.number
+  }
+
+  /**
+   * isRedを含めた完全一致。赤ドラと通常牌を区別する必要がある場合に使用
+   */
+  exactEquals (other) {
+    return this.suit === other.suit && this.number === other.number && this.isRed === other.isRed
   }
 
   toString () {

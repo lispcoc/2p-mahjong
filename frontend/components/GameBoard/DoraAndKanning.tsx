@@ -21,7 +21,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
               {gameState.dora.indicators.map((tile, idx) => (
                 <img
                   key={`dora-ind-${idx}`}
-                  src={`/tiles/${getTileKey(tile)}.png`}
+                  src={`/tiles/${getTileKey(tile)}.gif`}
                   alt={tile.display}
                   className="h-[50px] object-contain"
                 />
@@ -34,7 +34,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                   {gameState.dora.tiles.map((tile, idx) => (
                     <img
                       key={`dora-tile-${idx}`}
-                      src={`/tiles/${getTileKey(tile)}.png`}
+                      src={`/tiles/${getTileKey(tile)}.gif`}
                       alt={tile.display}
                       className="h-[48px] object-contain opacity-80"
                     />
@@ -55,7 +55,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
               {gameState.dora.uraIndicators.map((tile, idx) => (
                 <img
                   key={`ura-ind-${idx}`}
-                  src={`/tiles/${getTileKey(tile)}.png`}
+                  src={`/tiles/${getTileKey(tile)}.gif`}
                   alt={tile.display}
                   className="h-[50px] object-contain"
                 />
@@ -68,7 +68,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                   {gameState.dora.uraTiles.map((tile, idx) => (
                     <img
                       key={`ura-tile-${idx}`}
-                      src={`/tiles/${getTileKey(tile)}.png`}
+                      src={`/tiles/${getTileKey(tile)}.gif`}
                       alt={tile.display}
                       className="h-[48px] object-contain opacity-80"
                     />
