@@ -176,6 +176,16 @@ export default function HomePage({
     }
   }
 
+  const handleResetToDefaults = () => {
+    setInitialScore(defaultInitialScore)
+    setWallTiles(defaultWallTiles)
+    setGameMode('oneRound')
+    setMyTsumoLuck(0)
+    setOpponentTsumoLuck(0)
+    setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
+    setUseRedDora(true)
+  }
+
   const handleCancelCreateRoom = () => {
     setIsRuleModalOpen(false)
   }
@@ -542,20 +552,29 @@ export default function HomePage({
               </p>
             )}
 
-            <div className="mt-6 flex gap-3">
+            <div className="mt-6 flex flex-col gap-3">
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmCreateRoom}
+                  disabled={isCreating}
+                  className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+                >
+                  {isCreating ? '作成中...' : 'OK'}
+                </button>
+                <button
+                  onClick={handleCancelCreateRoom}
+                  disabled={isCreating}
+                  className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70"
+                >
+                  キャンセル
+                </button>
+              </div>
               <button
-                onClick={handleConfirmCreateRoom}
+                onClick={handleResetToDefaults}
                 disabled={isCreating}
-                className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+                className="w-full px-6 py-2 border-2 border-gray-400 text-sm cursor-pointer transition-all bg-transparent text-gray-300 hover:bg-[#1a2e0a] hover:text-white disabled:opacity-70"
               >
-                {isCreating ? '作成中...' : 'OK'}
-              </button>
-              <button
-                onClick={handleCancelCreateRoom}
-                disabled={isCreating}
-                className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70"
-              >
-                キャンセル
+                デフォルト設定に戻す
               </button>
             </div>
           </div>
