@@ -151,16 +151,21 @@ class CPUBattleTest {
       }, 0);
       const totalTiles = actualHandSize + meldTiles;
       
+      // カン（4枚の副露）の数をカウント - カンごとに期待する合計が1増える
+      const kanCount = melds.filter(m => m && Array.isArray(m) && m.length === 4).length;
+      const expectedMin = 13 + kanCount;
+      const expectedMax = 14 + kanCount;
+      
       if (this.verbose) {
-        this.log(`  [${playerName}] 手牌: ${actualHandSize}枚, 副露: ${meldTiles}枚 (${melds.length}個), 合計: ${totalTiles}枚`);
+        this.log(`  [${playerName}] 手牌: ${actualHandSize}枚, 副露: ${meldTiles}枚 (${melds.length}個, カン: ${kanCount}個), 合計: ${totalTiles}枚`);
         if (melds.length > 0) {
           this.log(`    Melds詳細:`, melds.map(m => m ? m.length + '枚' : 'null'));
         }
       }
       
-      // 合計が13枚または14枚でなければ異常
-      if (totalTiles < 13 || totalTiles > 14) {
-        const error = `異常な手牌枚数: ${playerName} - 手牌${actualHandSize}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (melds配列: ${melds.length}個, Turn: ${this.turnCount})`;
+      // 合計が期待値でなければ異常（カンごとに+1）
+      if (totalTiles < expectedMin || totalTiles > expectedMax) {
+        const error = `異常な手牌枚数: ${playerName} - 手牌${actualHandSize}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (期待: ${expectedMin}~${expectedMax}枚, melds配列: ${melds.length}個, カン: ${kanCount}個, Turn: ${this.turnCount})`;
         this.errors.push(error);
         console.error(`❌ ${error}`);
         if (melds.length > 0) {
@@ -248,7 +253,7 @@ class CPUBattleTest {
       this.log(`ゲーム状態: ${this.room.status}`);
     }
     
-    if (this.room.status === 'finished') {
+    if (this.room.status === 'finished' || this.room.status === 'gameOver') {
       const winner = this.room.getWinner();
       if (this.summaryOnly) {
         // summaryOnlyモード：局の結果のみを簡潔に表示
@@ -383,7 +388,7 @@ class CPUBattleTest {
       
       // 最終判定
       this.log('\n========================================')
-      if (this.errors.length === 0 && this.room.status === 'finished') {
+      if (this.errors.length === 0 && (this.room.status === 'finished' || this.room.status === 'gameOver')) {
         this.log('✅ テスト成功: ゲームは正常に完了しました');
       } else if (this.errors.length === 0) {
         this.log('⚠️  テスト完了: エラーはありませんが、ゲームは未完了です');
@@ -478,8 +483,13 @@ class CPUBattleTest {
         }, 0);
         const totalTiles = hand.length + meldTiles;
         
-        if (totalTiles < 13 || totalTiles > 14) {
-          const error = `異常な手牌枚数: ${player.playerName || pid} - 手牌${hand.length}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (Turn: ${localTurnCount.value})`;
+        // カン（4枚の副露）の数をカウント - カンごとに期待する合計が1増える
+        const kanCount = melds.filter(m => m && Array.isArray(m) && m.length === 4).length;
+        const expectedMin = 13 + kanCount;
+        const expectedMax = 14 + kanCount;
+        
+        if (totalTiles < expectedMin || totalTiles > expectedMax) {
+          const error = `異常な手牌枚数: ${player.playerName || pid} - 手牌${hand.length}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (期待: ${expectedMin}~${expectedMax}枚, カン: ${kanCount}個, Turn: ${localTurnCount.value})`;
           localErrors.push(error);
         }
       }
@@ -506,7 +516,7 @@ class CPUBattleTest {
       room: localRoom,
     };
     
-    if (localRoom.status === 'finished') {
+    if (localRoom.status === 'finished' || localRoom.status === 'gameOver') {
       const winner = localRoom.getWinner();
       if (winner) {
         const scoreResult = localRoom.lastResult?.scoreResult;
@@ -565,7 +575,7 @@ class CPUBattleTest {
           if (gameResult.errors.length > 0) {
             results.failed++;
             results.errors.push(...gameResult.errors);
-          } else if (gameResult.room.status === 'finished') {
+          } else if (gameResult.room.status === 'finished' || gameResult.room.status === 'gameOver') {
             results.success++;
             if (gameResult.winner) {
               const scoreResult = gameResult.scoreResult;
@@ -605,7 +615,7 @@ class CPUBattleTest {
         if (gameResult.errors.length > 0) {
           results.failed++;
           results.errors.push(...gameResult.errors);
-        } else if (gameResult.room.status === 'finished') {
+        } else if (gameResult.room.status === 'finished' || gameResult.room.status === 'gameOver') {
           results.success++;
           if (gameResult.winner) {
             const scoreResult = gameResult.scoreResult;

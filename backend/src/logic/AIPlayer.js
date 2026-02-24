@@ -24,7 +24,7 @@ class AIPlayer {
       return drawnTileIndex;
     }
 
-    if (hand.length !== 14 || drawnTileIndex === -1) {
+    if (hand.length < 2 || drawnTileIndex === -1) {
       return drawnTileIndex;
     }
 

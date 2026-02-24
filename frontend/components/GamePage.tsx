@@ -1002,7 +1002,8 @@ export default function GamePage({
 
     let info = `【手牌情報】\n`
     info += `手牌: ${handStr}${meldsStr}\n`
-    info += `合計: ${hand.length}枚 (メルド${melds.length * 3}枚含めて${hand.length + melds.length * 3}枚)\n`
+    const meldTileCount = melds.reduce((sum: number, m: Tile[]) => sum + m.length, 0)
+    info += `合計: ${hand.length}枚 (メルド${meldTileCount}枚含めて${hand.length + meldTileCount}枚)\n`
     info += `\n【聴牌判定】\n`
 
     // Check tenpai for each tile synchronously using server check
@@ -1289,7 +1290,9 @@ export default function GamePage({
   const melds = ((gameState.tiles?.[userId]?.melds as Array<Array<Tile | string>>) || [])
     .map((meld) => meld.map(normalizeTile))
 
-  const totalTiles = fullHand.length + (melds.length * 3)
+  // カン(4枚)は構造上3枚分として数える（嶺上牌で1枚補充するため）
+  const meldStructureTiles = melds.reduce((sum: number, m: Tile[]) => sum + Math.min(m.length, 3), 0)
+  const totalTiles = fullHand.length + meldStructureTiles
   // Use backend's canWinFor flag for accurate win detection
   const canWin = isYourTurn && gameState.canWinFor === userId
   const pendingPungFor = gameState.pendingPungFor

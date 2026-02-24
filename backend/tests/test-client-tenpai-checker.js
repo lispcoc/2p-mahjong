@@ -158,7 +158,7 @@ class TenpaiChecker {
     const testHand = hand.slice();
     testHand.splice(tileIndex, 1);
 
-    const totalTilesAfterDiscard = testHand.length + (melds.length * 3);
+    const totalTilesAfterDiscard = testHand.length + melds.reduce((sum, m) => sum + Math.min(m.length, 3), 0);
 
     if (totalTilesAfterDiscard !== 13) {
       return { isTenpai: false, winningTiles: [] };

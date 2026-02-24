@@ -406,7 +406,9 @@ class TenpaiChecker {
 
     // 捨て後のタイル数チェック
     // 聴牌は13枚（ツモで14枚になって和了）
-    const totalTilesAfterDiscard = testHand.length + (melds.length * 3);
+    // カン(4枚)は構造上3枚分として数える（嶺上牌で1枚補充するため）
+    const meldStructureTiles = melds.reduce((sum, m) => sum + Math.min(m.length, 3), 0);
+    const totalTilesAfterDiscard = testHand.length + meldStructureTiles;
 
     if (totalTilesAfterDiscard !== 13) {
       return { isTenpai: false, winningTiles: [] };

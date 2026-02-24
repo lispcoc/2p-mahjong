@@ -1218,7 +1218,9 @@ class MahjongLogic {
     const melds = this.players[userId].melds;
     
     // Must have exactly 14 tiles total (hand + melds)
-    const totalTiles = hand.length + (melds.length * 3);
+    // カン(4枚)は構造上3枚分として数える（嶺上牌で1枚補充するため）
+    const meldTiles = melds.reduce((sum, m) => sum + Math.min(m.length, 3), 0);
+    const totalTiles = hand.length + meldTiles;
     if (totalTiles !== 14) {
       return false;
     }
@@ -1911,10 +1913,11 @@ class MahjongLogic {
     console.log(`[checkTenpaiAfterDiscard] Hand after discard (${hand.length} tiles):`, hand.map(t => t.toString()).join(' '));
     
     // After discarding, we should have 13 tiles in hand (or less if melds exist)
-    // Total tiles should be: hand.length + (melds.length * 3) = 13
-    const totalTilesAfterDiscard = hand.length + (melds.length * 3);
+    // カン(4枚)は構造上3枚分として数える（嶺上牌で1枚補充するため）
+    const meldStructureTiles = melds.reduce((sum, m) => sum + Math.min(m.length, 3), 0);
+    const totalTilesAfterDiscard = hand.length + meldStructureTiles;
     
-    console.log(`[checkTenpaiAfterDiscard] Total tiles after discard: ${hand.length} + ${melds.length * 3} = ${totalTilesAfterDiscard}`);
+    console.log(`[checkTenpaiAfterDiscard] Total tiles after discard: ${hand.length} + ${meldStructureTiles} = ${totalTilesAfterDiscard}`);
     
     // For tenpai, we need exactly 13 tiles (waiting for 1 more to make 14)
     if (totalTilesAfterDiscard !== 13) {
@@ -2029,6 +2032,7 @@ class MahjongLogic {
     const scoreResult = this.scoreCalculator.calculateScore({
       hand: fullHand,
       melds: player.melds,
+      concealedMeldIndices: player.concealedMeldIndices,
       winningTile: winningTile,
       isTsumo: isTsumo,
       isRon: !isTsumo,

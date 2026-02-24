@@ -50,7 +50,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [],  urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false } = winInfo;
+    const { hand, melds, concealedMeldIndices = new Set(), winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [],  urahaTiles = [], isIppatsumari = false, isHaitei = false, isRinshan = false } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -124,7 +124,7 @@ class ScoreCalculator {
       if (!hasNonDoraYaku) continue;
       
       // 符を計算
-      const fu = this.calculateFuWithCombination(hand, melds, winningTile, isTsumo, combination);
+      const fu = this.calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination);
       
       // 点数を計算
       const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
@@ -408,15 +408,15 @@ class ScoreCalculator {
     const yakuhai = this.countYakuhai(allTiles, roundWind, seatWind);
     yakuhai.forEach(y => yaku.push(y));
     
-    // ドラをカウント
-    const doraCounts = this.countDora(hand, doraIndicators, doraTiles);
+    // ドラをカウント（手牌＋副露の全タイル）
+    const doraCounts = this.countDora(allTiles, doraIndicators, doraTiles);
     if (doraCounts.dora > 0) {
       yaku.push({ name: 'ドラ', han: doraCounts.dora, isDora: true });
     }
     
     // リーチ時の裏ドラをカウント
     if (riichi) {
-      const urahaCounts = this.countDora(hand, urahaIndicators, urahaTiles);
+      const urahaCounts = this.countDora(allTiles, urahaIndicators, urahaTiles);
       if (urahaCounts.dora > 0) {
         yaku.push({ name: '裏ドラ', han: urahaCounts.dora, isDora: true });
       }
@@ -814,9 +814,9 @@ class ScoreCalculator {
     
     if (!handAllPungs) return false;
     
-    // 副露の面子も全て刻子か確認
+    // 副露の面子も全て刻子か確認（カンは刻子の上位なのでOK）
     const meldsAllPungs = melds.every(meld => {
-      return meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2]);
+      return (meld.length === 3 || meld.length === 4) && meld[0].equals(meld[1]) && meld[1].equals(meld[2]);
     });
     
     return meldsAllPungs;
@@ -983,7 +983,7 @@ class ScoreCalculator {
   isSanshokuDoukoWithCombination(combination, melds) {
     const allMelds = [...melds, ...combination.melds];
     const pungs = allMelds.filter(meld => 
-      meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])
+      (meld.length === 3 || meld.length === 4) && meld[0].equals(meld[1]) && meld[1].equals(meld[2])
     );
     
     for (let i = 0; i < pungs.length; i++) {
@@ -1202,9 +1202,9 @@ class ScoreCalculator {
       allMelds.push(...combinations[0].melds);
     }
     
-    // 刻子のみ抽出
+    // 刻子のみ抽出（カンも刻子としてカウント）
     const pungs = allMelds.filter(meld => 
-      meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])
+      (meld.length === 3 || meld.length === 4) && meld[0].equals(meld[1]) && meld[1].equals(meld[2])
     );
     
     // 同じ数字で異なるスートの刻子が3つあるかチェック
@@ -1359,7 +1359,7 @@ class ScoreCalculator {
   /**
    * 符を計算 - combination版
    */
-  calculateFuWithCombination(hand, melds, winningTile, isTsumo, combination) {
+  calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination) {
     let fu = 20; // 副底
     
     // ツモ
@@ -1368,13 +1368,24 @@ class ScoreCalculator {
     }
     
     // 門前ロン
-    if (!isTsumo && melds.length === 0) {
+    const nonConcealedMeldCount = melds.length - (concealedMeldIndices ? concealedMeldIndices.size : 0);
+    if (!isTsumo && nonConcealedMeldCount === 0) {
       fu += 10;
     }
     
     // 副露の面子の符
-    melds.forEach(meld => {
-      if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+    melds.forEach((meld, idx) => {
+      if (meld.length === 4 && meld[0].equals(meld[1]) && meld[1].equals(meld[2]) && meld[2].equals(meld[3])) {
+        const isYaochu = meld[0].suit === 'honor' || meld[0].number === 1 || meld[0].number === 9;
+        const isConcealed = concealedMeldIndices && concealedMeldIndices.has(idx);
+        if (isConcealed) {
+          // 暗槻
+          fu += isYaochu ? 32 : 16;
+        } else {
+          // 明槻（オープンカン）または加槻
+          fu += isYaochu ? 16 : 8;
+        }
+      } else if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
         // 明刻
         const isYaochu = meld[0].suit === 'honor' || meld[0].number === 1 || meld[0].number === 9;
         fu += isYaochu ? 4 : 2;
@@ -1417,7 +1428,11 @@ class ScoreCalculator {
     
     // 面子の符
     melds.forEach(meld => {
-      if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+      if (meld.length === 4 && meld[0].equals(meld[1]) && meld[1].equals(meld[2]) && meld[2].equals(meld[3])) {
+        // 明槻（オープンカン）または加槻
+        const isYaochu = meld[0].suit === 'honor' || meld[0].number === 1 || meld[0].number === 9;
+        fu += isYaochu ? 16 : 8;
+      } else if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
         // 刻子
         const isYaochu = meld[0].suit === 'honor' || meld[0].number === 1 || meld[0].number === 9;
         fu += isYaochu ? 4 : 2; // 明刻の符（暗刻なら倍）

@@ -884,8 +884,8 @@ class GameRoom {
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const melds = this.gameLogic.players[userId].melds || [];
     
-    // 副露（ポン・チー・カン）の牌数を計算
-    const meldTiles = melds.reduce((sum, m) => sum + (m ? m.length : 0), 0);
+    // 副露（ポン・チー・カン）の構造上の牌数を計算（カンは4枚だが構造を3枚分として数える）
+    const meldTiles = melds.reduce((sum, m) => sum + Math.min(m ? m.length : 0, 3), 0);
     const totalTiles = hand.length + meldTiles;
 
     console.log(`🤖 CPU main turn: hand size: ${hand.length}, melds: ${meldTiles}, total: ${totalTiles}, drawnTileIndex: ${drawnTileIndex}`);
