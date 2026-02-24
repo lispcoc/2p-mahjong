@@ -49,8 +49,7 @@ export default function GamePage({
   onBack,
 }: GamePageProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
-  const [error, setError] = useState('')
-  const [message, setMessage] = useState('')
+  // Toast notifications via react-hot-toast (no local state needed)
   const [userId, setUserId] = useState('')
   const [isGrayscale, setIsGrayscale] = useState(false)
   const [autoDrawMode, setAutoDrawMode] = useState(false)
@@ -211,8 +210,7 @@ export default function GamePage({
 
   const clearInvalidSession = React.useCallback(() => {
     localStorage.removeItem('mahjong-session')
-    setError('')
-    setMessage('')
+    toast.dismiss()
   }, [])
 
   // Get the other player
@@ -306,10 +304,11 @@ export default function GamePage({
         }
 
         if (payload.isReconnecting) {
-          setMessage('ゲームに再接続しました')
+          toast.success('ゲームに再接続しました', { duration: 3000 })
         } else {
-          setMessage(
-            `${payload.playerName}はゲームに参加しました（${payload.players.length}/2）`
+          toast.success(
+            `${payload.playerName}はゲームに参加しました（${payload.players.length}/2）`,
+            { duration: 3000 }
           )
         }
         break
@@ -325,7 +324,7 @@ export default function GamePage({
             players: payload.players,
           }
         })
-        setMessage(`プレイヤーが参加しました（${payload.players.length}/2）`)
+        toast.success(`プレイヤーが参加しました（${payload.players.length}/2）`, { duration: 3000 })
         break
       case 'gameStarted':
         debugLog(`🎮 Game started with status=${payload.status}, players=${payload.players.length}`)
@@ -376,7 +375,7 @@ export default function GamePage({
           setAutoActionTimerSeconds(payload.autoActionTimerSeconds)
         }
         
-        setMessage('ゲームが始まりました！')
+        toast.success('ゲームが始まりました！', { duration: 3000 })
         break
       case 'gameStateUpdate':
         debugLog(`♻️ Game state updated`)
@@ -460,7 +459,7 @@ export default function GamePage({
           payload?.scoreResult?.valid === false ||
           (typeof payload?.scoreResult?.error === 'string' && payload.scoreResult.error.includes('役がありません'))
         if (noYaku) {
-          setError(payload?.scoreResult?.error || '役がありません')
+          toast.error(payload?.scoreResult?.error || '役がありません', { duration: 4000 })
           if (autoNextTimerRef.current !== null) {
             clearTimeout(autoNextTimerRef.current)
             autoNextTimerRef.current = null
@@ -646,7 +645,7 @@ export default function GamePage({
 
           const winnerName = prevState?.players?.find((p: any) => p.userId === payload.winner)?.playerName || payload.winner
           if (!payload.gameOver) {
-            setMessage(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`)
+            toast.success(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`, { duration: 5000 })
           }
           // gameStateはそのまま保持（finished状態を維持）
           return prevState ? {
@@ -669,18 +668,16 @@ export default function GamePage({
         console.log('✅ Action response:', payload)
         if (payload.success === false) {
           // エラーメッセージを表示
-          setError(payload.message || 'アクションに失敗しました')
+          toast.error(payload.message || 'アクションに失敗しました', { duration: 4000 })
           if (payload.message && payload.message.includes('役がありません')) {
             if (autoNextTimerRef.current !== null) {
               clearTimeout(autoNextTimerRef.current)
               autoNextTimerRef.current = null
             }
           }
-          setTimeout(() => setError(''), 4000) // 4秒後にクリア
         } else if (payload.riichi) {
           // リーチ成功メッセージ
-          setMessage(payload.message || 'リーチ宣言しました！')
-          setTimeout(() => setMessage(''), 5000) // 5秒後にクリア
+          toast.success(payload.message || 'リーチ宣言しました！', { duration: 5000 })
         }
         break
       case 'error':
@@ -700,13 +697,12 @@ export default function GamePage({
           break
         }
 
-        setError(errorMessage)
+        toast.error(errorMessage, { duration: 5000 })
         break
       case 'playerReconnected':
         debugLog(`🔄 Player reconnected: ${payload.playerName}`)
         console.log('🔄 Player reconnected:', payload)
-        setMessage(`${payload.playerName}さんが再接続しました`)
-        setTimeout(() => setMessage(''), 3000)
+        toast.success(`${payload.playerName}さんが再接続しました`, { duration: 3000 })
         break
       default:
         debugLog(`⚠️ Unknown message type: ${type}`)
@@ -784,7 +780,7 @@ export default function GamePage({
     ws.onopen = () => {
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
-      setError('')
+      toast.dismiss()
 
       const joinPayload: any = {
         roomId,
@@ -871,7 +867,7 @@ export default function GamePage({
     ws.onerror = (event) => {
       debugLog(`❌ WebSocket error: ${event}`)
       console.error('❌ WebSocket error:', event)
-      setError(`接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）`)
+      toast.error('接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）', { duration: 5000 })
     }
 
     ws.onclose = () => {
@@ -1046,7 +1042,7 @@ export default function GamePage({
     if (isAddingCPU) return
 
     setIsAddingCPU(true)
-    setError('')
+    toast.dismiss()
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${roomId}/add-cpu`, {
@@ -1059,13 +1055,13 @@ export default function GamePage({
       }
 
       const data = await response.json()
-      setMessage(`${data.cpuName}が参加しました`)
-      setTimeout(() => setMessage(''), 3000)
+      toast.success(`${data.cpuName}が参加しました`, { duration: 3000 })
     } catch (err) {
-      setError(
+      toast.error(
         err instanceof Error
           ? err.message
-          : 'CPU追加に失敗しました'
+          : 'CPU追加に失敗しました',
+        { duration: 4000 }
       )
     } finally {
       setIsAddingCPU(false)
@@ -1263,7 +1259,7 @@ export default function GamePage({
             <div className="text-left text-gray-600 text-xs bg-gray-100 p-2 rounded mb-2 font-mono max-h-48 overflow-auto">
               <div><strong>プレイヤー:</strong> {playerName}</div>
               <div><strong>ルーム:</strong> {roomId}</div>
-              <div><strong>エラー:</strong> {error || 'なし'}</div>
+              <div><strong>エラー:</strong> {'(toast表示)'}</div>
               <div><strong>WebSocket状態:</strong> {wsRef.current?.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)</div>
               <div><strong>gameState:</strong> {gameState === null ? '❌ null（待機中）' : JSON.stringify(gameState, null, 2)}</div>
             </div>
@@ -1392,7 +1388,25 @@ export default function GamePage({
 
   return (
     <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
-      <Toaster position="top-center" reverseOrder={false} />
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          style: {
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            maxWidth: '24rem',
+          },
+          success: {
+            style: { background: '#22c55e', color: '#fff' },
+            iconTheme: { primary: '#fff', secondary: '#22c55e' },
+          },
+          error: {
+            style: { background: '#ef4444', color: '#fff' },
+            iconTheme: { primary: '#fff', secondary: '#ef4444' },
+          },
+        }}
+      />
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl h-[calc(100vh-16rem)] sm:max-h-[75vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center">
@@ -1419,17 +1433,7 @@ export default function GamePage({
           </div>
         </div>
 
-        {/* Toast Notification - Server Messages */}
-        {error && (
-          <div className="fixed top-5 right-5 p-5 bg-red-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium animate-slideIn">
-            {error}
-          </div>
-        )}
-        {message && (
-          <div className="max-sm:hidden fixed top-5 right-5 p-5 bg-green-500 text-[#ffffff] rounded-lg shadow-lg z-[1001] max-w-sm text-sm font-medium animate-slideIn">
-            {message}
-          </div>
-        )}
+        {/* Toast notifications are handled by react-hot-toast <Toaster /> */}
 
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished') ? (
@@ -1953,8 +1957,7 @@ export default function GamePage({
                   setRiichiMode(!riichiMode);
                   if (!riichiMode) {
                     // リーチモードONにする際のメッセージ
-                    setMessage('リーチモードON: 聴牌形になる牌を選んでクリックしてください（グレーの牌は選べません）');
-                    setTimeout(() => setMessage(''), 5000);
+                    toast.success('リーチモードON: 聴牌形になる牌を選んでクリックしてください（グレーの牌は選べません）', { duration: 5000 });
                   }
                 }}
                 className={`px-3 py-2 text-xs font-bold rounded text-white cursor-pointer transition-all ${riichiMode ? 'bg-green-600 border-2 border-green-700 shadow-lg' : 'bg-red-600 border-2 border-red-700'}`}
