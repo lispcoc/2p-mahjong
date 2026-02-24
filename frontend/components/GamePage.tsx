@@ -1901,12 +1901,20 @@ export default function GamePage({
               </button>
             )}
             {canRon && (
-              <button
-                onClick={() => sendAction({ type: 'ron' })}
-                className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
-              >
-                ロン
-              </button>
+              <>
+                <button
+                  onClick={() => sendAction({ type: 'draw' })}
+                  className="px-3 py-2 bg-gray-400 text-[#ffffff] text-xs font-bold border-2 border-gray-500 rounded cursor-pointer transition-all hover:bg-gray-500"
+                >
+                  見逃し
+                </button>
+                <button
+                  onClick={() => sendAction({ type: 'ron' })}
+                  className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
+                >
+                  ロン
+                </button>
+              </>
             )}
             {canWin && (
               <button
