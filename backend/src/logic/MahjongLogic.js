@@ -1264,6 +1264,11 @@ class MahjongLogic {
 
     // Avoid double draw if player already has a drawn tile
     if (this.players[userId].drawnTileIndex >= 0) {
+      // 両方リーチ中で和了できない場合は、自動ツモ切りを呼び出し側に委譲
+      if (this.players[userId].riichi && this.areBothPlayersInRiichi() && !this.isWinningHand(userId)) {
+        console.log(`[drawForTurn] Player ${userId} already has drawn tile, both riichi, cannot win - deferring auto-discard`);
+        return { success: true, bothRiichiAutoPlay: true };
+      }
       return { success: true };
     }
     
