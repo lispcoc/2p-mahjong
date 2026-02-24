@@ -1641,6 +1641,129 @@ class MahjongLogic {
 
     return score;
   }
+
+  /**
+   * シャンテン改善分析：現在の手牌に対して有用な牌タイプを事前計算
+   * @param {Array<Tile>} hand 現在の手牌（13枚想定）
+   * @param {Array} melds 副露済みの組
+   * @returns {Object} { winningTileKeys, tenpaiAdvancingKeys }
+   */
+  analyzeShantenImprovement(hand, melds) {
+    const result = {
+      winningTileKeys: new Set(),       // アガリ牌（聴牌時）
+      tenpaiAdvancingKeys: new Set(),   // 聴牌に進める牌（1シャンテン時）
+    };
+
+    if (!hand || hand.length < 1) return result;
+
+    const effectiveMelds = melds || [];
+
+    // 1. 現在のアガリ牌を確認（手牌が13枚 or 副露込みで13枚相当）
+    const currentWinningTiles = TenpaiChecker.getWinningTiles(hand, effectiveMelds);
+    currentWinningTiles.forEach(wt => {
+      result.winningTileKeys.add(`${wt.suit}_${wt.number}`);
+    });
+
+    const isTenpai = currentWinningTiles.length > 0;
+
+    if (isTenpai) {
+      // 既に聴牌 → アガリ牌のみボーナス対象
+      return result;
+    }
+
+    // 2. 聴牌していない場合：各牌タイプを引いたら聴牌に進むか確認
+    const suits = ['man', 'pin', 'sou', 'honor'];
+    const maxNums = { man: 9, pin: 9, sou: 9, honor: 7 };
+
+    // 既存牌数カウント（4枚制限チェック用）
+    const tileCount = {};
+    hand.forEach(t => {
+      const key = `${t.suit}_${t.number}`;
+      tileCount[key] = (tileCount[key] || 0) + 1;
+    });
+    effectiveMelds.forEach(meld => {
+      meld.forEach(t => {
+        const key = `${t.suit}_${t.number}`;
+        tileCount[key] = (tileCount[key] || 0) + 1;
+      });
+    });
+
+    for (const suit of suits) {
+      for (let num = 1; num <= maxNums[suit]; num++) {
+        const key = `${suit}_${num}`;
+        if ((tileCount[key] || 0) >= 4) continue;
+
+        const testTile = { suit, number: num };
+        const testHand = [...hand, testTile]; // 14枚
+
+        // 各打牌候補を試す
+        let reachesTenpai = false;
+        for (let i = 0; i < testHand.length; i++) {
+          const discardHand = [...testHand.slice(0, i), ...testHand.slice(i + 1)];
+          const winTiles = TenpaiChecker.getWinningTiles(discardHand, effectiveMelds);
+          if (winTiles.length > 0) {
+            reachesTenpai = true;
+            break;
+          }
+        }
+
+        if (reachesTenpai) {
+          result.tenpaiAdvancingKeys.add(key);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * 手牌との接続性ボーナスを計算（高速 O(n) チェック）
+   * ターツ・トイツ・メンツの形成可能性を評価
+   * @param {Tile} tile 候補牌
+   * @param {Array<Tile>} hand 現在の手牌
+   * @returns {number} 接続性ボーナス（0〜15）
+   */
+  getConnectivityBonus(tile, hand) {
+    if (!tile || !hand || hand.length === 0) return 0;
+
+    let bonus = 0;
+    let pairCount = 0;
+    let adjacentCount = 0;
+    let gapCount = 0;
+
+    for (const handTile of hand) {
+      if (tile.suit === handTile.suit) {
+        if (tile.suit === 'honor') {
+          // 字牌：同じ牌ならトイツ/コーツ候補
+          if (tile.number === handTile.number) {
+            pairCount++;
+          }
+        } else {
+          const diff = Math.abs(tile.number - handTile.number);
+          if (diff === 0) {
+            pairCount++;     // トイツ/コーツ候補
+          } else if (diff === 1) {
+            adjacentCount++; // リャンメン/ペンチャン候補
+          } else if (diff === 2) {
+            gapCount++;      // カンチャン候補
+          }
+        }
+      }
+    }
+
+    // トイツ→コーツへの発展: 1枚持ち→+4, 2枚持ち→+8（コーツ完成近い）
+    if (pairCount >= 2) bonus += 8;
+    else if (pairCount >= 1) bonus += 4;
+
+    // ターツ（隣接牌）: 1つ→+3, 2つ以上→+6（シュンツ完成に近い）
+    if (adjacentCount >= 2) bonus += 6;
+    else if (adjacentCount >= 1) bonus += 3;
+
+    // カンチャン待ち
+    if (gapCount >= 1) bonus += 2;
+
+    return Math.min(bonus, 15);
+  }
   
   /**
    * ツモを実行（ツモ運を考慮した選別、手牌分析を含む）
@@ -1690,12 +1813,31 @@ class MahjongLogic {
     
     if (useQualitySelection) {
       const currentHand = this.players[userId].hand;
+      const currentMelds = this.players[userId].melds || [];
       
-      // スコアに基づいてソート（手牌分析を含める）
-      const tilesWithScores = playableTiles.map(item => ({
-        ...item,
-        score: this.getTileScoreWithHandAnalysis(item.tile, currentHand),
-      }));
+      // シャンテン改善分析を事前計算（全候補牌に対して1回だけ実行）
+      const shantenAnalysis = this.analyzeShantenImprovement(currentHand, currentMelds);
+      
+      // スコアに基づいてソート（手牌分析＋シャンテン改善を含める）
+      const tilesWithScores = playableTiles.map(item => {
+        let score = this.getTileScoreWithHandAnalysis(item.tile, currentHand);
+        
+        const tileKey = `${item.tile.suit}_${item.tile.number}`;
+        
+        // シャンテンボーナス適用
+        if (shantenAnalysis.winningTileKeys.has(tileKey)) {
+          // アガリ牌：最大ボーナス
+          score += 50;
+        } else if (shantenAnalysis.tenpaiAdvancingKeys.has(tileKey)) {
+          // 聴牌に進む牌：大きなボーナス
+          score += 30;
+        } else {
+          // それ以外：手牌との接続性ボーナス（シャンテンが深い場合に有効）
+          score += this.getConnectivityBonus(item.tile, currentHand);
+        }
+        
+        return { ...item, score };
+      });
       
       // スコアによって確率的に選ぶ（高スコアの牌が選ばれやすい）
       const totalScore = tilesWithScores.reduce((sum, item) => sum + item.score, 0);
