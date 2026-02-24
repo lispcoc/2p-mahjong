@@ -838,9 +838,127 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
   console.log(`📡 Broadcast complete: sent to ${broadcastCount}/${room.players.size} players`);
 }
 
+// CPU/自動プレイ後のゲーム終了処理を共通化
+function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
+  const roomId = room.roomId;
+  console.log(`[🔵 ${logPrefix}] ✅ gameFinished detected`);
+  console.log(`[🔵 ${logPrefix}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
+  
+  let finishedPayload = null;
+  try {
+    // 最新のラウンド履歴から winType と scoreResult を取得
+    const roundHistory = room.getRoundHistory();
+    const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
+    const winType = room.lastResult?.message || latestRound?.winType || '';
+    const scoreResult = room.lastResult?.scoreResult || latestRound?.scoreResult || null;
+    
+    console.log(`[🔵 ${logPrefix}] [DEBUG] room.lastResult?.isDraw = ${room.lastResult?.isDraw}`);
+    console.log(`[🔵 ${logPrefix}] [DEBUG] latestRound?.isDraw = ${latestRound?.isDraw}`);
+    const isDraw = room.lastResult?.isDraw === true || latestRound?.isDraw === true || false;
+    console.log(`[🔵 ${logPrefix}] [DEBUG] Final isDraw = ${isDraw}`);
+
+    const gameState = room.getGameState();
+    finishedPayload = {
+      winner: room.getWinner(),
+      scores: room.getScores(),
+      scoreResult: scoreResult,
+      winType: winType,
+      isDraw: isDraw,
+      currentRound: room.getCurrentRound(),
+      roundWind: room.getRoundWindNumber(),
+      roundNumber: room.getRoundNumber(),
+      roundName: room.getRoundName(),
+      dealerId: room.getDealerId(),
+      seatWinds: room.buildSeatWinds(room.playerOrder),
+      nextRoundReadyCount: room.getNextRoundReadyCount(),
+      totalPlayers: room.players.size,
+      tiles: gameState.tiles || {},
+      tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,
+    };
+    
+    if (room.isGameOver()) {
+      finishedPayload.gameOver = true;
+      finishedPayload.finalResults = room.getRoundHistory();
+    }
+    
+    console.log(`[🔵 ${logPrefix}] 📢 Broadcasting gameFinished`);
+    console.log(`[🔵 ${logPrefix}] Payload:`, JSON.stringify(finishedPayload, null, 2));
+    broadcastToRoom(roomId, {
+      type: 'gameFinished',
+      payload: finishedPayload,
+    });
+  } catch (err) {
+    console.error(`[🔵 ${logPrefix}] ❌ Error while broadcasting gameFinished:`, err);
+    console.error(`[🔵 ${logPrefix}] Error details:`, err.message, err.stack);
+  }
+  
+  // ゲーム終了時は非アクティブタイマーをクリア
+  room.clearInactivityTimer();
+  
+  const isGameOver = finishedPayload?.gameOver || false;
+  console.log(`[🔵 ${logPrefix}] [TIMER] gameOver=${isGameOver}`);
+  
+  if (!isGameOver) {
+    console.log(`[🔵 ${logPrefix}] [TIMER] Setting up auto-ready timer...`);
+    room.startAutoReadyTimer(() => {
+      console.log(`🎮 [AUTO] Auto-starting next round for room ${roomId} (timer expired)`);
+      try {
+        room.start();
+        broadcastToRoom(roomId, {
+          type: 'gameStarted',
+          payload: room.getGameState(),
+        });
+        room.startInactivityTimer(createInactivityCallback(roomId));
+        executeCPUTurnIfNeeded(room);
+      } catch (err) {
+        console.error(`🎮 [ERROR] Exception in auto-ready callback:`, err);
+      }
+    });
+  } else {
+    console.log(`[🔵 ${logPrefix}] [TIMER] Starting game-over timer (5 minutes)...`);
+    room.startGameOverTimer(() => {
+      console.log(`🗑️ [AUTO] Deleting room ${roomId} after game over`);
+      broadcastToRoom(roomId, {
+        type: 'roomDeleted',
+        payload: { message: 'Room has been deleted due to game over' },
+      });
+      rooms.delete(roomId);
+      console.log(`🗑️ Room ${roomId} deleted successfully`);
+    });
+  }
+}
+
 // CPU自動プレイを実行（必要な場合）
 function executeCPUTurnIfNeeded(room) {
   if (!room || room.status !== 'playing') {
+    return;
+  }
+  
+  // 両方リーチの場合は自動進行ループを開始（CPUターンかどうかに関わらず）
+  if (room.gameLogic && room.gameLogic.areBothPlayersInRiichi() &&
+      !room.gameLogic.getRonPossibleFor() && !room.gameLogic.getPendingPungFor()) {
+    const roomId = room.roomId;
+    console.log('🔴 Both players in riichi detected in executeCPUTurnIfNeeded - starting auto-play loop');
+    room.executeBothRiichiAutoPlay(() => {
+      broadcastToRoom(roomId, {
+        type: 'gameStateUpdate',
+        payload: room.getGameState(),
+      });
+    }).then(autoPlayResult => {
+      // ループ終了後の最終状態をブロードキャスト
+      broadcastToRoom(roomId, {
+        type: 'gameStateUpdate',
+        payload: room.getGameState(),
+      });
+      
+      if (room.isFinished()) {
+        room.lastResult = autoPlayResult;
+        handleAutoPlayGameFinished(room, 'BOTH_RIICHI');
+      } else {
+        // ロン可能やツモ可能で停止した場合 → 次のアクションを待つ
+        setTimeout(() => executeCPUTurnIfNeeded(room), 100);
+      }
+    });
     return;
   }
   
@@ -856,110 +974,7 @@ function executeCPUTurnIfNeeded(room) {
       
       // ゲームが終了しているかチェック
       if (room.isFinished()) {
-        console.log(`[🔵 CPU CALLBACK] ✅ gameFinished detected in CPU callback`);
-        console.log(`[🔵 CPU CALLBACK] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
-        
-        let finishedPayload = null;
-        try {
-          // 最新のラウンド履歴から winType と scoreResult を取得
-          const roundHistory = room.getRoundHistory();
-          const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
-          const winType = room.lastResult?.message || latestRound?.winType || '';
-          const scoreResult = room.lastResult?.scoreResult || latestRound?.scoreResult || null;
-          
-          console.log(`[🔵 CPU CALLBACK] [DEBUG] room.lastResult?.isDraw = ${room.lastResult?.isDraw}`);
-          console.log(`[🔵 CPU CALLBACK] [DEBUG] latestRound?.isDraw = ${latestRound?.isDraw}`);
-          const isDraw = room.lastResult?.isDraw === true || latestRound?.isDraw === true || false;
-          console.log(`[🔵 CPU CALLBACK] [DEBUG] Final isDraw = ${isDraw}`);
-
-          const gameState = room.getGameState();
-          finishedPayload = {
-            winner: room.getWinner(),
-            scores: room.getScores(),
-            scoreResult: scoreResult,
-            winType: winType,
-            isDraw: isDraw,
-            currentRound: room.getCurrentRound(),
-            roundWind: room.getRoundWindNumber(),
-            roundNumber: room.getRoundNumber(),
-            roundName: room.getRoundName(),
-            dealerId: room.getDealerId(),
-            seatWinds: room.buildSeatWinds(room.playerOrder),
-            nextRoundReadyCount: room.getNextRoundReadyCount(),
-            totalPlayers: room.players.size,
-            tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
-            tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,  // 流局時の聴牌状態
-          };
-          
-          if (room.isGameOver()) {
-            finishedPayload.gameOver = true;
-            finishedPayload.finalResults = room.getRoundHistory();
-          }
-          
-          console.log(`[🔵 CPU CALLBACK] 📢 Broadcasting gameFinished`);
-          console.log(`[🔵 CPU CALLBACK] Payload:`, JSON.stringify(finishedPayload, null, 2));
-          broadcastToRoom(roomId, {
-            type: 'gameFinished',
-            payload: finishedPayload,
-          });
-        } catch (err) {
-          console.error(`[🔵 CPU CALLBACK] ❌ Error while broadcasting gameFinished:`, err);
-          console.error(`[🔵 CPU CALLBACK] Error details:`, err.message, err.stack);
-        }
-        
-        // ゲーム終了時は非アクティブタイマーをクリア（auto-ready or game-overタイマーで管理）
-        room.clearInactivityTimer();
-        
-        const cpuCallbackGameOver = finishedPayload?.gameOver || false;
-        console.log(`[🔵 CPU CALLBACK] [TIMER] gameOver=${cpuCallbackGameOver}`);
-        
-        // ゲームオーバーでない場合、10秒のタイマーを開始
-        if (!cpuCallbackGameOver) {
-          console.log(`[🔵 CPU CALLBACK] [TIMER] Setting up auto-ready timer...`);
-          room.startAutoReadyTimer(() => {
-            console.log(`🎮 [AUTO] Auto-starting next round for room ${roomId} (timer expired)`);
-            try {
-              console.log(`🎮 [AUTO] Calling room.start()...`);
-              room.start();
-              console.log(`🎮 [AUTO] room.start() completed`);
-              
-              const gameStartPayload = room.getGameState();
-              console.log(`🎮 [AUTO] Broadcasting gameStarted...`);
-              broadcastToRoom(roomId, {
-                type: 'gameStarted',
-                payload: gameStartPayload,
-              });
-              console.log(`🎮 [AUTO] gameStarted broadcast complete`);
-              
-              // 次のラウンドが開始されたので非アクティブタイマーを再開
-              room.startInactivityTimer(createInactivityCallback(roomId));
-              
-              // Check if CPU should play first
-              console.log(`🎮 [AUTO] Checking if CPU should play...`);
-              executeCPUTurnIfNeeded(room);
-              console.log(`🎮 [AUTO] CPU turn check complete`);
-            } catch (err) {
-              console.error(`🎮 [ERROR] Exception in auto-ready callback:`, err);
-            }
-          });
-          console.log(`[🔵 CPU CALLBACK] [TIMER] Auto-ready timer setup completed`);
-        } else {
-          console.log(`[🔵 CPU CALLBACK] [TIMER] Skipping auto-ready timer (gameOver=true)`);
-          // ゲームオーバーの場合5分後にルームを削除
-          console.log(`[🔵 CPU CALLBACK] [TIMER] Starting game-over timer (5 minutes)...`);
-          room.startGameOverTimer(() => {
-            console.log(`🗑️ [AUTO] Deleting room ${roomId} after game over`);
-            // 全プレイヤーにルーム削除を通知
-            broadcastToRoom(roomId, {
-              type: 'roomDeleted',
-              payload: { message: 'Room has been deleted due to game over' },
-            });
-            // ルームを削除
-            rooms.delete(roomId);
-            console.log(`🗑️ Room ${roomId} deleted successfully`);
-          });
-          console.log(`[🔵 CPU CALLBACK] [TIMER] Game-over timer setup completed`);
-        }
+        handleAutoPlayGameFinished(room, 'CPU CALLBACK');
       } else {
         // 次のターンがCPUなら再度実行
         setTimeout(() => executeCPUTurnIfNeeded(room), 100);

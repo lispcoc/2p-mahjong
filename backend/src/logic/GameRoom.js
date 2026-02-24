@@ -948,7 +948,18 @@ class GameRoom {
 
     // リーチ可能なら先に宣言（門前かつ聴牌）- 暗槓は門前扱い
     if (!isRiichi && this.gameLogic.isPlayerMenzen(userId) && drawnTile) {
-      const riichiDecision = aiPlayer.shouldDeclareRiichi(hand, melds, currentScore);
+      // リーチ判断に見えている牌情報を渡す
+      const opponentId = this.gameLogic.getOtherPlayerId(userId);
+      const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
+      const riichiGameState = {
+        opponentDiscards: opponentPlayer?.discards || [],
+        ownDiscards: this.gameLogic.players[userId].discards || [],
+        ownMelds: melds,
+        opponentMelds: opponentPlayer?.melds || [],
+        doraIndicators: this.gameLogic.doraIndicators || [],
+        wallRemaining: this.gameLogic.wall?.length || 0,
+      };
+      const riichiDecision = aiPlayer.shouldDeclareRiichi(hand, melds, currentScore, riichiGameState);
       if (riichiDecision.shouldRiichi && riichiDecision.discardIndex >= 0) {
         const riichiTile = hand[riichiDecision.discardIndex];
         const tileId = `${riichiTile.suit}_${riichiTile.number}`;
@@ -1093,7 +1104,23 @@ class GameRoom {
     // ポン後は drawnTileIndex=-1 だが、AIは適切に処理する
     // 通常は drawnTileIndex を渡すが、-1の場合は最後の牌を使う
     const effectiveDrawnIndex = drawnTileIndex >= 0 ? drawnTileIndex : hand.length - 1;
-    const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, {});
+
+    // AI に相手情報を渡す（防御・受入計算用）
+    const opponentId = this.gameLogic.getOtherPlayerId(userId);
+    const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
+    const gameState = {
+      opponentRiichi: opponentPlayer?.riichi || false,
+      opponentDiscards: opponentPlayer?.discards || [],
+      ownDiscards: this.gameLogic.players[userId].discards || [],
+      ownMelds: melds,
+      opponentMelds: opponentPlayer?.melds || [],
+      doraIndicators: this.gameLogic.doraIndicators || [],
+      numMelds: melds.length,
+      melds: melds,
+      wallRemaining: this.gameLogic.wall?.length || 0,
+      ownHand: hand,
+    };
+    const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];
     const tileId = `${tileToDiscard.suit}_${tileToDiscard.number}`;
     
