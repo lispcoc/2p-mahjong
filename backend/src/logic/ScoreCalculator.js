@@ -333,13 +333,13 @@ class ScoreCalculator {
     // 清一色（チンイツ）- 和了形に依存しない
     const chinItsu = this.isChinitsu(allTiles);
     if (chinItsu) {
-      yaku.push({ name: '清一色', han: melds.length > 0 ? 5 : 6 });
+      yaku.push({ name: '清一色', han: !menzen ? 5 : 6 });
     }
     
     // 混一色（ホンイツ）- 和了形に依存しない
     const honItsu = !chinItsu && this.isHonitsu(allTiles);
     if (honItsu) {
-      yaku.push({ name: '混一色', han: melds.length > 0 ? 2 : 3 });
+      yaku.push({ name: '混一色', han: !menzen ? 2 : 3 });
     }
     
     // 混老頭（ホンロウトウ）- 和了形に依存しない
@@ -353,24 +353,24 @@ class ScoreCalculator {
       return yaku;
     }
     
-    // 二盃口（リャンペーコー） - 門前のみ、和了形に依存
-    if (melds.length === 0 && this.isRyanpeikouWithCombination(combination)) {
+    // 二盃口（リャンペーコー） - 門前のみ、和了形に依存（暗槓は門前扱い）
+    if (menzen && this.isRyanpeikouWithCombination(combination)) {
       yaku.push({ name: '二盃口', han: 3 });
-    } else if (melds.length === 0 && this.checkIipeikouWithCombination(combination)) {
+    } else if (menzen && this.checkIipeikouWithCombination(combination)) {
       // 一盃口（二盃口がない場合のみ）
       yaku.push({ name: '一盃口', han: 1 });
     }
     
-    // 一気通貫（イッツー）- 和了形に依存
+    // 一気通貫（イッツー）- 和了形に依存（暗槓は門前扱い）
     const ittsu = this.isIttsuWithCombination(combination, melds);
     if (ittsu) {
-      yaku.push({ name: '一気通貫', han: melds.length > 0 ? 1 : 2 });
+      yaku.push({ name: '一気通貫', han: !menzen ? 1 : 2 });
     }
     
-    // 三色同順（サンシキドウジュン）- 和了形に依存
+    // 三色同順（サンシキドウジュン）- 和了形に依存（暗槓は門前扱い）
     const sanshoku = this.checkSanshokuWithCombination(combination, melds);
     if (sanshoku) {
-      yaku.push({ name: '三色同順', han: melds.length > 0 ? 1 : 2 });
+      yaku.push({ name: '三色同順', han: !menzen ? 1 : 2 });
     }
     
     // 三色同刻（サンシキドウコー）- 和了形に依存
@@ -399,8 +399,8 @@ class ScoreCalculator {
       yaku.push({ name: '断么九', han: 1 });
     }
     
-    // 平和（ピンフ） - 門前ロンのみ、和了形に依存
-    if (melds.length === 0 && isRon && this.isPinfuWithCombination(combination, winningTile)) {
+    // 平和（ピンフ） - 門前ロンのみ、和了形に依存（暗槓は門前扱い）
+    if (menzen && isRon && this.isPinfuWithCombination(combination, winningTile)) {
       yaku.push({ name: '平和', han: 1 });
     }
     

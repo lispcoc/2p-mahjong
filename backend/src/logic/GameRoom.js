@@ -946,8 +946,8 @@ class GameRoom {
       }
     }
 
-    // リーチ可能なら先に宣言（門前かつ聴牌）
-    if (!isRiichi && melds.length === 0 && drawnTile) {
+    // リーチ可能なら先に宣言（門前かつ聴牌）- 暗槓は門前扱い
+    if (!isRiichi && this.gameLogic.isPlayerMenzen(userId) && drawnTile) {
       const riichiDecision = aiPlayer.shouldDeclareRiichi(hand, melds, currentScore);
       if (riichiDecision.shouldRiichi && riichiDecision.discardIndex >= 0) {
         const riichiTile = hand[riichiDecision.discardIndex];

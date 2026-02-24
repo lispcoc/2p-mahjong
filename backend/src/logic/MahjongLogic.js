@@ -2098,9 +2098,10 @@ class MahjongLogic {
       return { success: false, message: '持ち点が1000点未満のためリーチできません（現在' + player.score + '点）' };
     }
     
-    // 門前でない（副露している）
-    if (player.melds.length > 0) {
-      return { success: false, message: '副露しているためリーチできません（メルド' + player.melds.length + '個）' };
+    // 門前でない（副露している）- 暗槓は門前扱いのため除外
+    const nonConcealedMeldCount = player.melds.length - player.concealedMeldIndices.size;
+    if (nonConcealedMeldCount > 0) {
+      return { success: false, message: '副露しているためリーチできません（メルド' + nonConcealedMeldCount + '個）' };
     }
     
     // 牌IDから手牌を探す
