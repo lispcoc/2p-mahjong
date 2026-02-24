@@ -35,18 +35,32 @@ export default function HomePage({
   const defaultAutoActionTimerSeconds = 10
   const minAutoActionTimerSeconds = 3
   const maxAutoActionTimerSeconds = 60
+  const SETTINGS_STORAGE_KEY = 'mahjong-room-settings'
+
+  const loadSavedSettings = () => {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY)
+      if (saved) return JSON.parse(saved)
+    } catch (e) {
+      console.error('Failed to load saved room settings:', e)
+    }
+    return null
+  }
+
+  const savedSettings = loadSavedSettings()
+
   const [joinRoomId, setJoinRoomId] = useState('')
   const [error, setError] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [rooms, setRooms] = useState<RoomInfo[]>([])
   const [roomsLoading, setRoomsLoading] = useState(false)
-  const [initialScore, setInitialScore] = useState(defaultInitialScore)
-  const [wallTiles, setWallTiles] = useState(defaultWallTiles)
-  const [gameMode, setGameMode] = useState('oneRound') // 'oneRound' | 'easternsouthern' | 'endless'
-  const [myTsumoLuck, setMyTsumoLuck] = useState(0)
-  const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0)
-  const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(defaultAutoActionTimerSeconds)
-  const [useRedDora, setUseRedDora] = useState(true)
+  const [initialScore, setInitialScore] = useState(savedSettings?.initialScore ?? defaultInitialScore)
+  const [wallTiles, setWallTiles] = useState(savedSettings?.wallTiles ?? defaultWallTiles)
+  const [gameMode, setGameMode] = useState(savedSettings?.gameMode ?? 'oneRound') // 'oneRound' | 'easternsouthern' | 'endless'
+  const [myTsumoLuck, setMyTsumoLuck] = useState(savedSettings?.myTsumoLuck ?? 0)
+  const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(savedSettings?.opponentTsumoLuck ?? 0)
+  const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(savedSettings?.autoActionTimerSeconds ?? defaultAutoActionTimerSeconds)
+  const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
 
   const fetchRooms = async () => {
@@ -135,6 +149,20 @@ export default function HomePage({
       // Store tsumo luck settings in sessionStorage for GamePage to read
       sessionStorage.setItem('mahjong-myTsumoLuck', String(myTsumoLuck))
       sessionStorage.setItem('mahjong-opponentTsumoLuck', String(opponentTsumoLuck))
+      // Save room settings to localStorage for next time
+      try {
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+          initialScore: sanitizedInitialScore,
+          wallTiles: sanitizedWallTiles,
+          gameMode,
+          myTsumoLuck,
+          opponentTsumoLuck,
+          autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
+          useRedDora,
+        }))
+      } catch (e) {
+        console.error('Failed to save room settings:', e)
+      }
       setIsRuleModalOpen(false)
       onCreateRoom(data.roomId)
     } catch (err) {
