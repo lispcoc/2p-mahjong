@@ -1302,7 +1302,7 @@ export default function GamePage({
   ).length >= 2
   const canRon = isYourTurn && ronPossibleFor === userId
   // ポン後で牌をまだ引いていない状態（fullHand.length % 3 === 2）では牌を引けない
-  const canDraw = isYourTurn && drawnTileIndex < 0 && fullHand.length % 3 !== 2
+  const canDraw = isYourTurn && drawnTileIndex < 0 && !canRon && !isRiichi && fullHand.length % 3 !== 2
 
   // Check if player can kan (concealed or added)
   const canKan = (() => {
@@ -1717,9 +1717,6 @@ export default function GamePage({
                           if (isRiichi) {
                             return;
                           }
-                          if (canPung || canKan || canRon) {
-                            return; // ポン・カン・ロン可能な場合は手牌クリック無効
-                          }
                           if (isYourTurn && gameState.status === 'playing') {
                             // リーチモードONの場合、聴牌形になる牌のみクリック可能
                             if (riichiMode) {
@@ -1924,13 +1921,13 @@ export default function GamePage({
                 }}
                 className={`px-3 py-2 text-xs font-bold rounded text-white cursor-pointer transition-all ${riichiMode ? 'bg-green-600 border-2 border-green-700 shadow-lg' : 'bg-red-600 border-2 border-red-700'}`}
               >
-                {riichiMode ? '✓ 待機' : 'リーチ'}
+                {riichiMode ? '✓ 待機' : '🔴 リーチ'}
               </button>
             )}
             {/* リーチ中の表示 */}
             {gameState.riichi?.[userId] && (
               <div className="px-3 py-2 bg-red-100 border-2 border-red-500 rounded font-bold text-sm text-red-800 text-center shadow-md animate-pulse">
-                リーチ中
+                🔴 リーチ中
               </div>
             )}
           </div>

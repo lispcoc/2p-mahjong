@@ -50,7 +50,6 @@ class GameRoom {
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
-    this.broadcastFunction = options.broadcastFunction || (() => {}); // ゲーム状態を全プレイヤーに送信するための関数（例: WebSocketのbroadcast）
   }
   
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
@@ -224,7 +223,6 @@ class GameRoom {
         roundWindNumber: this.getRoundWindNumber(),
         seatWinds: seatWinds,
         tsumoLuckSettings: tsumoLuckSettings,
-        onTurnPassedCallback: () => this.broadcastFunction(this.getGameState())
       }
     );
     if (this.riichiDepositsCarryover > 0) {
@@ -238,7 +236,7 @@ class GameRoom {
     return true;
   }
   
-  async handlePlayerAction(userId, action) {
+  handlePlayerAction(userId, action) {
     // Handle next round ready - これはfinished状態でも受け付ける
     if (action.type === 'nextRound') {
       if (this.status !== 'finished') {
@@ -290,7 +288,7 @@ class GameRoom {
 
     // Handle riichi declaration
     if (action.type === 'riichi') {
-      const result = await this.gameLogic.declareRiichi(userId, action.tileId);
+      const result = this.gameLogic.declareRiichi(userId, action.tileId);
       if (result.success) {
         const player = this.players.get(userId);
         player.riichi = true;
@@ -298,7 +296,7 @@ class GameRoom {
       return result;
     }
     
-    const result = await this.gameLogic.processAction(userId, action);
+    const result = this.gameLogic.processAction(userId, action);
     
     if (result.finished) {
       console.log(`[GameRoom.handlePlayerAction] 🏁 Game finished detected, message: "${result.message}"`);
@@ -779,7 +777,7 @@ class GameRoom {
   }
 
   // CPU自動プレイを実行
-  async executeCPUTurn(callback) {
+  executeCPUTurn(callback) {
     if (this.status !== 'playing' || !this.gameLogic) {
       return;
     }
@@ -791,14 +789,14 @@ class GameRoom {
     // ロン可能状態: CPUがロンを取るべきかチェック
     if (ronPossibleFor && this.players.get(ronPossibleFor)?.isCPU) {
       console.log(`🤖 CPU Can Ron: ${this.players.get(ronPossibleFor).playerName}`);
-      await this.executeCPURon(ronPossibleFor, callback);
+      this.executeCPURon(ronPossibleFor, callback);
       return;
     }
 
     // ポン待機状態: CPUがポンするか draw するかチェック
     if (pendingPungFor && this.players.get(pendingPungFor)?.isCPU) {
       console.log(`🤖 CPU Pung Pending: ${this.players.get(pendingPungFor).playerName}`);
-      await this.executeCPUPung(pendingPungFor, callback);
+      this.executeCPUPung(pendingPungFor, callback);
       return;
     }
 
@@ -817,13 +815,13 @@ class GameRoom {
     // テストモード時は遅延をスキップ
     const delay = this.testMode ? 0 : (500 + Math.random() * 1000);
     
-    setTimeout(async () => {
-      await this.executeCPUMainTurn(currentTurn, callback);
+    setTimeout(() => {
+      this.executeCPUMainTurn(currentTurn, callback);
     }, delay);
   }
 
   // CPU通常ターンの処理（draw+discard または win）
-  async executeCPUMainTurn(userId, callback) {
+  executeCPUMainTurn(userId, callback) {
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const melds = this.gameLogic.players[userId].melds || [];
@@ -841,7 +839,7 @@ class GameRoom {
     // ドロー済み: totalTiles=14、drawnTileIndex>=0 -> ドロー不要
     if (totalTiles < 14) {
       console.log('🤖 CPU drawing tile...');
-      const drawResult = await this.handlePlayerAction(userId, { type: 'draw' });
+      const drawResult = this.handlePlayerAction(userId, { type: 'draw' });
       
       if (!drawResult.success) {
         console.log('🤖 CPU draw failed:', drawResult.message);
@@ -852,17 +850,17 @@ class GameRoom {
       // ドロー後、再度ターン処理を実行
       // テストモード時は遅延をスキップ
       const drawDelay = this.testMode ? 0 : 300;
-      setTimeout(async () => {
-        await this.executeCPUAfterDraw(userId, callback);
+      setTimeout(() => {
+        this.executeCPUAfterDraw(userId, callback);
       }, drawDelay);
     } else {
       // 既にドロー済み（totalTiles=14）またはポン後でディスカード待ち
-      await this.executeCPUAfterDraw(userId, callback);
+      this.executeCPUAfterDraw(userId, callback);
     }
   }
 
   // CPU ドロー後の処理（ツモ和了 or ディスカード）
-  async executeCPUAfterDraw(userId, callback) {
+  executeCPUAfterDraw(userId, callback) {
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const drawnTile = this.gameLogic.players[userId].drawnTile;
@@ -880,7 +878,7 @@ class GameRoom {
       if (this.gameLogic.isWinningHand(userId)) {
         if (aiPlayer.shouldWin()) {
           console.log('🤖 CPU ツモ和了!');
-          const winResult = await this.handlePlayerAction(userId, { type: 'win' });
+          const winResult = this.handlePlayerAction(userId, { type: 'win' });
           if (winResult.success) {
             console.log('🤖 CPU ツモ和了 成功');
             if (callback) callback();
@@ -897,7 +895,7 @@ class GameRoom {
         const riichiTile = hand[riichiDecision.discardIndex];
         const tileId = `${riichiTile.suit}_${riichiTile.number}`;
         console.log(`🤖 CPU declaring riichi with discard: ${tileId}`);
-        const riichiResult = await this.handlePlayerAction(userId, { type: 'riichi', tileId });
+        const riichiResult = this.handlePlayerAction(userId, { type: 'riichi', tileId });
         if (riichiResult.success) {
           if (callback) callback();
           return;
@@ -908,36 +906,36 @@ class GameRoom {
     // カン可能なら実行（加槓は積極的に、暗槓は慎重に）
     if (drawnTile && this.gameLogic.canPlayerKan(userId)) {
       console.log('🤖 Checking if CPU wants to kan...');
-      await this.executeCPUKan(userId, async () => {
+      this.executeCPUKan(userId, () => {
         // カン後、手牌が14枚でディスカード待ち状態
         // ディスカード処理へ進む
-        await this.executeCPUDiscard(userId, callback);
+        this.executeCPUDiscard(userId, callback);
       });
       return;
     }
 
     // ツモ和了できなければディスカード
-    await this.executeCPUDiscard(userId, callback);
+    this.executeCPUDiscard(userId, callback);
   }
 
   // CPU自動ロン処理
-  async executeCPURon(userId, callback) {
+  executeCPURon(userId, callback) {
     const aiPlayer = this.aiPlayers.get(userId);
 
     if (!aiPlayer.shouldTakeRon()) {
       console.log('🤖 CPU declined ron, will draw instead');
-      await this.handlePlayerAction(userId, { type: 'draw' });
+      this.handlePlayerAction(userId, { type: 'draw' });
       if (callback) callback();
       return;
     }
 
     console.log('🤖 CPU executing ron...');
-    const ronResult = await this.handlePlayerAction(userId, { type: 'ron' });
+    const ronResult = this.handlePlayerAction(userId, { type: 'ron' });
 
     if (!ronResult.success) {
       console.log('🤖 CPU ron failed:', ronResult.message);
       // ロン失敗時は draw（フリテン対応）
-      await this.handlePlayerAction(userId, { type: 'draw' });
+      this.handlePlayerAction(userId, { type: 'draw' });
     } else {
       console.log('🤖 CPU ロン 成功!');
     }
@@ -946,7 +944,7 @@ class GameRoom {
   }
 
   // CPU自動ポン処理
-  async executeCPUPung(userId, callback) {
+  executeCPUPung(userId, callback) {
     const hand = this.gameLogic.getPlayerHand(userId);
     const melds = this.gameLogic.getPlayerMelds(userId);
     const lastDiscard = this.gameLogic.getLastDiscard();
@@ -957,12 +955,12 @@ class GameRoom {
     // AIPlayerにポンすべきか判定させる
     if (lastDiscard && aiPlayer.shouldPung(hand, lastDiscard, melds)) {
       console.log('🤖 CPU will pung');
-      const pungResult = await this.handlePlayerAction(userId, { type: 'pung' });
+      const pungResult = this.handlePlayerAction(userId, { type: 'pung' });
       
       if (!pungResult.success) {
         console.log('🤖 CPU pung failed:', pungResult.message);
         // ポン失敗時は draw
-        await this.handlePlayerAction(userId, { type: 'draw' });
+        this.handlePlayerAction(userId, { type: 'draw' });
         if (callback) callback();
       } else {
         console.log('🤖 CPU ポン 成功');
@@ -970,19 +968,19 @@ class GameRoom {
         // 次のターンでドロー＆ディスカード処理を実行
         // テストモード時は遅延をスキップ
         const pungDelay = this.testMode ? 0 : 300;
-        setTimeout(async () => {
-          await this.executeCPUMainTurn(userId, callback);
+        setTimeout(() => {
+          this.executeCPUMainTurn(userId, callback);
         }, pungDelay);
       }
     } else {
       console.log('🤖 CPU will not pung, drawing instead');
-      const drawResult = await this.handlePlayerAction(userId, { type: 'draw' });
+      const drawResult = this.handlePlayerAction(userId, { type: 'draw' });
       if (callback) callback();
     }
   }
 
   // CPU自動カン処理
-  async executeCPUKan(userId, callback) {
+  executeCPUKan(userId, callback) {
     const hand = this.gameLogic.getPlayerHand(userId);
     const melds = this.gameLogic.getPlayerMelds(userId);
     const isRiichi = this.gameLogic.isPlayerRiichi(userId);
@@ -993,7 +991,7 @@ class GameRoom {
     // AIPlayerにカンすべきか判定させる
     if (aiPlayer.shouldKan(hand, melds, isRiichi)) {
       console.log('🤖 CPU will kan');
-      const kanResult = await this.handlePlayerAction(userId, { type: 'kong' });
+      const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
       
       if (!kanResult.success) {
         console.log('🤖 CPU kan failed:', kanResult.message);
@@ -1017,7 +1015,7 @@ class GameRoom {
   }
 
   // CPU自動ディスカード（戦略的な打ち方 or ツモ切り）
-  async executeCPUDiscard(userId, callback) {
+  executeCPUDiscard(userId, callback) {
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const isRiichi = this.gameLogic.isPlayerRiichi(userId);
@@ -1043,7 +1041,7 @@ class GameRoom {
     
     console.log(`🤖 CPU discarding tile: ${tileId} (index: ${discardIndex}, drawnIndex: ${drawnTileIndex})`);
 
-    const discardResult = await this.handlePlayerAction(userId, {
+    const discardResult = this.handlePlayerAction(userId, {
       type: 'discard',
       tileId: tileId,
     });

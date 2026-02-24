@@ -47,8 +47,6 @@ class MahjongLogic {
     // Tsumo luck settings: userId -> luck level (0=none, 1=light, 2=heavy)
     this.tsumoLuckSettings = options.tsumoLuckSettings || {};
     
-    this.onTurnPassedCallback = options.onTurnPassedCallback || null;
-
     // Initialize players
     playerIds.forEach((id) => {
       this.players[id] = {
@@ -337,10 +335,7 @@ class MahjongLogic {
     return a.number - b.number;
   }
   
-  async processAction(userId, action) {
-    if (action.type === 'forceFinish') {
-      return await this.handleDraw(userId);
-    }
+  processAction(userId, action) {
     if (this.getCurrentTurn() !== userId) {
       return { success: false, message: 'Not your turn' };
     }
@@ -349,9 +344,9 @@ class MahjongLogic {
     
     if (type === 'discard') {
       // Support both tileId (new format) and tileIndex (legacy format)
-      return await this.handleDiscard(userId, tileId || tileIndex);
+      return this.handleDiscard(userId, tileId || tileIndex);
     } else if (type === 'draw') {
-      return await this.handleDraw(userId);
+      return this.handleDraw(userId);
     } else if (type === 'pung') {
       return this.handlePung(userId);
     } else if (type === 'kong') {
@@ -365,7 +360,7 @@ class MahjongLogic {
     return { success: false, message: 'Invalid action type' };
   }
   
-  async handleDiscard(userId, tileIndexInput) {
+  handleDiscard(userId, tileIndexInput) {
     const player = this.players[userId];
     const hand = player.hand;
     
@@ -376,11 +371,6 @@ class MahjongLogic {
 
     // リーチ後は引いた牌を自動的に捨てる
     if (player.riichi) {
-      if (this.onTurnPassedCallback) {
-        this.onTurnPassedCallback();
-      }
-      // 1秒ディレイ
-      await new Promise(resolve => setTimeout(resolve, 500));
       // 引いた牌を確認
       if (!player.drawnTile) {
         return { success: false, message: 'リーチ後は引いた牌を捨ててください' };
@@ -432,7 +422,7 @@ class MahjongLogic {
       
       // Auto-draw if no pung is possible
       if (!this.pendingPungFor && otherPlayerId) {
-        const drawResult = await this.drawForTurn(otherPlayerId);
+        const drawResult = this.drawForTurn(otherPlayerId);
         if (drawResult?.finished) {
           return {
             success: true,
@@ -518,7 +508,7 @@ class MahjongLogic {
     
     // Auto-draw if no pung is possible
     if (!this.pendingPungFor && otherPlayerId) {
-      const drawResult = await this.drawForTurn(otherPlayerId);
+      const drawResult = this.drawForTurn(otherPlayerId);
       if (drawResult?.finished) {
         return {
           success: true,
@@ -532,7 +522,7 @@ class MahjongLogic {
     return { success: true };
   }
   
-  async handleDraw(userId) {
+  handleDraw(userId) {
     // If a pung is pending for this player, drawing means passing the pung
     if (this.pendingPungFor && this.pendingPungFor !== userId) {
       return { success: false, message: 'Not your pung decision' };
@@ -572,7 +562,7 @@ class MahjongLogic {
       this.lastDiscardBy = null;
     }
 
-    return await this.drawForTurn(userId);
+    return this.drawForTurn(userId);
   }
   
   handlePung(userId) {
@@ -1256,7 +1246,7 @@ class MahjongLogic {
     this.turnNumber++; // ターン番号を進める
   }
 
-  async drawForTurn(userId) {
+  drawForTurn(userId) {
     const hand = this.players[userId].hand;
 
     // Avoid double draw if player already has a drawn tile
@@ -1308,7 +1298,7 @@ class MahjongLogic {
         console.log(`[drawForTurn] Player ${userId} is in riichi but cannot win, auto-discarding drawn tile`);
         const drawnTile = this.players[userId].drawnTile;
         const tileId = `${drawnTile.suit}_${drawnTile.number}`;
-        const result = await this.handleDiscard(userId, tileId);
+        const result = this.handleDiscard(userId, tileId);
         // ディスカード後に流局している場合はそれを反映させる
         if (result.finished) {
           return result;
@@ -1873,7 +1863,7 @@ class MahjongLogic {
    * @param {number} discardIndex - 捨てる牌のインデックス
    * @returns {Object} 結果
    */
-  async declareRiichi(playerId, tileIdInput) {
+  declareRiichi(playerId, tileIdInput) {
     const player = this.players[playerId];
     
     console.log(`\n🔴 [declareRiichi] ========================================`);
@@ -2000,7 +1990,7 @@ class MahjongLogic {
     
     // Auto-draw if no pung is possible
     if (!this.pendingPungFor && otherPlayerId) {
-      const drawResult = await this.drawForTurn(otherPlayerId);
+      const drawResult = this.drawForTurn(otherPlayerId);
       if (drawResult?.finished) {
         console.log(`🔴 [declareRiichi] Draw result finished, returning with isDraw=${drawResult.isDraw}`);
         return {
