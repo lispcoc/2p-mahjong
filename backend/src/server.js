@@ -275,11 +275,11 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
 wss.on('connection', (ws) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);
   
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     try {
       console.log(`📨 Received message: ${message}`);
       const data = JSON.parse(message);
-      handleMessage(ws, data);
+      await handleMessage(ws, data);
     } catch (error) {
       console.error('Error parsing message:', error);
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
@@ -297,7 +297,7 @@ wss.on('connection', (ws) => {
 });
 
 // Message handlers
-function handleMessage(ws, data) {
+async function handleMessage(ws, data) {
   const { type, payload } = data;
   
   switch (type) {
@@ -305,7 +305,7 @@ function handleMessage(ws, data) {
       handleJoin(ws, payload);
       break;
     case 'action':
-      handleAction(ws, payload);
+      await handleAction(ws, payload);
       break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
@@ -482,7 +482,7 @@ function handleJoin(ws, payload) {
   }
 }
 
-function handleAction(ws, payload) {
+async function handleAction(ws, payload) {
   const connection = connections.get(ws);
   if (!connection) {
     ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
@@ -508,7 +508,7 @@ function handleAction(ws, payload) {
     console.log(`[🔵 ${requestId}] >>> Discard action with tileId='${payload.tileId}'`);
   }
   
-  const result = room.handlePlayerAction(userId, payload);
+  let result = room.handlePlayerAction(userId, payload);
   
   console.log(`[🔵 ${requestId}] [CHECK] handlePlayerAction returned:`, {
     success: result.success,
@@ -596,6 +596,21 @@ function handleAction(ws, payload) {
   });
   
   console.log(`[🔵 ${requestId}] After broadcast, checking: room.isFinished()=${room.isFinished()}, result.finished=${result.finished}`);
+  
+  // 両方リーチ時の自動進行処理
+  if (result.bothRiichiAutoPlay && !room.isFinished()) {
+    console.log(`[🔵 ${requestId}] 🔴 Both players in riichi - starting auto-play loop`);
+    const autoPlayResult = await room.executeBothRiichiAutoPlay(() => {
+      broadcastToRoom(roomId, {
+        type: 'gameStateUpdate',
+        payload: room.getGameState(),
+      });
+    });
+    if (autoPlayResult) {
+      result = autoPlayResult;
+      console.log(`[🔵 ${requestId}] 🔴 Auto-play loop completed: finished=${result.finished}, bothRiichiAutoPlay=${result.bothRiichiAutoPlay}`);
+    }
+  }
   
   // Check if CPU should play next
   executeCPUTurnIfNeeded(room);

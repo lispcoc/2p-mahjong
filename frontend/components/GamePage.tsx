@@ -1718,6 +1718,10 @@ export default function GamePage({
                             return;
                           }
                           if (isYourTurn && gameState.status === 'playing') {
+                            // ポン・カン・ロンの選択待ち中は打牌を禁止（小牌防止）
+                            if (pendingPungFor === userId || ronPossibleFor === userId) {
+                              return;
+                            }
                             // リーチモードONの場合、聴牌形になる牌のみクリック可能
                             if (riichiMode) {
                               const canDiscardForRiichi = tenpaiInfoMap[idx]?.isTenpai
@@ -1817,6 +1821,10 @@ export default function GamePage({
                         tile={fullHand[drawnTileIndex]}
                         onClick={() => {
                           if (isYourTurn && gameState.status === 'playing') {
+                            // ポン・カン・ロンの選択待ち中は打牌を禁止（小牌防止）
+                            if (pendingPungFor === userId || ronPossibleFor === userId) {
+                              return;
+                            }
                             sendAction({
                               type: 'discard',
                               tileIndex: drawnTileIndex
@@ -1893,12 +1901,20 @@ export default function GamePage({
               </button>
             )}
             {canRon && (
-              <button
-                onClick={() => sendAction({ type: 'ron' })}
-                className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
-              >
-                ロン
-              </button>
+              <>
+                <button
+                  onClick={() => sendAction({ type: 'draw' })}
+                  className="px-3 py-2 bg-gray-400 text-[#ffffff] text-xs font-bold border-2 border-gray-500 rounded cursor-pointer transition-all hover:bg-gray-500"
+                >
+                  見逃し
+                </button>
+                <button
+                  onClick={() => sendAction({ type: 'ron' })}
+                  className="px-3 py-2 bg-yellow-600 text-[#ffffff] text-xs font-bold border-2 border-yellow-700 rounded cursor-pointer transition-all hover:bg-yellow-700"
+                >
+                  ロン
+                </button>
+              </>
             )}
             {canWin && (
               <button

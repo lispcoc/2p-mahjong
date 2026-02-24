@@ -776,6 +776,64 @@ class GameRoom {
     }
   }
 
+  /**
+   * 両方リーチ時の自動進行ループ
+   * 0.5秒ごとにツモ→ツモ切りを繰り返し、フロントエンドに経過を表示する
+   * @param {Function} broadcastCallback - ゲーム状態をブロードキャストするコールバック
+   * @returns {Promise<Object>} - 最終的なアクション結果
+   */
+  async executeBothRiichiAutoPlay(broadcastCallback) {
+    const delay = this.testMode ? 0 : 500; // 0.5秒遅延（テストモード時はスキップ）
+
+    while (this.status === 'playing') {
+      const currentTurnId = this.gameLogic.getCurrentTurn();
+
+      // Step 1: 現在のプレイヤーのツモ（draw）
+      const drawResult = this.handlePlayerAction(currentTurnId, { type: 'draw' });
+
+      if (drawResult.finished) {
+        // 流局（壁牌切れ）
+        broadcastCallback();
+        return drawResult;
+      }
+
+      if (!drawResult.bothRiichiAutoPlay) {
+        // ツモ和了可能 - プレイヤーに選択させる
+        broadcastCallback();
+        return drawResult;
+      }
+
+      // ツモした状態をブロードキャスト（引いた牌が見える）
+      broadcastCallback();
+      if (delay > 0) await new Promise(r => setTimeout(r, delay));
+
+      // Step 2: ツモ切り（discard）
+      const discardResult = this.handlePlayerAction(currentTurnId, { type: 'discard' });
+
+      // ツモ切り後の状態をブロードキャスト
+      broadcastCallback();
+
+      if (discardResult.finished) {
+        return discardResult;
+      }
+
+      // ロン可能になった場合は停止（プレイヤーがロンを選択する）
+      if (this.gameLogic.getRonPossibleFor()) {
+        return discardResult;
+      }
+
+      // bothRiichiAutoPlay でなければ停止（想定外だがセーフティ）
+      if (!discardResult.bothRiichiAutoPlay) {
+        return discardResult;
+      }
+
+      // 次のイテレーションの前に遅延
+      if (delay > 0) await new Promise(r => setTimeout(r, delay));
+    }
+
+    return { success: true };
+  }
+
   // CPU自動プレイを実行
   executeCPUTurn(callback) {
     if (this.status !== 'playing' || !this.gameLogic) {
