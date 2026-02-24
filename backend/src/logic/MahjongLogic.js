@@ -1981,11 +1981,33 @@ class MahjongLogic {
   }
 
   /**
+   * 壁の中のツモ可能な牌数を正確にカウント（drawTileWithLuckAdaptiveと同じ除外ロジック）
+   * @returns {number} ツモ可能な牌数
+   */
+  getPlayableTileCount() {
+    const excludedTileObjects = new Set([
+      ...this.kanningWall,
+      ...this.kanningWallSupply,
+      ...this.candidateDoraIndicators,
+      ...this.candidateDoraTiles,
+      ...this.candidateUraDoraIndicators,
+      ...this.candidateUraDoraTiles,
+    ]);
+    let count = 0;
+    for (let i = 0; i < this.wall.length; i++) {
+      if (!excludedTileObjects.has(this.wall[i])) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * 壁の状況を取得（ツモ可能な牌数）
    * 予約牌（ドラ関連とかん牌）を除いた実際にツモ可能な牌数を返す
    */
   getWallCount() {
-    return Math.max(0, this.wall.length - this.getReservedCount());
+    return this.getPlayableTileCount();
   }
   
   getDiscards() {
@@ -2167,8 +2189,13 @@ class MahjongLogic {
     // 偶然役の判定条件を計算
     const numPlayers = this.playerIds.length;
     const isIppatsumari = player.riichi && this.turnNumber === player.riichiTurn + numPlayers;
-    const isHaitei = this.wall.length === 0 && isTsumo;
+    // 海底撈月: ツモ可能な牌が0枚の状態でのツモ和了
+    const isHaitei = this.getPlayableTileCount() === 0 && isTsumo;
+    // 河底撈魚: ツモ可能な牌が0枚の状態でのロン和了（最後の捨て牌でロン）
+    const isHoutei = this.getPlayableTileCount() === 0 && !isTsumo;
     const isRinshan = player.drawnFromKanningWall && isTsumo;
+    
+    console.log(`[calculateWinScore] isHaitei=${isHaitei}, isHoutei=${isHoutei}, playableTiles=${this.getPlayableTileCount()}, isTsumo=${isTsumo}`);
     
     // 点数計算
     const scoreResult = this.scoreCalculator.calculateScore({
@@ -2187,7 +2214,8 @@ class MahjongLogic {
       urahaIndicators: player.riichi ? this.uraDoraIndicators : [], // リーチの時は裏ドラ表示牌を渡す
       urahaTiles: player.riichi ? this.getUrahaTiles() : [], // リーチの時は裏ドラを渡す
       isIppatsumari: isIppatsumari, // 一発判定
-      isHaitei: isHaitei, // 海底判定
+      isHaitei: isHaitei, // 海底撈月判定
+      isHoutei: isHoutei, // 河底撈魚判定
       isRinshan: isRinshan // 嶺上開花判定
     });
     
