@@ -569,16 +569,24 @@ export default function GamePage({
             
             console.log('winnerHand:', winnerHand, 'winnerDrawn:', winnerDrawn, 'isRon:', isRon)
             
-            // ロン時は和了牌を手牌に追加、ツモ時は来自drawnTileの場合は除く
+            // ロン・ツモ共通：バックエンドの手牌には和了牌が既に含まれている
+            // （ロン時: handleRon で hand.push(tile) 済み、ツモ時: drawnTile は hand の一部）
+            // 手牌から和了牌を1枚除去し、末尾に和了牌を配置する（ScoreResultModal の表示用）
             if (winnerDrawn) {
-              if (isRon) {
-                // ロン時：和了牌は原来の手牌に含まれていないので追加
-                setLastWinnerHand([...winnerHand, winnerDrawn])
-              } else {
-                // ツモ時：手牌に既に含まれている可能性があるため、最後に和了牌を配置
-                const handWithoutLast = winnerHand.slice(0, -1)
-                setLastWinnerHand([...handWithoutLast, winnerDrawn])
-              }
+              const handWithoutWinning = (() => {
+                const idx = winnerHand.findIndex((t: Tile) =>
+                  t.suit === winnerDrawn.suit && t.number === winnerDrawn.number
+                )
+                if (idx >= 0) {
+                  const result = [...winnerHand]
+                  result.splice(idx, 1)
+                  return result
+                }
+                // 見つからない場合（通常発生しない）：最後の牌を除去
+                console.warn('和了牌が手牌内に見つかりません:', winnerDrawn, 'hand:', winnerHand)
+                return winnerHand.slice(0, -1)
+              })()
+              setLastWinnerHand([...handWithoutWinning, winnerDrawn])
             } else {
               setLastWinnerHand(winnerHand)
             }
@@ -601,14 +609,25 @@ export default function GamePage({
               
               console.log('finalResults から取得した winnerHand:', winnerHand, 'winnerMelds:', winnerMelds)
               
-              // winningTile がある場合は和了牌として追加
+              // winningTile がある場合は和了牌として手牌から除去し末尾に配置
               let winningTile = null
               if (payload.scoreResult?.winningTile) {
                 winningTile = normalizeTile(payload.scoreResult.winningTile)
               }
               
               if (winningTile && winnerHand.length > 0) {
-                setLastWinnerHand([...winnerHand, winningTile])
+                // 手牌に和了牌が含まれている可能性があるため、1枚除去してから末尾に追加
+                const idx = winnerHand.findIndex((t: Tile) =>
+                  t.suit === winningTile!.suit && t.number === winningTile!.number
+                )
+                if (idx >= 0) {
+                  const handWithoutWinning = [...winnerHand]
+                  handWithoutWinning.splice(idx, 1)
+                  setLastWinnerHand([...handWithoutWinning, winningTile])
+                } else {
+                  // 手牌に含まれていない場合はそのまま追加
+                  setLastWinnerHand([...winnerHand, winningTile])
+                }
               } else if (winningTile) {
                 setLastWinnerHand([winningTile])
               } else {
