@@ -1322,8 +1322,14 @@ export default function GamePage({
   // ポン後で牌をまだ引いていない状態（fullHand.length % 3 === 2）では牌を引けない
   const canDraw = isYourTurn && drawnTileIndex < 0 && !canRon && !isRiichi && fullHand.length % 3 !== 2
 
+  // Check if player can daiminkan (大明槓: 3 matching tiles + opponent's discard)
+  const pendingDaiminkanFor = gameState.pendingDaiminkanFor
+  const canDaiminkan = isYourTurn && pendingDaiminkanFor === userId && !!lastOpponentDiscard && !isRiichi && !isNoMeldMode
+
   // Check if player can kan (concealed or added)
   const canKan = (() => {
+    // 大明槓は別ボタンで表示するのでここでは除外
+    if (canDaiminkan) return false;
     if (!isYourTurn || isRiichi || isNoMeldMode || drawnTileIndex < 0) {
       return false;
     }
@@ -1486,6 +1492,7 @@ export default function GamePage({
                   seatWindYou={gameState.seatWinds?.[userId]}
                   seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
                   concealedMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.concealedMeldIndices ?? [])}
+                  daiminkanMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.daiminkanMeldIndices ?? [])}
                 />
 
                 {/* 手牌（裏向きまたは表示） */}
@@ -1875,6 +1882,7 @@ export default function GamePage({
               seatWindYou={gameState.seatWinds?.[userId]}
               seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
               concealedMeldIndices={new Set(gameState.tiles?.[userId]?.concealedMeldIndices ?? [])}
+              daiminkanMeldIndices={new Set(gameState.tiles?.[userId]?.daiminkanMeldIndices ?? [])}
             />
           </div>
         </div>
@@ -1910,13 +1918,29 @@ export default function GamePage({
                 牌を引く
               </button>
             )}
-            {canPung && (
+            {canPung && !canDaiminkan && (
               <button
                 onClick={() => sendAction({ type: 'pung' })}
                 className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
               >
                 ポン
               </button>
+            )}
+            {canDaiminkan && (
+              <>
+                <button
+                  onClick={() => sendAction({ type: 'pung' })}
+                  className="px-3 py-2 bg-cyan-600 text-[#ffffff] text-xs font-bold border-2 border-cyan-700 rounded cursor-pointer transition-all hover:bg-cyan-700"
+                >
+                  ポン
+                </button>
+                <button
+                  onClick={() => sendAction({ type: 'kong' })}
+                  className="px-3 py-2 bg-purple-600 text-[#ffffff] text-xs font-bold border-2 border-purple-700 rounded cursor-pointer transition-all hover:bg-purple-700"
+                >
+                  カン
+                </button>
+              </>
             )}
             {canKan && (
               <button

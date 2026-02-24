@@ -16,7 +16,9 @@ export interface GameState {
   players: Array<{ userId: string; playerName: string; isCPU?: boolean }>
   currentTurn?: string
   pendingPungFor?: string
+  pendingDaiminkanFor?: string
   ronPossibleFor?: string
+  // tiles[userId].daiminkanMeldIndices is sent from backend but typed loosely via Record<string, any>
   canWinFor?: string
   autoDrawMode?: Record<string, boolean>
   noMeldMode?: Record<string, boolean>

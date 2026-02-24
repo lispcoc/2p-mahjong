@@ -405,6 +405,11 @@ class AIPlayer {
   shouldPung(hand, discardedTile, melds = []) {
     if (!hand || hand.length === 0 || !discardedTile) return false;
 
+    // 大明槓が可能な場合は常にカンを優先（ドラ増加 + 嶺上牌）
+    if (this.shouldDaiminkan(hand, discardedTile, melds)) {
+      return false; // ポンせずカンさせる
+    }
+
     const hc = AIPlayer.handToCountArray(hand);
     const ti = AIPlayer.tileToIndex(discardedTile);
     if (hc[ti] < 2) return false;
@@ -635,6 +640,38 @@ class AIPlayer {
       console.log(`[AIPlayer.shouldKan] ❌ Concealed kan worsens: ${curSh}→${kanSh}`);
     }
 
+    return false;
+  }
+
+  /**
+   * 大明槓判断: 相手の捨て牌に対して手牌に3枚あるときカンすべきか
+   * カンはドラ1枚増加 + 嶺上牌1枚ツモ → 基本的にシャンテン悪化しなければ実行
+   */
+  shouldDaiminkan(hand, discardedTile, melds = []) {
+    if (!hand || hand.length === 0 || !discardedTile) return false;
+
+    const hc = AIPlayer.handToCountArray(hand);
+    const ti = AIPlayer.tileToIndex(discardedTile);
+    if (hc[ti] < 3) return false;
+
+    const nm = melds.length;
+    const shBefore = AIPlayer.calculateShanten(hc, nm);
+
+    // 大明槓後シミュレーション: 3枚除去 + 1面子増 → 嶺上牌ツモ前の手牌
+    const kc = hc.slice();
+    kc[ti] -= 3;
+    const nm1 = nm + 1;
+    const shAfter = AIPlayer.calculateShanten(kc, nm1);
+
+    console.log(`[AIPlayer.shouldDaiminkan] ${discardedTile.suit}-${discardedTile.number}: shanten ${shBefore}→${shAfter}`);
+
+    // シャンテン悪化しなければ大明槓実行（ドラ増加のメリットがある）
+    if (shAfter <= shBefore) {
+      console.log(`[AIPlayer.shouldDaiminkan] ✅ Daiminkan (大明槓)`);
+      return true;
+    }
+
+    console.log(`[AIPlayer.shouldDaiminkan] ❌ Shanten worsens`);
     return false;
   }
 

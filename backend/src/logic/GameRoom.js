@@ -421,6 +421,7 @@ class GameRoom {
       players: this.getPlayers(),
       currentTurn: this.gameLogic.getCurrentTurn(),
       pendingPungFor: this.gameLogic.getPendingPungFor(),
+      pendingDaiminkanFor: this.gameLogic.getPendingDaiminkanFor(),
       ronPossibleFor: this.gameLogic.getRonPossibleFor(), // Add Ron state
       autoDrawMode: {}, // Add auto-draw mode state for each player
       noMeldMode: {}, // Add no-meld mode state for each player
@@ -452,11 +453,13 @@ class GameRoom {
           const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
           const player = this.players.get(userId);
           const concealedMeldIndices = Array.from(this.gameLogic.players[userId].concealedMeldIndices);
+          const daiminkanMeldIndices = Array.from(this.gameLogic.players[userId].daiminkanMeldIndices);
           state.tiles[userId] = {
             hand,
             melds,
             drawnTileIndex, // Index of the tile drawn this turn in the hand array
             concealedMeldIndices, // Indices of concealed kans (暗槓)
+            daiminkanMeldIndices, // Indices of daiminkan (大明槓)
           };
           state.autoDrawMode[userId] = player?.autoDrawMode || false;
           state.noMeldMode[userId] = player?.noMeldMode || false;
@@ -1022,6 +1025,24 @@ class GameRoom {
     const aiPlayer = this.aiPlayers.get(userId);
 
     console.log(`🤖 CPU ponging decision...`);
+
+    // 大明槓が可能かチェック（ポンより優先）
+    if (lastDiscard && this.gameLogic.canPlayerDaiminkan(userId, lastDiscard)) {
+      if (aiPlayer.shouldDaiminkan(hand, lastDiscard, melds)) {
+        console.log('🤖 CPU will daiminkan');
+        const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
+        if (kanResult.success) {
+          console.log('🤖 CPU 大明槓 成功');
+          // 大明槓後、嶺上牌を引いた状態 → ディスカード処理へ
+          const kanDelay = this.testMode ? 0 : 300;
+          setTimeout(() => {
+            this.executeCPUAfterDraw(userId, callback);
+          }, kanDelay);
+          return;
+        }
+        console.log('🤖 CPU daiminkan failed:', kanResult.message);
+      }
+    }
 
     // AIPlayerにポンすべきか判定させる
     if (lastDiscard && aiPlayer.shouldPung(hand, lastDiscard, melds)) {

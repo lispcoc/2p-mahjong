@@ -54,6 +54,7 @@ class MahjongLogic {
         hand: [],
         melds: [], // completed sets
         concealedMeldIndices: new Set(), // Indices of concealed kans (暗槓) in melds array
+        daiminkanMeldIndices: new Set(), // Indices of daiminkan (大明槓) in melds array
         discards: [],
         score: playerScores[id] || 25000, // 持ち点（デフォルト25000点）
         drawnTile: null, // Last tile drawn from wall
@@ -488,6 +489,24 @@ class MahjongLogic {
     
     return false;
   }
+
+  /**
+   * Check if player can make a daiminkan (大明槓) on the discarded tile
+   * Requires 3 identical tiles in hand matching the discard
+   */
+  canPlayerDaiminkan(userId, discardedTile) {
+    const hand = this.players[userId].hand;
+    let matchCount = 0;
+    
+    for (let i = 0; i < hand.length; i++) {
+      if (hand[i].equals(discardedTile)) {
+        matchCount++;
+        if (matchCount >= 3) return true;
+      }
+    }
+    
+    return false;
+  }
   
   /**
    * Check if player can make a kan
@@ -630,12 +649,12 @@ class MahjongLogic {
         return { success: true, autoDiscard: true };
       }
       
-      // Check if the other player can actually pung
+      // Check if the other player can actually pung or daiminkan
       // リーチ中のプレイヤーは副露できないのでチェックする
       // 鳴き無効モード中のプレイヤーは副露できないのでチェックする
       const otherPlayer = this.players[otherPlayerId];
       if (otherPlayerId && !otherPlayer?.riichi && !this.isPlayerInNoMeldMode(otherPlayerId) && this.canPlayerPung(otherPlayerId, tile)) {
-        // Set pending pung - other player must decide to pung or draw
+        // Set pending pung - other player must decide to pung, daiminkan, or draw
         this.pendingPungFor = otherPlayerId;
       } else {
         // Auto-draw for the other player since they can't pung
@@ -732,11 +751,11 @@ class MahjongLogic {
       return { success: true };
     }
     
-    // Check if the other player can actually pung
+    // Check if the other player can actually pung or daiminkan
     // リーチ中のプレイヤーは副露できないのでチェックする
     const otherPlayer = this.players[otherPlayerId];
-    if (otherPlayerId && !otherPlayer?.riichi && this.canPlayerPung(otherPlayerId, tile)) {
-      // Set pending pung - other player must decide to pung or draw
+    if (otherPlayerId && !otherPlayer?.riichi && !this.isPlayerInNoMeldMode(otherPlayerId) && this.canPlayerPung(otherPlayerId, tile)) {
+      // Set pending pung - other player must decide to pung, daiminkan, or draw
       this.pendingPungFor = otherPlayerId;
     } else {
       // Auto-draw for the other player since they can't pung
@@ -889,8 +908,9 @@ class MahjongLogic {
   
   handleKong(userId) {
     // Kan can be:
-    // 1. Concealed kan (暗かん) - 4 identical tiles from hand
-    // 2. Added kan (加かん) - adding a 4th tile to an existing pung (碰)
+    // 1. Daiminkan (大明槓) - calling kan on opponent's discard with 3 matching tiles
+    // 2. Concealed kan (暗槓) - 4 identical tiles from hand
+    // 3. Added kan (加槓) - adding a 4th tile to an existing pung (碰)
     
     // Check basic conditions
     if (this.players[userId].riichi) {
@@ -901,10 +921,15 @@ class MahjongLogic {
       return { success: false, message: '鳴き無効モード中はカンできません' };
     }
 
-    const hand = this.players[userId].hand;
-    const melds = this.players[userId].melds;
+    // Try daiminkan first (when opponent's discard is pending)
+    if (this.pendingPungFor === userId && this.lastDiscard) {
+      const daiminkanResult = this.attemptDaiminkan(userId);
+      if (daiminkanResult.success) {
+        return daiminkanResult;
+      }
+    }
     
-    // Try concealed kan first
+    // Try concealed kan
     const concealedKanResult = this.attemptConcealedKan(userId);
     if (concealedKanResult.success) {
       return concealedKanResult;
@@ -1049,6 +1074,100 @@ class MahjongLogic {
     }
     
     return { success: false, message: 'Cannot form added kan' };
+  }
+
+  /**
+   * Attempt to form a daiminkan (大明槓)
+   * Call kan on opponent's discard with 3 matching tiles in hand
+   * Meld format: [hand0, hand1, calledTile, hand2] — calledTile at index 2 (same as pon/kakan)
+   */
+  attemptDaiminkan(userId) {
+    if (this.pendingPungFor !== userId || !this.lastDiscard) {
+      return { success: false, message: 'No discard available for daiminkan' };
+    }
+
+    const lastDiscard = this.lastDiscard;
+    const hand = this.players[userId].hand;
+
+    // Find 3 matching tiles in hand
+    const matchedIndices = [];
+    for (let i = 0; i < hand.length; i++) {
+      if (hand[i].equals(lastDiscard)) {
+        matchedIndices.push(i);
+        if (matchedIndices.length === 3) break;
+      }
+    }
+
+    if (matchedIndices.length !== 3) {
+      return { success: false, message: 'Cannot form daiminkan - need 3 matching tiles' };
+    }
+
+    const otherPlayerId = this.getOtherPlayerId(userId);
+
+    // Form daiminkan meld: [hand0, hand1, calledTile, hand2]
+    // calledTile at index 2 matches pon/kakan display convention
+    const meld = [
+      hand[matchedIndices[0]],
+      hand[matchedIndices[1]],
+      lastDiscard,
+      hand[matchedIndices[2]],
+    ];
+    const meldIndex = this.players[userId].melds.length;
+    this.players[userId].melds.push(meld);
+    this.players[userId].daiminkanMeldIndices.add(meldIndex);
+
+    // Remove matched tiles from hand (reverse order for index safety)
+    for (let i = matchedIndices.length - 1; i >= 0; i--) {
+      hand.splice(matchedIndices[i], 1);
+    }
+
+    // Remove the discard from opponent's discard pile
+    if (otherPlayerId) {
+      const discardPile = this.players[otherPlayerId].discards;
+      let discardIndex = -1;
+      for (let i = discardPile.length - 1; i >= 0; i--) {
+        if (discardPile[i].equals(lastDiscard)) {
+          discardIndex = i;
+          break;
+        }
+      }
+      if (discardIndex >= 0) {
+        discardPile.splice(discardIndex, 1);
+      }
+    }
+
+    // Draw from kanning wall (嶺上牌)
+    const drawnTile = this.drawFromKanningWall();
+    if (drawnTile) {
+      this.players[userId].hand.push(drawnTile);
+      this.players[userId].drawnTile = drawnTile;
+      this.players[userId].drawnTileIndex = this.players[userId].hand.length - 1;
+      this.players[userId].drawnFromKanningWall = true;
+    }
+
+    // Reveal new dora
+    this.addNewDora();
+
+    // Clear all pending states
+    this.pendingPungFor = null;
+    this.ronPossibleFor = null;
+    this.ronTile = null;
+    this.lastDiscard = null;
+    this.lastDiscardBy = null;
+
+    // Reset tsumo info
+    this.players[userId].drawnTile = drawnTile || null;
+    
+    // Set turn to the daiminkan caller
+    this.currentTurnIndex = this.playerIds.indexOf(userId);
+
+    console.log(`[handleKong] Daiminkan by ${userId}: ${lastDiscard.toString()}×4`);
+
+    return {
+      success: true,
+      message: `大明カン: ${lastDiscard.toString()}×4`,
+      kanType: 'daiminkan'
+    };
   }
   
   /**
@@ -2004,6 +2123,20 @@ class MahjongLogic {
 
   getPendingPungFor() {
     return this.pendingPungFor;
+  }
+
+  /**
+   * Check if daiminkan is available for the pending pung player
+   */
+  getPendingDaiminkanFor() {
+    if (!this.pendingPungFor || !this.lastDiscard) return null;
+    const userId = this.pendingPungFor;
+    if (this.players[userId]?.riichi) return null;
+    if (this.isPlayerInNoMeldMode(userId)) return null;
+    if (this.canPlayerDaiminkan(userId, this.lastDiscard)) {
+      return userId;
+    }
+    return null;
   }
 
   getRonPossibleFor() {

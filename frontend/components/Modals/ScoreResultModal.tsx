@@ -71,6 +71,7 @@ export function ScoreResultModal({
                     seatWindYou={gameState?.seatWinds?.[winnerId ?? '']}
                     seatWindOpponent={gameState?.seatWinds?.[gameState?.players?.find((p: any) => p.userId !== winnerId)?.userId ?? '']}
                     concealedMeldIndices={new Set(gameState?.tiles?.[winnerId ?? '']?.concealedMeldIndices ?? [])}
+                    daiminkanMeldIndices={new Set(gameState?.tiles?.[winnerId ?? '']?.daiminkanMeldIndices ?? [])}
                   />
                 </div>
               )}
@@ -242,6 +243,7 @@ export function ScoreResultModal({
                                 seatWindYou={gameState?.seatWinds?.[playerId]}
                                 seatWindOpponent={gameState?.seatWinds?.[gameState?.players?.find((p: any) => p.userId !== playerId)?.userId ?? '']}
                                 concealedMeldIndices={new Set(gameState?.tiles?.[playerId]?.concealedMeldIndices ?? [])}
+                                daiminkanMeldIndices={new Set(gameState?.tiles?.[playerId]?.daiminkanMeldIndices ?? [])}
                               />
                             </div>
                           )}
