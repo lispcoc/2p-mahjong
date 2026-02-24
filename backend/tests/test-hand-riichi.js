@@ -1,5 +1,5 @@
-const Tile = require('./src/logic/Tile');
-const MahjongLogic = require('./src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
 
 // テスト用の手牌：6788m23p11124s中中
 // つまり：6m, 7m, 8m, 8m, 2p, 3p, 1s, 1s, 1s, 2s, 4s, 中, 中

@@ -1,5 +1,5 @@
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('=== 聴牌判定テスト ===\n');
 

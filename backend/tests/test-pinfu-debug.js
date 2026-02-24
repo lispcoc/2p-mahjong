@@ -1,5 +1,5 @@
-const Tile = require('./src/logic/Tile');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
 
 // テストケース: 99m123566778p234s + 8pロン
 const calculator = new ScoreCalculator();

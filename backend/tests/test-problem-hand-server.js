@@ -1,5 +1,5 @@
-const MahjongLogic = require('./src/logic/MahjongLogic.js');
-const Tile = require('./src/logic/Tile.js');
+const MahjongLogic = require('../src/logic/MahjongLogic.js');
+const Tile = require('../src/logic/Tile.js');
 
 // ゲーム初期化
 const game = new MahjongLogic(['player1', 'player2']);

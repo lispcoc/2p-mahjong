@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('\n========================================');
 console.log('七対子（チートイツ）の立直テスト');

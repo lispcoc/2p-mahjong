@@ -1,4 +1,4 @@
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 /**
  * 一発の出現率と妥当性を検証するテスト

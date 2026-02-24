@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const Tile = require('./src/logic/Tile');
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
 
 // ログ抑制
 const originalLog = console.log;

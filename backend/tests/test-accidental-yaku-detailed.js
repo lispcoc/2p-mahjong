@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 // ログ出力抑制（必要な部分のみ出力）
 const originalLog = console.log;

@@ -1,6 +1,6 @@
-const GameRoom = require('./src/logic/GameRoom');
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const GameRoom = require('../src/logic/GameRoom');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('╔════════════════════════════════════════════════════════════╗');
 console.log('║          CPU AI Implementation - Final Test Suite           ║');
@@ -85,7 +85,7 @@ console.log(`  ✓ After toggle OFF: ${room2.getCPUTsumoKiriMode('cpu-2')}`);
 console.log('\n📋 Test 4: AI Strategy Verification');
 console.log('─'.repeat(60));
 
-const AIPlayer = require('./src/logic/AIPlayer');
+const AIPlayer = require('../src/logic/AIPlayer');
 const strategicAI = new AIPlayer(false);
 
 // Create a test hand with isolated tiles

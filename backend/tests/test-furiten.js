@@ -1,5 +1,5 @@
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 // テスト1: 捨牌フリテン - 自分の捨て牌に待ち牌がある場合
 function testDiscardFuriten() {

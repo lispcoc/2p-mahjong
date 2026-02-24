@@ -1,5 +1,5 @@
-const Tile = require('./src/logic/Tile');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
 
 console.log('=== リーチの役判定テスト ===\n');
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('\n========== isChiitoitsu 実装詳細テスト ==========\n');
 

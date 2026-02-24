@@ -1,5 +1,5 @@
-const TenpaiChecker = require('./src/logic/TenpaiChecker');
-const Tile = require('./src/logic/Tile');
+const TenpaiChecker = require('../src/logic/TenpaiChecker');
+const Tile = require('../src/logic/Tile');
 
 console.log('=== 国士無双の聴牌判定テスト ===\n');
 

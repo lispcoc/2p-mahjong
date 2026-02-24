@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('\n========== 通常の手型を使った検証 ==========\n');
 

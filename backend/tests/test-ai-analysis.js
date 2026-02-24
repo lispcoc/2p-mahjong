@@ -1,5 +1,5 @@
-const AIPlayer = require('./src/logic/AIPlayer');
-const Tile = require('./src/logic/Tile');
+const AIPlayer = require('../src/logic/AIPlayer');
+const Tile = require('../src/logic/Tile');
 
 // テスト2で詳しい分析: 通常モード（戦略的な打ち方）
 console.log('=== AI Strategy Analysis ===');

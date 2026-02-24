@@ -1,6 +1,6 @@
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
-const GameRoom = require('./src/logic/GameRoom');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
+const GameRoom = require('../src/logic/GameRoom');
 
 console.log('=== 七対子のツモ判定シミュレーション ===\n');
 

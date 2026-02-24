@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const GameRoom = require('./src/logic/GameRoom');
-const Tile = require('./src/logic/Tile');
+const GameRoom = require('../src/logic/GameRoom');
+const Tile = require('../src/logic/Tile');
 
 console.log('\n========== GameRoom 統合テスト：立直とメルド ==========\n');
 

@@ -1,1 +1,1 @@
-node test-cpu-battle.js %* > cpu-battle.log
+node tests/test-cpu-battle.js %* > cpu-battle.log

@@ -1,5 +1,5 @@
-const AIPlayer = require('./src/logic/AIPlayer');
-const Tile = require('./src/logic/Tile');
+const AIPlayer = require('../src/logic/AIPlayer');
+const Tile = require('../src/logic/Tile');
 
 // テスト1: ツモ切りモード
 console.log('=== Test 1: Tsumo-kiri Mode ===');

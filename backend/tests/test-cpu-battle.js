@@ -1,4 +1,4 @@
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');

@@ -1,4 +1,4 @@
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 /**
  * 偶然役テスト（デバッグモード）

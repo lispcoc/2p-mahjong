@@ -1,6 +1,6 @@
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
 
 console.log('=== 特殊手型テスト ===\n');
 

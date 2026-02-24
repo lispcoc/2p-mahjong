@@ -3,9 +3,9 @@
  * 実際のゲームプレイで改善が機能しているか検証
  */
 
-const GameRoom = require('./src/logic/GameRoom');
-const Tile = require('./src/logic/Tile');
-const MahjongLogic = require('./src/logic/MahjongLogic');
+const GameRoom = require('../src/logic/GameRoom');
+const Tile = require('../src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
 
 console.log('\n' + '='.repeat(70));
 console.log('📈 AI副露改善 - ゲーム実践テスト');

@@ -1,17 +1,17 @@
 /**
- * ポン（副露）改善テスト
- * 役を破壊するようなポンを避けているかを確認
+ * ?????????
+ * ??????????????????
  */
 
-const Tile = require('./src/logic/Tile');
-const AIPlayer = require('./src/logic/AIPlayer');
-const TenpaiChecker = require('./src/logic/TenpaiChecker');
+const Tile = require('../src/logic/Tile');
+const AIPlayer = require('../src/logic/AIPlayer');
+const TenpaiChecker = require('../src/logic/TenpaiChecker');
 
-// テストケース1: 対々和が見える場合、ポンすべき
+// ??????1: ????????????????
 function test_pung_for_toitoi() {
   console.log('\n=== TEST 1: Pung for Toitoi ===');
   
-  // メルドなし、手牌に対子が複数
+  // ??????????????
   const hand = [
     new Tile('m', 5), new Tile('m', 5),
     new Tile('p', 3), new Tile('p', 3),
@@ -28,13 +28,13 @@ function test_pung_for_toitoi() {
   const shouldPung = aiPlayer.shouldPung(hand, discardedTile, melds);
   
   console.log(`Hand complexity: ${aiPlayer.evaluateHandComplexity(hand)}`);
-  console.log(`Result: ${shouldPung ? '✅ PUNG' : '❌ NO PUNG'}`);
-  console.log(`Expected: ✅ PUNG (because of toitoi possibility)\n`);
+  console.log(`Result: ${shouldPung ? '? PUNG' : '? NO PUNG'}`);
+  console.log(`Expected: ? PUNG (because of toitoi possibility)\n`);
   
   return shouldPung === true;
 }
 
-// テストケース2: テンパイになる場合、ポンすべき
+// ??????2: ?????????????????
 function test_pung_leads_to_tenpai() {
   console.log('=== TEST 2: Pung leads to Tenpai ===');
   
@@ -54,40 +54,40 @@ function test_pung_leads_to_tenpai() {
   const shouldPung = aiPlayer.shouldPung(hand, discardedTile, melds);
   
   console.log(`Winning tiles available: ${winningTiles.length}`);
-  console.log(`Result: ${shouldPung ? '✅ PUNG' : '❌ NO PUNG'}`);
-  console.log(`Expected: ✅ PUNG (already tenpai)\n`);
+  console.log(`Result: ${shouldPung ? '? PUNG' : '? NO PUNG'}`);
+  console.log(`Expected: ? PUNG (already tenpai)\n`);
   
   return shouldPung === true;
 }
 
-// テストケース3: 役を破壊する場合、ポンすべきでない
+// ??????3: ?????????????????
 function test_avoid_destructive_pung() {
   console.log('=== TEST 3: Avoid Destructive Pung ===');
   
-  // ホンイツ目掛けているのにポンで字牌を取ると役が壊れる
+  // ?????????????????????????
   const hand = [
     new Tile('m', 1), new Tile('m', 2), new Tile('m', 3),
     new Tile('m', 5), new Tile('m', 6), new Tile('m', 7),
     new Tile('m', 8), new Tile('m', 9),
     new Tile('p', 1),
     new Tile('s', 1),
-    new Tile('honor', 1) // 孤立している
+    new Tile('honor', 1) // ??????
   ];
   
-  // 字牌をポンしようとしている（ホンイツ破壊）
+  // ???????????????
   const discardedTile = new Tile('honor', 1);
   const melds = [];
   
   const aiPlayer = new AIPlayer();
   const shouldPung = aiPlayer.shouldPung(hand, discardedTile, melds);
   
-  console.log(`Result: ${shouldPung ? '❌ PUNG (bad)' : '✅ NO PUNG'}`);
-  console.log(`Expected: ✅ NO PUNG (destroys hand integrity)\n`);
+  console.log(`Result: ${shouldPung ? '? PUNG (bad)' : '? NO PUNG'}`);
+  console.log(`Expected: ? NO PUNG (destroys hand integrity)\n`);
   
   return shouldPung === false;
 }
 
-// テストケース4: バラバラな手の場合、ポンすべきでない
+// ??????4: ??????????????????
 function test_avoid_pung_scattered_hand() {
   console.log('=== TEST 4: Avoid Pung with Scattered Hand ===');
   
@@ -108,13 +108,13 @@ function test_avoid_pung_scattered_hand() {
   const shouldPung = aiPlayer.shouldPung(hand, discardedTile, melds);
   
   console.log(`Hand complexity: ${complexity}`);
-  console.log(`Result: ${shouldPung ? '❌ PUNG (bad)' : '✅ NO PUNG'}`);
-  console.log(`Expected: ✅ NO PUNG (hand is scattered)\n`);
+  console.log(`Result: ${shouldPung ? '? PUNG (bad)' : '? NO PUNG'}`);
+  console.log(`Expected: ? NO PUNG (hand is scattered)\n`);
   
   return shouldPung === false;
 }
 
-// テストケース5: 高い複合性がある場合、布石段階でポン
+// ??????5: ??????????????????
 function test_pung_high_complexity() {
   console.log('=== TEST 5: Pung with High Complexity (Initial Gather) ===');
   
@@ -134,14 +134,14 @@ function test_pung_high_complexity() {
   const shouldPung = aiPlayer.shouldPung(hand, discardedTile, melds);
   
   console.log(`Hand complexity: ${complexity}`);
-  console.log(`Result: ${shouldPung ? '✅ PUNG' : '❌ NO PUNG'}`);
-  console.log(`Expected: ✅ PUNG (high complexity, good gathering)\n`);
+  console.log(`Result: ${shouldPung ? '? PUNG' : '? NO PUNG'}`);
+  console.log(`Expected: ? PUNG (high complexity, good gathering)\n`);
   
   return shouldPung === true;
 }
 
-// テスト実行
-console.log('\n🔍 Testing improved Pung Decision Logic...\n');
+// ?????
+console.log('\n?? Testing improved Pung Decision Logic...\n');
 
 const tests = [
   { name: 'Test 1', fn: test_pung_for_toitoi },
@@ -159,15 +159,15 @@ tests.forEach(test => {
     const result = test.fn();
     if (result) {
       passed++;
-      console.log(`${test.name}: ✅ PASS\n`);
+      console.log(`${test.name}: ? PASS\n`);
     } else {
       failed++;
-      console.log(`${test.name}: ❌ FAIL\n`);
+      console.log(`${test.name}: ? FAIL\n`);
     }
   } catch (error) {
     failed++;
-    console.log(`${test.name}: ❌ ERROR - ${error.message}\n`);
+    console.log(`${test.name}: ? ERROR - ${error.message}\n`);
   }
 });
 
-console.log(`\n📊 Results: ${passed}/${tests.length} passed, ${failed}/${tests.length} failed`);
+console.log(`\n?? Results: ${passed}/${tests.length} passed, ${failed}/${tests.length} failed`);

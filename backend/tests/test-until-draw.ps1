@@ -8,6 +8,8 @@ Write-Host "流局になるまでCPU対戦テストを実行します" -Foregrou
 Write-Host "最大試行回数: $maxAttempts" -ForegroundColor Cyan
 Write-Host ""
 
+Set-Location $PSScriptRoot
+
 while ($attemptCount -lt $maxAttempts -and -not $found) {
     $attemptCount++
     Write-Host "試行 #$attemptCount..." -ForegroundColor Yellow

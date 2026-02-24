@@ -2,8 +2,8 @@
  * ドラの実装を確認するテスト
  */
 
-const Tile = require('./src/logic/Tile');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
 
 console.log('========================================');
 console.log('  ドラ実装確認テスト');

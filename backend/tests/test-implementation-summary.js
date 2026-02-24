@@ -1,4 +1,4 @@
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 console.log('╔════════════════════════════════════════════════════════════╗');
 console.log('║        CPU Win + Pung + Ron - Implementation Summary        ║');

@@ -9,6 +9,8 @@ echo 流局になるまでCPU対戦テストを実行します
 echo 最大試行回数: %maxAttempts%
 echo.
 
+cd /d %~dp0
+
 :loop
 if %found% equ 1 goto done
 if %attemptCount% geq %maxAttempts% goto done

@@ -1,4 +1,4 @@
-const TenpaiChecker = require('./src/logic/TenpaiChecker.js');
+const TenpaiChecker = require('../src/logic/TenpaiChecker.js');
 
 // 問題の手牌: 12233m778p12378s
 const hand = [

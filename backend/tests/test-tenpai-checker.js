@@ -1,4 +1,4 @@
-const TenpaiChecker = require('./src/logic/TenpaiChecker.js');
+const TenpaiChecker = require('../src/logic/TenpaiChecker.js');
 
 // Test with simple tiles
 const hand = [

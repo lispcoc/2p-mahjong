@@ -1,5 +1,5 @@
-const TenpaiChecker = require('./src/logic/TenpaiChecker');
-const Tile = require('./src/logic/Tile');
+const TenpaiChecker = require('../src/logic/TenpaiChecker');
+const Tile = require('../src/logic/Tile');
 
 console.log('=== 七対子の聴牌判定テスト ===\n');
 

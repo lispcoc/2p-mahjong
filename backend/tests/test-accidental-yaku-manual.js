@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 function findWinningTile(player, gameLogic) {
   // プレイヤーの手牌をコピー
@@ -21,7 +21,7 @@ function findWinningTile(player, gameLogic) {
       hand.push({ suit, number: num });
       
       // Tile オブジェクトに変換
-      const Tile = require('./src/logic/Tile');
+      const Tile = require('../src/logic/Tile');
       const testHand = hand.map(t => new Tile(t.suit, t.number));
       
       // 和了判定

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-const Tile = require('./src/logic/Tile');
-const ScoreCalculator = require('./src/logic/ScoreCalculator');
+const Tile = require('../src/logic/Tile');
+const ScoreCalculator = require('../src/logic/ScoreCalculator');
 
 function createHand(tiles) {
   return tiles.map(t => {

@@ -1,5 +1,5 @@
-const Tile = require('./src/logic/Tile');
-const AIPlayer = require('./src/logic/AIPlayer');
+const Tile = require('../src/logic/Tile');
+const AIPlayer = require('../src/logic/AIPlayer');
 
 // Test case from Problem 1: Should discard 六索 instead of 白
 const hand1 = [

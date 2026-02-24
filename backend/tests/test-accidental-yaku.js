@@ -1,4 +1,4 @@
-const GameRoom = require('./src/logic/GameRoom');
+const GameRoom = require('../src/logic/GameRoom');
 
 // 内部ログを制御するための最小限のログシステム
 const originalConsoleLog = console.log;

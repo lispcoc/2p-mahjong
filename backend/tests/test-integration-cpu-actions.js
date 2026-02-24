@@ -1,6 +1,6 @@
-const GameRoom = require('./src/logic/GameRoom');
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const Tile = require('./src/logic/Tile');
+const GameRoom = require('../src/logic/GameRoom');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const Tile = require('../src/logic/Tile');
 
 console.log('╔════════════════════════════════════════════════════════════╗');
 console.log('║      CPU Win/Pung/Ron - Full Integration Test              ║');

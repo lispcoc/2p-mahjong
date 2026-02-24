@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-const MahjongLogic = require('./src/logic/MahjongLogic');
-const GameRoom = require('./src/logic/GameRoom');
-const Tile = require('./src/logic/Tile');
+const MahjongLogic = require('../src/logic/MahjongLogic');
+const GameRoom = require('../src/logic/GameRoom');
+const Tile = require('../src/logic/Tile');
 
 console.log('\n========== GameRoom内テスト：isChiitoitsu検証 ==========\n');
 

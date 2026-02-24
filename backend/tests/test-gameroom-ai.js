@@ -1,5 +1,5 @@
-const GameRoom = require('./src/logic/GameRoom');
-const AIPlayer = require('./src/logic/AIPlayer');
+const GameRoom = require('../src/logic/GameRoom');
+const AIPlayer = require('../src/logic/AIPlayer');
 
 console.log('=== GameRoom with AI Integration Test ===\n');
 

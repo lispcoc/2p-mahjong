@@ -3,9 +3,9 @@
  * 実際のゲーム状況での判断をシミュレート
  */
 
-const Tile = require('./src/logic/Tile');
-const AIPlayer = require('./src/logic/AIPlayer');
-const TenpaiChecker = require('./src/logic/TenpaiChecker');
+const Tile = require('../src/logic/Tile');
+const AIPlayer = require('../src/logic/AIPlayer');
+const TenpaiChecker = require('../src/logic/TenpaiChecker');
 
 // ===== テストシナリオ定義 =====
 

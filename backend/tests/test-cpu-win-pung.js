@@ -1,5 +1,5 @@
-const GameRoom = require('./src/logic/GameRoom');
-const Tile = require('./src/logic/Tile');
+const GameRoom = require('../src/logic/GameRoom');
+const Tile = require('../src/logic/Tile');
 
 console.log('╔════════════════════════════════════════════════════════════╗');
 console.log('║        CPU Win/Pung/Ron Implementation Test Suite           ║');
