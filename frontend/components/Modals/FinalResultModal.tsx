@@ -5,9 +5,12 @@ interface FinalResultModalProps {
   finalResults: any[] | null
   gameState: GameState
   onBack: () => void
+  onRequestRematch: () => void
+  rematchRequested: boolean
+  opponentRematchRequested: boolean
 }
 
-export function FinalResultModal({ finalResults, gameState, onBack }: FinalResultModalProps) {
+export function FinalResultModal({ finalResults, gameState, onBack, onRequestRematch, rematchRequested, opponentRematchRequested }: FinalResultModalProps) {
   if (!finalResults) return null
 
   return (
@@ -85,12 +88,34 @@ export function FinalResultModal({ finalResults, gameState, onBack }: FinalResul
           </table>
         </div>
 
-        <button
-          onClick={onBack}
-          className="mt-5 px-6 py-3 text-base font-bold rounded bg-green-500 text-white cursor-pointer w-full hover:bg-green-600 border-none"
-        >
-          タイトルに戻る
-        </button>
+        <div className="mt-5 flex flex-col gap-3">
+          {opponentRematchRequested && !rematchRequested && (
+            <div className="text-center text-blue-600 font-bold text-sm bg-blue-50 rounded py-2">
+              🔄 相手がもう一戦を希望しています！
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={onRequestRematch}
+              disabled={rematchRequested}
+              className={`px-6 py-3 text-base font-bold rounded text-white cursor-pointer flex-1 border-none ${
+                rematchRequested
+                  ? 'bg-blue-300 cursor-not-allowed'
+                  : opponentRematchRequested
+                    ? 'bg-blue-600 hover:bg-blue-700 animate-pulse'
+                    : 'bg-blue-500 hover:bg-blue-600'
+              }`}
+            >
+              {rematchRequested ? '相手の同意を待っています...' : '同じメンバーでもう一戦'}
+            </button>
+            <button
+              onClick={onBack}
+              className="px-6 py-3 text-base font-bold rounded bg-green-500 text-white cursor-pointer flex-1 hover:bg-green-600 border-none"
+            >
+              タイトルに戻る
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

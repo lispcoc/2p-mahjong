@@ -51,6 +51,7 @@ class GameRoom {
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
+    this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
   }
   
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
@@ -63,7 +64,37 @@ class GameRoom {
   getPendingTsumoLuckSettings() {
     return this.pendingTsumoLuckSettings;
   }
-  
+
+  // 同じルームID・プレイヤーでゲーム状態だけリセットして再戦する
+  resetForRematch() {
+    this.gameLogic = null;
+    this.status = 'waiting';
+    this.roundHistory = [];
+    this.nextRoundReady.clear();
+    this.rematchReady.clear();
+    this.currentRound = 0;
+    this.roundWindIndex = 0;
+    this.roundNumber = 1;
+    this.dealerIndex = 0;
+    this.nextRoundState = null;
+    this.playerOrder = [];
+    this.lastResult = null;
+    this.riichiDepositsCarryover = 0;
+    this.clearAutoReadyTimer();
+    this.clearGameOverTimer();
+
+    // プレイヤーのスコアと状態をリセット（ws接続は維持）
+    this.players.forEach((player) => {
+      player.hand = [];
+      player.score = this.initialScore;
+      player.autoDrawMode = false;
+      player.noMeldMode = false;
+      player.riichi = false;
+    });
+
+    console.log(`🔄 Room ${this.roomId} reset for rematch`);
+  }
+
   setTsumoLuck(userId, luckLevel) {
     // luckLevel: 0=no luck, 1=light (30%), 2=medium (50%), 3=heavy (70%)
     const level = Number.isFinite(luckLevel) ? Math.max(0, Math.min(3, Math.floor(luckLevel))) : 0;

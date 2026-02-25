@@ -310,6 +310,9 @@ async function handleMessage(ws, data) {
     case 'action':
       await handleAction(ws, payload);
       break;
+    case 'rematch':
+      handleRematch(ws);
+      break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
   }
@@ -808,6 +811,74 @@ function handleDisconnect(ws) {
         }
       }, gracePeriodMs);
     }
+  }
+}
+
+// Handle rematch request - create a new room with the same settings and notify the opponent
+function handleRematch(ws) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+
+  const { roomId, userId, playerName } = connection;
+  const room = rooms.get(roomId);
+
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  if (room.status !== 'gameOver') {
+    ws.send(JSON.stringify({ type: 'error', message: 'Game is not over yet' }));
+    return;
+  }
+
+  // このプレイヤーを再戦希望としてマーク
+  room.rematchReady.add(userId);
+  console.log(`🔄 Rematch: ${playerName} wants rematch in room ${roomId} (${room.rematchReady.size}/${room.players.size})`);
+
+  // CPU対戦時は、人間プレイヤーが押したら即座に全CPUプレイヤーも準備完了にする
+  for (const [playerId, player] of room.players) {
+    if (player.isCPU && !room.rematchReady.has(playerId)) {
+      room.rematchReady.add(playerId);
+    }
+  }
+
+  // 全プレイヤーが同意したらリセットして再開
+  if (room.rematchReady.size >= room.players.size) {
+    room.resetForRematch();
+    room.start();
+
+    console.log(`🔄 Rematch: All players agreed. Restarting game in room ${roomId}`);
+
+    broadcastToRoom(roomId, {
+      type: 'rematchStart',
+      payload: room.getGameState(),
+    });
+
+    // 非アクティブタイマーを再開
+    room.startInactivityTimer(createInactivityCallback(roomId));
+  } else {
+    // 相手にこのプレイヤーが再戦を希望していることを通知
+    broadcastToRoom(roomId, {
+      type: 'rematchRequested',
+      payload: {
+        requestedBy: playerName,
+        readyCount: room.rematchReady.size,
+        totalPlayers: room.players.size,
+      },
+    }, ws); // 要求者以外に送信
+    
+    // 要求者に確認応答
+    ws.send(JSON.stringify({
+      type: 'rematchWaiting',
+      payload: {
+        readyCount: room.rematchReady.size,
+        totalPlayers: room.players.size,
+      },
+    }));
   }
 }
 

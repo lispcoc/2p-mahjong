@@ -79,6 +79,8 @@ export default function GamePage({
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
   const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
+  const [rematchRequested, setRematchRequested] = useState(false) // 再戦リクエスト送信済み
+  const [opponentRematchRequested, setOpponentRematchRequested] = useState(false) // 相手が再戦を希望
   const opponentTedashiGapTimerRef = useRef<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)  // Prevent multiple connection attempts
@@ -730,6 +732,31 @@ export default function GamePage({
         debugLog(`🔄 Player reconnected: ${payload.playerName}`)
         console.log('🔄 Player reconnected:', payload)
         toast.success(`${payload.playerName}さんが再接続しました`, { duration: 3000 })
+        break
+      case 'rematchWaiting':
+        console.log('🔄 Rematch waiting:', payload)
+        setRematchRequested(true)
+        break
+      case 'rematchRequested':
+        console.log('🔄 Opponent requested rematch:', payload)
+        setOpponentRematchRequested(true)
+        toast(`${payload.requestedBy}さんがもう一戦を希望しています`, { icon: '🔄', duration: 5000 })
+        break
+      case 'rematchStart':
+        console.log('🔄 Rematch starting:', payload)
+        // Reset all game-related state for the new match
+        setFinalResults(null)
+        setShowFinalResults(false)
+        setScoreResult(null)
+        setRematchRequested(false)
+        setOpponentRematchRequested(false)
+        setNextRoundReady(false)
+        setLastWinnerId(null)
+        setLastWinnerHand([])
+        setLastWinnerMelds([])
+        setTenpaiStatus(null)
+        setGameState(payload)
+        toast.success('再戦開始！', { duration: 3000 })
         break
       default:
         debugLog(`⚠️ Unknown message type: ${type}`)
@@ -2149,6 +2176,14 @@ export default function GamePage({
               finalResults={finalResults}
               gameState={gameState}
               onBack={onBack}
+              onRequestRematch={() => {
+                if (wsRef.current?.readyState === WebSocket.OPEN) {
+                  wsRef.current.send(JSON.stringify({ type: 'rematch' }))
+                  setRematchRequested(true)
+                }
+              }}
+              rematchRequested={rematchRequested}
+              opponentRematchRequested={opponentRematchRequested}
             />
           )}
         </>
