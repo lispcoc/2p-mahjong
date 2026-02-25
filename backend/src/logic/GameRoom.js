@@ -488,6 +488,7 @@ class GameRoom {
     const discardsData = this.gameLogic.getDiscards();
     state.discards = discardsData.discards;
     state.riichiDiscards = discardsData.riichiDiscards;
+    state.lastDiscardInfo = this.gameLogic.getLastDiscardInfo();
     
     return state;
   }

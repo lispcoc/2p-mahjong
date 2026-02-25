@@ -30,6 +30,7 @@ class MahjongLogic {
     this.finished = false;
     this.lastDiscard = null;
     this.lastDiscardBy = null;
+    this.lastDiscardInfo = null; // { userId, isTsumogiri } - 最後の打牌がツモ切りかどうか
     this.pendingPungFor = null;
     this.ronPossibleFor = null; // Track if Ron is possible for a player
     this.ronTile = null; // The tile that can be claimed for Ron
@@ -57,6 +58,7 @@ class MahjongLogic {
         concealedMeldIndices: new Set(), // Indices of concealed kans (暗槓) in melds array
         daiminkanMeldIndices: new Set(), // Indices of daiminkan (大明槓) in melds array
         discards: [],
+        discardFlags: [], // ツモ切り/手出し情報 { isTsumogiri: boolean }[]
         score: playerScores[id] || 25000, // 持ち点（デフォルト25000点）
         drawnTile: null, // Last tile drawn from wall
         drawnTileIndex: -1, // Index of drawn tile in hand
@@ -632,10 +634,15 @@ class MahjongLogic {
       
       const tile = hand.splice(actualIndex, 1)[0];
       this.players[userId].discards.push(tile);
+      // リーチ中は常にツモ切り
+      this.players[userId].discardFlags.push({ isTsumogiri: true });
       // Reset drawn tile after discard
       this.players[userId].drawnTileIndex = -1;
       this.players[userId].drawnTile = null;
       this.players[userId].drawnFromKanningWall = false;
+
+      // 最後の打牌情報を記録（ツモ切り/手出し判別用）
+      this.lastDiscardInfo = { userId, isTsumogiri: true };
 
       // Set up pending pung for the other player
       const otherPlayerId = this.getOtherPlayerId(userId);
@@ -732,12 +739,18 @@ class MahjongLogic {
       actualIndex = Math.floor(Math.random() * hand.length);
     }
 
+    // ツモ切り判定: 捨てた牌がツモ牌と同一オブジェクトかどうか
+    const isTsumogiri = (hand[actualIndex] === player.drawnTile);
     const tile = hand.splice(actualIndex, 1)[0];
     this.players[userId].discards.push(tile);
+    this.players[userId].discardFlags.push({ isTsumogiri });
     // Reset drawn tile after discard
     this.players[userId].drawnTileIndex = -1;
     this.players[userId].drawnTile = null;
     this.players[userId].drawnFromKanningWall = false;
+
+    // 最後の打牌情報を記録（ツモ切り/手出し判別用）
+    this.lastDiscardInfo = { userId, isTsumogiri };
 
     // Set up pending pung for the other player
     const otherPlayerId = this.getOtherPlayerId(userId);
@@ -2196,15 +2209,20 @@ class MahjongLogic {
     const discards = {};
     const riichiDiscards = {};
     this.playerIds.forEach((playerId) => {
-      discards[playerId] = this.players[playerId].discards.map((tile) => ({
+      discards[playerId] = this.players[playerId].discards.map((tile, i) => ({
         suit: tile.suit,
         number: tile.number,
         display: tile.toString(),
         isRed: tile.isRed || false,
+        isTsumogiri: this.players[playerId].discardFlags?.[i]?.isTsumogiri || false,
       }));
       riichiDiscards[playerId] = this.players[playerId].riichiDiscardIndex;
     });
     return { discards, riichiDiscards };
+  }
+
+  getLastDiscardInfo() {
+    return this.lastDiscardInfo || null;
   }
   
   getPlayerScore(userId) {

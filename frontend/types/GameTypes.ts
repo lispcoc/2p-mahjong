@@ -3,6 +3,7 @@ export interface Tile {
   number: number
   display: string
   isRed?: boolean
+  isTsumogiri?: boolean
 }
 
 export interface GamePageProps {
@@ -39,6 +40,7 @@ export interface GameState {
   tiles?: Record<string, any>
   wall?: number
   discards?: Record<string, Tile[]>
+  lastDiscardInfo?: { userId: string; isTsumogiri: boolean } | null
   currentRound?: number
   roundWind?: number
   roundNumber?: number

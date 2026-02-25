@@ -78,6 +78,8 @@ export default function GamePage({
   const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
+  const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
+  const opponentTedashiGapTimerRef = useRef<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)  // Prevent multiple connection attempts
   const autoNextTimerRef = useRef<number | null>(null)  // タイマーIDをRefで管理
@@ -342,6 +344,7 @@ export default function GamePage({
         setLastWinnerHand([])
         setLastWinnerMelds([])
         setNextRoundReady(false)
+        setOpponentTedashiGapIdx(-1)
         tilesRef.current = {}  // tiles キャッシュをリセット
         setRiichiMode(false)
         setTenpaiInfoMap({})
@@ -386,6 +389,30 @@ export default function GamePage({
           const actionText = getOpponentActionFromState(prevState, payload)
           if (actionText) {
             triggerOpponentActionModal(actionText)
+          }
+
+          // 相手の手出し検出 → 手牌に歯抜け表示
+          const myId = userIdRef.current
+          const lastInfo = payload.lastDiscardInfo
+          if (lastInfo && lastInfo.userId !== myId && !lastInfo.isTsumogiri) {
+            // 相手が手出しした → 手牌の中にランダムな位置で歯抜けを表示
+            const opponentHandLen = payload.tiles?.[lastInfo.userId]?.hand?.length ?? 0
+            const gapPos = opponentHandLen > 0 ? Math.floor(Math.random() * opponentHandLen) : 0
+            setOpponentTedashiGapIdx(gapPos)
+            if (opponentTedashiGapTimerRef.current !== null) {
+              clearTimeout(opponentTedashiGapTimerRef.current)
+            }
+            opponentTedashiGapTimerRef.current = window.setTimeout(() => {
+              setOpponentTedashiGapIdx(-1)
+              opponentTedashiGapTimerRef.current = null
+            }, 1200)
+          } else if (lastInfo && lastInfo.userId !== myId && lastInfo.isTsumogiri) {
+            // 相手がツモ切りした → 歯抜けをすぐにクリア
+            if (opponentTedashiGapTimerRef.current !== null) {
+              clearTimeout(opponentTedashiGapTimerRef.current)
+              opponentTedashiGapTimerRef.current = null
+            }
+            setOpponentTedashiGapIdx(-1)
           }
         }
 
@@ -727,6 +754,9 @@ export default function GamePage({
       }
       if (opponentActionDelayRef.current !== null) {
         clearTimeout(opponentActionDelayRef.current)
+      }
+      if (opponentTedashiGapTimerRef.current !== null) {
+        clearTimeout(opponentTedashiGapTimerRef.current)
       }
     }
   }, [])
@@ -1501,13 +1531,29 @@ export default function GamePage({
                 {/* 手牌（裏向きまたは表示） */}
                 <div className="flex gap-px flex-wrap">
                   {otherHand.map((tile, idx) => (
-                    <div key={`other-hand-${idx}`} className="inline-block">
-                      <TileImage
-                        tile={tile}
-                        faceDown={!showOpponentHand || !otherPlayer?.isCPU}
-                      />
-                    </div>
+                    <React.Fragment key={`other-hand-${idx}`}>
+                      {/* 手出し時の歯抜け表示: 該当位置に空きスペースを挿入 */}
+                      {opponentTedashiGapIdx === idx && (
+                        <div
+                          className="inline-block"
+                          style={{ width: 33, height: 47 }}
+                        />
+                      )}
+                      <div className="inline-block">
+                        <TileImage
+                          tile={tile}
+                          faceDown={!showOpponentHand || !otherPlayer?.isCPU}
+                        />
+                      </div>
+                    </React.Fragment>
                   ))}
+                  {/* 手出し時の歯抜けが手牌末尾だった場合 */}
+                  {opponentTedashiGapIdx >= 0 && opponentTedashiGapIdx >= otherHand.length && (
+                    <div
+                      className="inline-block"
+                      style={{ width: 33, height: 47 }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1521,15 +1567,21 @@ export default function GamePage({
                   ) : (
                     otherDiscards.map((tile, idx) => {
                       const isRiichiDiscard = (gameState?.riichiDiscards?.[otherUserId ?? ''] ?? -1) === idx;
+                      const isTsumogiri = tile.isTsumogiri === true;
                       return (
                         <div
                           key={`od-${idx}`}
-                          className="inline-block"
+                          className="inline-block relative"
+                          title={isTsumogiri ? 'ツモ切り' : '手出し'}
                         >
                           <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
                           />
+                          {/* ツモ切りマーク: 牌の右上に小さな丸印 */}
+                          {isTsumogiri && (
+                            <div className="hidden absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full opacity-70 pointer-events-none" style={{ transform: 'translate(25%, -25%)' }} />
+                          )}
                         </div>
                       );
                     })
@@ -1647,15 +1699,21 @@ export default function GamePage({
                   ) : (
                     yourDiscards.map((tile, idx) => {
                       const isRiichiDiscard = gameState.riichiDiscards?.[userId] === idx;
+                      const isTsumogiri = tile.isTsumogiri === true;
                       return (
                         <div
                           key={`yd-${idx}`}
-                          className="inline-block"
+                          className="inline-block relative"
+                          title={isTsumogiri ? 'ツモ切り' : '手出し'}
                         >
                           <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
                           />
+                          {/* ツモ切りマーク: 牌の右上に小さな丸印 */}
+                          {isTsumogiri && (
+                            <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full opacity-70 pointer-events-none" style={{ transform: 'translate(25%, -25%)' }} />
+                          )}
                         </div>
                       );
                     })
