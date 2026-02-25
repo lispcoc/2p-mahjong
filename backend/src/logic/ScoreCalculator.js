@@ -6,6 +6,7 @@ class ScoreCalculator {
     this.scoreTable = {
       // [飜数][符] = {ron: ロン時の点数, tsumo: ツモ時の各自の支払い}
       1: {
+        20: { ron: 1000, tsumo: 300 },
         30: { ron: 1000, tsumo: 300 },
         40: { ron: 1300, tsumo: 400 },
         50: { ron: 1600, tsumo: 400 },
@@ -13,6 +14,7 @@ class ScoreCalculator {
         70: { ron: 2300, tsumo: 600 },
       },
       2: {
+        20: { ron: 1300, tsumo: 400 },
         25: { ron: 1600, tsumo: 400 }, // 七対子
         30: { ron: 2000, tsumo: 500 },
         40: { ron: 2600, tsumo: 700 },
@@ -21,6 +23,7 @@ class ScoreCalculator {
         70: { ron: 4500, tsumo: 1200 },
       },
       3: {
+        20: { ron: 2600, tsumo: 700 },
         25: { ron: 3200, tsumo: 800 },
         30: { ron: 3900, tsumo: 1000 },
         40: { ron: 5200, tsumo: 1300 },
@@ -28,6 +31,7 @@ class ScoreCalculator {
         60: { ron: 7700, tsumo: 2000 },
       },
       4: {
+        20: { ron: 5200, tsumo: 1300 },
         25: { ron: 6400, tsumo: 1600 },
         30: { ron: 7700, tsumo: 2000 },
         40: { ron: 8000, tsumo: 2000 }, // 満貫
@@ -405,8 +409,8 @@ class ScoreCalculator {
       yaku.push({ name: '断么九', han: 1 });
     }
     
-    // 平和（ピンフ） - 門前ロンのみ、和了形に依存（暗槓は門前扱い）
-    if (menzen && isRon && this.isPinfuWithCombination(combination, winningTile)) {
+    // 平和（ピンフ） - 門前のみ（ツモ・ロン両方可）、暗槓があると不成立
+    if (menzen && melds.length === 0 && this.isPinfuWithCombination(combination, winningTile, roundWind, seatWind)) {
       yaku.push({ name: '平和', han: 1 });
     }
     
@@ -467,9 +471,11 @@ class ScoreCalculator {
       const allSequences = melds.every(meld => this.isSequence(meld));
       if (!allSequences) continue;
       
-      // 2. 雀頭が役牌でないか確認
-      if (pair.suit === 'honor' && pair.number >= 5 && pair.number <= 7) {
-        continue; // 白發中は役牌
+      // 2. 雀頭が役牌でないか確認（三元牌・場風・自風）
+      if (pair.suit === 'honor') {
+        if (pair.number >= 5 && pair.number <= 7) continue; // 白發中は役牌
+        // 注意: isPinfu は roundWind/seatWind を受け取らないため、風牌チェックは不完全
+        // isPinfuWithCombination を使用すること
       }
       
       // 3. 両面待ちか確認
@@ -616,13 +622,16 @@ class ScoreCalculator {
         
         // 両端でアガった場合、両面待ちかペンチャン待ちかを判定
         // ペンチャン（辺張）の判定:
-        // - 1-2-3 の形は両端のどちらでも必ずペンチャン
-        // - 7-8-9 の形は両端のどちらでも必ずペンチャン
+        // - 1-2 で待ち → 3でアガリ → ペンチャン（1-2-3, winNum=3）
+        // - 8-9 で待ち → 7でアガリ → ペンチャン（7-8-9, winNum=7）
+        // - 2-3 で待ち → 1でアガリ → 両面（4も待てる）
+        // - 7-8 で待ち → 9でアガリ → 両面（6も待てる）
         
-        // 1-2-3または7-8-9の形か確認
-        if ((nums[0] === 1 && nums[1] === 2 && nums[2] === 3) ||
-            (nums[0] === 7 && nums[1] === 8 && nums[2] === 9)) {
-          return false; // ペンチャン
+        if (nums[0] === 1 && nums[2] === 3 && winNum === 3) {
+          return false; // ペンチャン（1-2待ちで3をツモ/ロン）
+        }
+        if (nums[0] === 7 && nums[2] === 9 && winNum === 7) {
+          return false; // ペンチャン（8-9待ちで7をツモ/ロン）
         }
         
         // それ以外は両面待ち
@@ -1024,14 +1033,20 @@ class ScoreCalculator {
   /**
    * 平和（ピンフ）判定 - combination版
    */
-  isPinfuWithCombination(combination, winningTile) {
+  isPinfuWithCombination(combination, winningTile, roundWind, seatWind) {
     // 1. 全て順子か確認
     const allSequences = combination.melds.every(meld => this.isSequence(meld));
     if (!allSequences) return false;
     
     // 2. 雀頭が役牌でないか確認
-    if (combination.pair.suit === 'honor' && combination.pair.number >= 5 && combination.pair.number <= 7) {
-      return false; // 白發中は役牌
+    const pair = combination.pair;
+    if (pair.suit === 'honor') {
+      // 三元牌（白=5, 發=6, 中=7）は不可
+      if (pair.number >= 5 && pair.number <= 7) return false;
+      // 場風牌は不可
+      if (roundWind && pair.number === roundWind) return false;
+      // 自風牌は不可
+      if (seatWind && pair.number === seatWind) return false;
     }
     
     // 3. 両面待ちか確認
@@ -1374,6 +1389,17 @@ class ScoreCalculator {
   calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination) {
     let fu = 20; // 副底
     
+    // 平和ツモの場合は一律20符（ツモ符なし）
+    // 平和の条件: 門前・副露なし・全順子・役牌でない雀頭・両面待ち
+    if (isTsumo && melds.length === 0) {
+      const allSeq = combination.melds.every(m => this.isSequence(m));
+      const pairNotYakuhai = !(combination.pair.suit === 'honor' && combination.pair.number >= 5);
+      const isRyanmen = this.checkRyanmenWaitInMelds(combination.melds, winningTile);
+      if (allSeq && pairNotYakuhai && isRyanmen) {
+        return 20; // 平和ツモは20符固定
+      }
+    }
+    
     // ツモ
     if (isTsumo) {
       fu += 2;
@@ -1465,8 +1491,9 @@ class ScoreCalculator {
    * 符を切り上げ
    */
   roundFu(fu) {
-    if (fu <= 25) return 25;
-    return Math.ceil(fu / 10) * 10;
+    if (fu === 20) return 20; // 平和ツモ
+    if (fu === 25) return 25; // 七対子
+    return Math.max(Math.ceil(fu / 10) * 10, 30);
   }
 
   /**
