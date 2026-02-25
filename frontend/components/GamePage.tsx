@@ -313,6 +313,13 @@ export default function GamePage({
           setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
         }
 
+        // ゲームオーバー状態で再接続した場合、最終結果を復元して表示する
+        if (payload.gameState?.status === 'gameOver' && payload.gameState?.finalResults) {
+          console.log('🏁 Reconnected to a finished game - restoring final results')
+          setFinalResults(payload.gameState.finalResults)
+          setShowFinalResults(true)
+        }
+
         if (payload.isReconnecting) {
           toast.success('ゲームに再接続しました', { duration: 3000 })
         } else {

@@ -451,7 +451,7 @@ class GameRoom {
   
   getGameState() {
     if (!this.gameLogic) {
-      return {
+      const state = {
         status: this.status,
         players: this.getPlayers(),
         currentRound: this.currentRound,
@@ -463,6 +463,12 @@ class GameRoom {
         nextRoundReadyCount: this.nextRoundReady.size,
         totalPlayers: this.players.size,
       };
+      // ゲームオーバー時は最終結果も含める
+      if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
+        state.gameOver = true;
+        state.finalResults = this.roundHistory;
+      }
+      return state;
     }
     
     const playerIds = Array.from(this.players.keys());
@@ -543,6 +549,12 @@ class GameRoom {
     state.discards = discardsData.discards;
     state.riichiDiscards = discardsData.riichiDiscards;
     state.lastDiscardInfo = this.gameLogic.getLastDiscardInfo();
+    
+    // ゲームオーバー時は最終結果（roundHistory）も含める
+    if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
+      state.gameOver = true;
+      state.finalResults = this.roundHistory;
+    }
     
     return state;
   }
