@@ -16,6 +16,8 @@ import { FinalResultModal } from './Modals/FinalResultModal'
 // Utilities and components are now imported from separate files
 import { debugLog } from '../utils/DebugUtils'
 
+const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development'
+
 const windNames: Record<number, string> = {
   1: '東',
   2: '南',
@@ -132,7 +134,7 @@ export default function GamePage({
     opponentActionDelayRef.current = window.setTimeout(() => {
       // Clear any previous toasts
       toast.dismiss()
-      
+
       toast.custom(
         (t) => (
           <div
@@ -307,7 +309,7 @@ export default function GamePage({
 
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
-        
+
         // Set autoActionTimerSeconds from gameState
         if (payload.gameState?.autoActionTimerSeconds) {
           setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
@@ -390,12 +392,12 @@ export default function GamePage({
 
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
-        
+
         // Set autoActionTimerSeconds from gameState
         if (payload.autoActionTimerSeconds) {
           setAutoActionTimerSeconds(payload.autoActionTimerSeconds)
         }
-        
+
         toast.success('ゲームが始まりました！', { duration: 3000 })
         break
       case 'gameStateUpdate':
@@ -470,18 +472,18 @@ export default function GamePage({
         console.log('🏁 payload.finalResults:', payload.finalResults)
         console.log('🏁 payload.finalResults detailed:', JSON.stringify(payload.finalResults, null, 2))
         console.log('🏁 payload.tenpaiStatus:', payload.tenpaiStatus)
-        
+
         // 流局時の聴牌状態を保存
         if (payload.isDraw && payload.tenpaiStatus) {
           setTenpaiStatus(payload.tenpaiStatus)
         } else {
           setTenpaiStatus(null)
         }
-        
+
         // finalResults から winner の hand 情報を取得
         const winnerDataFromFinalResults = payload.finalResults?.find((result: any) => result.userId === payload.winner)
         console.log('🏁 Winner data from finalResults (by userId):', winnerDataFromFinalResults)
-        
+
         // もし userId で見つからなければ、finalResults[0] を確認
         if (!winnerDataFromFinalResults && payload.finalResults?.[0]) {
           console.log('🏁 finalResults[0] keys:', Object.keys(payload.finalResults[0]))
@@ -494,7 +496,7 @@ export default function GamePage({
         const opponentWon = winnerId && winnerId !== userIdRef.current
         const isOpponentRonTsumo = opponentWon && /ロン|ツモ/.test(payload.winType || '')
         const resultDelayMs = isOpponentRonTsumo ? 2000 : 0
-        
+
         console.log('🏁 gameFinished - opponentWon:', opponentWon, 'isOpponentRonTsumo:', isOpponentRonTsumo, 'resultDelayMs:', resultDelayMs)
 
         if (opponentWon && isOpponentRonTsumo) {
@@ -526,7 +528,7 @@ export default function GamePage({
           setShowFinalResults(false)
           // スコア結果は以下で処理される
         }
-        
+
         // gameOver の有無に関わらず scoreResult を処理
         if (payload.scoreResult) {
           // scoreResultがある場合は、winType情報を追加し、isDraw を false に設定
@@ -576,10 +578,10 @@ export default function GamePage({
         // gameStateを使って勝者名を取得してからメッセージを設定
         setGameState((prevState) => {
           console.log('勝者データ取得開始:', { winnerId, prevState_exists: !!prevState, tiles_exists: !!prevState?.tiles, winner_tiles_exists: !!prevState?.tiles?.[winnerId], tilesRef_exists: !!tilesRef.current?.[winnerId] })
-          
+
           // prevState.tiles または tilesRef.current から winner の tiles を取得
           const winnerTilesSource = prevState?.tiles?.[winnerId] || tilesRef.current?.[winnerId]
-          
+
           if (winnerId && winnerTilesSource) {
             const winnerTiles = winnerTilesSource
             console.log('winnerTiles:', winnerTiles)
@@ -588,16 +590,16 @@ export default function GamePage({
             const winnerHand = (winnerTiles?.hand || []).map((tile: any) => normalizeTile(tile))
             const winnerMelds = ((winnerTiles?.melds as Array<Array<Tile | string>>) || [])
               .map((meld) => meld.map((tile) => normalizeTile(tile)))
-            
+
             // 和了牌を優先順位で取得：scoreResult.winningTile > drawnTile > 推測
             let winnerDrawn = null
             const isRon = payload.winType && payload.winType.includes('ロン')
-            
+
             // 優先1: scoreResult.winningTile（バックエンドから明示的に送信された和了牌）
             if (payload.scoreResult?.winningTile) {
               winnerDrawn = normalizeTile(payload.scoreResult.winningTile)
               console.log((isRon ? 'ロン' : 'ツモ') + ': scoreResult.winningTile から取得:', winnerDrawn)
-            } 
+            }
             // 優先2: ツモ時のドローン牌（drawnTile 存在時）
             else if (!isRon && winnerTiles?.drawnTile) {
               winnerDrawn = normalizeTile(winnerTiles.drawnTile)
@@ -607,15 +609,15 @@ export default function GamePage({
             else if (!isRon && winnerTiles?.drawnTileIndex !== undefined && winnerTiles.drawnTileIndex >= 0 && winnerHand[winnerTiles.drawnTileIndex]) {
               winnerDrawn = winnerHand[winnerTiles.drawnTileIndex]
               console.log('ツモ: hand[drawnTileIndex] から取得:', winnerDrawn, 'index:', winnerTiles.drawnTileIndex)
-            } 
+            }
             // 優先4: 手牌が存在する場合は最後の牌（デフォルト）
             else if (winnerHand.length > 0) {
               winnerDrawn = winnerHand[winnerHand.length - 1]
               console.log('デフォルト: hand の最後の牌を使用:', winnerDrawn)
             }
-            
+
             console.log('winnerHand:', winnerHand, 'winnerDrawn:', winnerDrawn, 'isRon:', isRon)
-            
+
             // ロン・ツモ共通：バックエンドの手牌には和了牌が既に含まれている
             // （ロン時: handleRon で hand.push(tile) 済み、ツモ時: drawnTile は hand の一部）
             // 手牌から和了牌を1枚除去し、末尾に和了牌を配置する（ScoreResultModal の表示用）
@@ -643,25 +645,25 @@ export default function GamePage({
             const winnerDataFromFinalResults = payload.finalResults.find((result: any) => result.winner === winnerId)
             console.log('finalResults から winner を検索:', { winnerId, winnerDataFromFinalResults })
             console.log('finalResults[0] の keys:', Object.keys(payload.finalResults[0] || {}))
-            
+
             if (winnerDataFromFinalResults) {
               // finalResults に hand があれば使用、なければ別の方法を検討
-              const winnerHand = winnerDataFromFinalResults.hand 
+              const winnerHand = winnerDataFromFinalResults.hand
                 ? (winnerDataFromFinalResults.hand || []).map((tile: any) => normalizeTile(tile))
                 : []
               const winnerMelds = winnerDataFromFinalResults.melds
                 ? ((winnerDataFromFinalResults.melds as Array<Array<Tile | string>>) || [])
                   .map((meld) => meld.map((tile) => normalizeTile(tile)))
                 : []
-              
+
               console.log('finalResults から取得した winnerHand:', winnerHand, 'winnerMelds:', winnerMelds)
-              
+
               // winningTile がある場合は和了牌として手牌から除去し末尾に配置
               let winningTile = null
               if (payload.scoreResult?.winningTile) {
                 winningTile = normalizeTile(payload.scoreResult.winningTile)
               }
-              
+
               if (winningTile && winnerHand.length > 0) {
                 // 手牌に和了牌が含まれている可能性があるため、1枚除去してから末尾に追加
                 const idx = winnerHand.findIndex((t: Tile) =>
@@ -877,7 +879,7 @@ export default function GamePage({
       try {
         const savedMyTsumoLuck = sessionStorage.getItem('mahjong-myTsumoLuck')
         const savedOpponentTsumoLuck = sessionStorage.getItem('mahjong-opponentTsumoLuck')
-        
+
         if (savedMyTsumoLuck && savedOpponentTsumoLuck) {
           myTsumoLuckValue = parseInt(savedMyTsumoLuck, 10)
           opponentTsumoLuckValue = parseInt(savedOpponentTsumoLuck, 10)
@@ -1466,35 +1468,35 @@ export default function GamePage({
     if (!isYourTurn || isRiichi || isNoMeldMode || drawnTileIndex < 0) {
       return false;
     }
-    
+
     // Check for concealed kan (4 identical tiles in hand)
     const tileGroups: Record<string, number> = {};
     fullHand.forEach((tile) => {
       const key = `${tile.suit}-${tile.number}`;
       tileGroups[key] = (tileGroups[key] || 0) + 1;
     });
-    
+
     // Check if any tile group has 4 identical tiles
     for (const count of Object.values(tileGroups)) {
       if (count === 4) {
         return true;
       }
     }
-    
+
     // Check for added kan (matching tile + existing pung)
     for (const meld of melds) {
       if (meld.length !== 3) continue; // Only check pungs (3 tiles)
-      
+
       const meldTile = meld[0];
       const hasMatchingTile = fullHand.some(
         (tile) => tile.suit === meldTile.suit && tile.number === meldTile.number
       );
-      
+
       if (hasMatchingTile) {
         return true;
       }
     }
-    
+
     return false;
   })()
 
@@ -1623,7 +1625,7 @@ export default function GamePage({
               </div>
               <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
-                <FuroDisplay 
+                <FuroDisplay
                   melds={otherMelds}
                   seatWindYou={gameState.seatWinds?.[userId]}
                   seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
@@ -2061,8 +2063,8 @@ export default function GamePage({
           </div>
           <div>
             {/* Melds display - positioned to the right */}
-            <FuroDisplay 
-              melds={melds} 
+            <FuroDisplay
+              melds={melds}
               layout="vertical"
               seatWindYou={gameState.seatWinds?.[userId]}
               seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
@@ -2192,12 +2194,14 @@ export default function GamePage({
         )}
 
         <div className="mt-1 flex gap-3 items-center justify-center flex-wrap">
-          <button
-            onClick={() => toggleAutoPlayMode(!autoPlayMode)}
-            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
-          >
-            🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
-          </button>
+          {DEVELOPMENT_MODE && (
+            <button
+              onClick={() => toggleAutoPlayMode(!autoPlayMode)}
+              className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
+            >
+              🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
+            </button>
+          )}
           <button
             onClick={() => toggleAutoDrawMode(!autoDrawMode)}
             disabled={autoPlayMode}
