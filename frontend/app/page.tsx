@@ -92,8 +92,9 @@ export default function Page() {
           console.log('🗑️ Cleaning up old session (different room)')
           // Notify backend to remove the old player
           try {
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
             const response = await fetch(
-              `${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${session.roomId}/players/${session.userId}`,
+              `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
               { method: 'DELETE' }
             )
             if (response.ok) {
@@ -126,8 +127,9 @@ export default function Page() {
           console.log('🗑️ Cleaning up old session (different room)')
           // Notify backend to remove the old player
           try {
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
             const response = await fetch(
-              `http://localhost:3001/api/rooms/${session.roomId}/players/${session.userId}`,
+              `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
               { method: 'DELETE' }
             )
             if (response.ok) {

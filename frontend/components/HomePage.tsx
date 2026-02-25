@@ -66,7 +66,8 @@ export default function HomePage({
   const fetchRooms = async () => {
     setRoomsLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`)
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`)
       if (!response.ok) {
         throw new Error('ルーム一覧の取得に失敗しました')
       }
@@ -125,7 +126,8 @@ export default function HomePage({
       const sanitizedWallTiles = clampWallTiles(wallTiles)
       const sanitizedAutoActionTimerSeconds = clampAutoActionTimerSeconds(autoActionTimerSeconds)
       const wallTilesToSend = sanitizedWallTiles
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,8 +202,9 @@ export default function HomePage({
     }
 
     try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${trimmedRoomId}`
+        `${backendUrl}/api/rooms/${trimmedRoomId}`
       )
 
       if (!response.ok) {

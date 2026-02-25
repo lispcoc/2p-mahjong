@@ -1122,7 +1122,8 @@ export default function GamePage({
     toast.dismiss()
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL_HTTP}/api/rooms/${roomId}/add-cpu`, {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms/${roomId}/add-cpu`, {
         method: 'POST',
       })
 
