@@ -2121,7 +2121,7 @@ export default function GamePage({
             <ScoreResultModal
               scoreResult={scoreResult}
               gameState={gameState}
-              nextRoundReady={finalResults ? false : ((gameState?.nextRoundReadyCount ?? 0) === (gameState?.totalPlayers ?? 0) && (gameState?.totalPlayers ?? 0) > 0)}
+              nextRoundReady={finalResults ? false : nextRoundReady}
               onNextRound={() => {
                 console.log('🏁 ScoreResultModal onNextRound clicked:', { finalResults: !!finalResults, showFinalResults })
                 // 最終局かつfinalResultsがある場合は最終結果モーダルを表示
@@ -2131,6 +2131,7 @@ export default function GamePage({
                   setShowFinalResults(true)
                 } else {
                   console.log('🏁 Handling next round')
+                  setNextRoundReady(true)
                   handleNextRound()
                 }
               }}
