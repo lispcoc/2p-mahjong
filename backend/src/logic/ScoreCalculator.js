@@ -316,6 +316,12 @@ class ScoreCalculator {
       return yaku;
     }
     
+    // 九蓮宝燈（チューレンポウトウ）- 門前のみ、一色の1112345678999+任意1枚
+    if (menzen && melds.length === 0 && this.isChuurenPoutou(allTiles)) {
+      yaku.push({ name: '九蓮宝燈', han: 13 });
+      return yaku;
+    }
+    
     // 通常役チェック
     // ツモ（門前のみ）
     if (isTsumo && menzen) {
@@ -359,7 +365,8 @@ class ScoreCalculator {
     // 七対子（チートイツ） - 門前のみ（特殊形なのでcombinationがnull）
     if (!combination && melds.length === 0 && this.isChiitoitsu(hand)) {
       yaku.push({ name: '七対子', han: 2 });
-      return yaku; // 七対子は他の役と複合しない
+      // 七対子は清一色・混一色・混老頭・断么九・ドラなどと複合する
+      // early returnせず、以降のタイルベース判定を続ける
     }
     
     // 国士無双（こくしむそう） - 門前のみ（特殊形なのでcombinationがnull）
@@ -385,9 +392,29 @@ class ScoreCalculator {
       yaku.push({ name: '混老頭', han: 2 });
     }
     
+    // 断么九（タンヤオ）- 和了形に依存しない（七対子とも複合）
+    if (this.isTanyao(allTiles)) {
+      yaku.push({ name: '断么九', han: 1 });
+    }
+    
     // 以下、和了形に依存する役（combinationを使用）
     if (!combination) {
       // 和了形がない場合（七対子など）は以下の役は判定しない
+      // ただしドラ系は判定する
+      const doraCounts = this.countDora(allTiles, doraIndicators, doraTiles);
+      if (doraCounts.dora > 0) {
+        yaku.push({ name: 'ドラ', han: doraCounts.dora, isDora: true });
+      }
+      const redDoraCount = this.countRedDora(allTiles);
+      if (redDoraCount > 0) {
+        yaku.push({ name: '赤ドラ', han: redDoraCount, isDora: true });
+      }
+      if (riichi) {
+        const urahaCounts = this.countDora(allTiles, urahaIndicators, urahaTiles);
+        if (urahaCounts.dora > 0) {
+          yaku.push({ name: '裏ドラ', han: urahaCounts.dora, isDora: true });
+        }
+      }
       return yaku;
     }
     
@@ -432,10 +459,22 @@ class ScoreCalculator {
       yaku.push({ name: '小三元', han: 2 });
     }
     
-    // 断么九（タンヤオ）- 和了形に依存しない
-    if (this.isTanyao(allTiles)) {
-      yaku.push({ name: '断么九', han: 1 });
+    // 純全帯么九（ジュンチャン）- 和了形に依存
+    const isHonroutou = this.isHonroutou(allTiles);
+    const junchan = this.isJunchanWithCombination(combination, melds, allTiles);
+    if (junchan) {
+      yaku.push({ name: '純全帯么九', han: !menzen ? 2 : 3 });
     }
+    
+    // 混全帯么九（チャンタ）- 和了形に依存（混老頭・純チャンとは複合しない）
+    if (!junchan && !isHonroutou) {
+      const chanta = this.isChantaWithCombination(combination, melds, allTiles);
+      if (chanta) {
+        yaku.push({ name: '混全帯么九', han: !menzen ? 1 : 2 });
+      }
+    }
+    
+    // 断么九（タンヤオ）は combination guard の前で判定済み
     
     // 平和（ピンフ） - 門前のみ（ツモ・ロン両方可）、暗槓があると不成立
     if (menzen && melds.length === 0 && this.isPinfuWithCombination(combination, winningTile, roundWind, seatWind)) {
@@ -1652,6 +1691,116 @@ class ScoreCalculator {
     });
     
     return kanCount === 4;
+  }
+
+  /**
+   * 九蓮宝燈（チューレンポウトウ）判定
+   * 門前で一種類の数牌のみ、1112345678999+同種の任意1枚
+   * @param {Array} tiles - 全牌（手牌のみ、14枚）
+   * @returns {boolean}
+   */
+  isChuurenPoutou(tiles) {
+    if (tiles.length !== 14) return false;
+    
+    // 全て同じスートで数牌であること
+    const suit = tiles[0].suit;
+    if (suit === 'honor') return false;
+    if (!tiles.every(t => t.suit === suit)) return false;
+    
+    // 各数字の枚数をカウント
+    const counts = {};
+    for (let i = 1; i <= 9; i++) counts[i] = 0;
+    tiles.forEach(t => counts[t.number]++);
+    
+    // 基本形: 1が3枚以上、2-8が各1枚以上、9が3枚以上
+    if (counts[1] < 3 || counts[9] < 3) return false;
+    for (let i = 2; i <= 8; i++) {
+      if (counts[i] < 1) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * 混全帯么九（チャンタ）判定 - combination版
+   * 全ての面子と雀頭に老頭牌(1,9)または字牌を含む。字牌が必要。
+   * 混老頭の場合は適用しない。
+   * @param {Object} combination - 和了形
+   * @param {Array} melds - 副露
+   * @param {Array} allTiles - 全牌
+   * @returns {boolean}
+   */
+  isChantaWithCombination(combination, melds, allTiles) {
+    // 字牌が含まれていなければチャンタではない（純チャン）
+    const hasHonor = allTiles.some(t => t.suit === 'honor');
+    if (!hasHonor) return false;
+    
+    // 雀頭が老頭牌or字牌か
+    const pair = combination.pair;
+    if (pair.suit !== 'honor' && pair.number !== 1 && pair.number !== 9) return false;
+    
+    // 全面子（手牌）が老頭牌or字牌を含むか
+    for (const meld of combination.melds) {
+      if (!this.meldHasTerminalOrHonor(meld)) return false;
+    }
+    
+    // 全面子（副露）が老頭牌or字牌を含むか
+    for (const meld of melds) {
+      if (!this.meldHasTerminalOrHonor(meld)) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * 純全帯么九（ジュンチャン）判定 - combination版
+   * 全ての面子と雀頭に老頭牌(1,9)を含む。字牌は不可。
+   * @param {Object} combination - 和了形
+   * @param {Array} melds - 副露
+   * @param {Array} allTiles - 全牌
+   * @returns {boolean}
+   */
+  isJunchanWithCombination(combination, melds, allTiles) {
+    // 字牌が含まれていたら純チャンではない
+    if (allTiles.some(t => t.suit === 'honor')) return false;
+    
+    // 雀頭が1or9か
+    const pair = combination.pair;
+    if (pair.number !== 1 && pair.number !== 9) return false;
+    
+    // 全面子（手牌）が1or9を含むか
+    for (const meld of combination.melds) {
+      if (!this.meldHasTerminal(meld)) return false;
+    }
+    
+    // 全面子（副露）が1or9を含むか
+    for (const meld of melds) {
+      if (!this.meldHasTerminal(meld)) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * 面子が老頭牌(1,9)または字牌を含むか判定
+   * @param {Array} meld - 面子
+   * @returns {boolean}
+   */
+  meldHasTerminalOrHonor(meld) {
+    return meld.some(tile =>
+      tile.suit === 'honor' || tile.number === 1 || tile.number === 9
+    );
+  }
+
+  /**
+   * 面子が老頭牌(1,9)を含むか判定（字牌は含まない）
+   * @param {Array} meld - 面子
+   * @returns {boolean}
+   */
+  meldHasTerminal(meld) {
+    return meld.some(tile =>
+      tile.suit !== 'honor' && (tile.number === 1 || tile.number === 9)
+    );
   }
 
   /**
