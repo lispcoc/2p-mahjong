@@ -89,6 +89,7 @@ class GameRoom {
       player.score = this.initialScore;
       player.autoDrawMode = false;
       player.noMeldMode = false;
+      player.autoPlay = false;
       player.riichi = false;
     });
 
@@ -131,6 +132,7 @@ class GameRoom {
       score: this.initialScore, // 初期持ち点
       autoDrawMode: false, // Auto-discard mode for drawn tiles
       noMeldMode: false, // No-meld mode (don't allow pung, chi, kan)
+      autoPlay: false, // Auto-play mode (CPU controls this player)
       riichi: false, // リーチ状態
       isCPU: isCPU, // CPU判定フラグ
       disconnectedAt: null,
@@ -278,9 +280,9 @@ class GameRoom {
       
       this.nextRoundReady.add(userId);
       
-      // CPU対戦時は、人間プレイヤーが押したら即座に全CPUプレイヤーも準備完了にする
+      // CPU/autoPlay対戦時は、人間プレイヤーが押したら即座に全CPU/autoPlayプレイヤーも準備完了にする
       for (const [playerId, player] of this.players) {
-        if (player.isCPU && !this.nextRoundReady.has(playerId)) {
+        if ((player.isCPU || player.autoPlay) && !this.nextRoundReady.has(playerId)) {
           this.nextRoundReady.add(playerId);
         }
       }
@@ -317,6 +319,23 @@ class GameRoom {
       }
       player.noMeldMode = action.enabled;
       return { success: true, message: `No-meld mode ${action.enabled ? 'enabled' : 'disabled'}` };
+    }
+
+    // Handle autoPlay toggle (CPU controls this player)
+    if (action.type === 'setAutoPlay') {
+      const player = this.players.get(userId);
+      if (!player) {
+        return { success: false, message: 'Player not found' };
+      }
+      player.autoPlay = action.enabled;
+      if (action.enabled && !this.aiPlayers.has(userId)) {
+        // autoPlay ON: AIPlayerインスタンスを作成
+        this.aiPlayers.set(userId, new AIPlayer(false));
+      } else if (!action.enabled && !player.isCPU) {
+        // autoPlay OFF: CPUでなければAIPlayerインスタンスを削除
+        this.aiPlayers.delete(userId);
+      }
+      return { success: true, message: `Auto-play mode ${action.enabled ? 'enabled' : 'disabled'}`, autoPlayChanged: true };
     }
 
     // Handle riichi declaration
@@ -494,6 +513,8 @@ class GameRoom {
           };
           state.autoDrawMode[userId] = player?.autoDrawMode || false;
           state.noMeldMode[userId] = player?.noMeldMode || false;
+          state.autoPlay = state.autoPlay || {};
+          state.autoPlay[userId] = player?.autoPlay || false;
           
           // Check if this player can win
           if (this.gameLogic.getCurrentTurn() === userId && this.gameLogic.isWinningHand(userId)) {
@@ -510,6 +531,8 @@ class GameRoom {
           const player = this.players.get(userId);
           state.autoDrawMode[userId] = player?.autoDrawMode || false;
           state.noMeldMode[userId] = player?.noMeldMode || false;
+          state.autoPlay = state.autoPlay || {};
+          state.autoPlay[userId] = player?.autoPlay || false;
         }
       });
     }
@@ -881,15 +904,17 @@ class GameRoom {
     const ronPossibleFor = this.gameLogic.getRonPossibleFor();
     const pendingPungFor = this.gameLogic.getPendingPungFor();
 
-    // ロン可能状態: CPUがロンを取るべきかチェック
-    if (ronPossibleFor && this.players.get(ronPossibleFor)?.isCPU) {
+    // ロン可能状態: CPU/autoPlayがロンを取るべきかチェック
+    const ronPlayer = this.players.get(ronPossibleFor);
+    if (ronPossibleFor && (ronPlayer?.isCPU || ronPlayer?.autoPlay)) {
       console.log(`🤖 CPU Can Ron: ${this.players.get(ronPossibleFor).playerName}`);
       this.executeCPURon(ronPossibleFor, callback);
       return;
     }
 
-    // ポン待機状態: CPUがポンするか draw するかチェック
-    if (pendingPungFor && this.players.get(pendingPungFor)?.isCPU) {
+    // ポン待機状態: CPU/autoPlayがポンするか draw するかチェック
+    const pungPlayer = this.players.get(pendingPungFor);
+    if (pendingPungFor && (pungPlayer?.isCPU || pungPlayer?.autoPlay)) {
       console.log(`🤖 CPU Pung Pending: ${this.players.get(pendingPungFor).playerName}`);
       this.executeCPUPung(pendingPungFor, callback);
       return;
@@ -899,8 +924,8 @@ class GameRoom {
     const currentTurn = this.gameLogic.getCurrentTurn();
     const currentPlayer = this.players.get(currentTurn);
 
-    // 現在のターンのプレイヤーがCPUでない場合は何もしない
-    if (!currentPlayer || !currentPlayer.isCPU) {
+    // 現在のターンのプレイヤーがCPU/autoPlayでない場合は何もしない
+    if (!currentPlayer || !(currentPlayer.isCPU || currentPlayer.autoPlay)) {
       return;
     }
 
@@ -1215,14 +1240,14 @@ class GameRoom {
     return null;
   }
 
-  // 現在のターンがCPUかどうかをチェック
+  // 現在のターンがCPUかどうかをチェック（autoPlayプレイヤーも含む）
   isCurrentTurnCPU() {
     if (this.status !== 'playing' || !this.gameLogic) {
       return false;
     }
     const currentTurn = this.gameLogic.getCurrentTurn();
     const currentPlayer = this.players.get(currentTurn);
-    return currentPlayer && currentPlayer.isCPU;
+    return currentPlayer && (currentPlayer.isCPU || currentPlayer.autoPlay);
   }
 }
 

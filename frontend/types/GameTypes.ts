@@ -23,6 +23,7 @@ export interface GameState {
   canWinFor?: string
   autoDrawMode?: Record<string, boolean>
   noMeldMode?: Record<string, boolean>
+  autoPlay?: Record<string, boolean>
   scores?: Record<string, number>
   riichi?: Record<string, boolean>
   riichiDeposits?: number

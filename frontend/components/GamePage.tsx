@@ -54,6 +54,7 @@ export default function GamePage({
   const [isGrayscale, setIsGrayscale] = useState(false)
   const [autoDrawMode, setAutoDrawMode] = useState(false)
   const [noMeldMode, setNoMeldMode] = useState(false)
+  const [autoPlayMode, setAutoPlayMode] = useState(false)
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null)
   const [tenpaiInfo, setTenpaiInfo] = useState<{ isTenpai: boolean; winningTiles: any[] } | null>(null)
   const [scoreResult, setScoreResult] = useState<any>(null)
@@ -298,6 +299,11 @@ export default function GamePage({
           console.log(`🔄 Restoring noMeldMode: ${userNoMeldMode}`)
           setNoMeldMode(userNoMeldMode)
         }
+        const userAutoPlay = payload.gameState?.autoPlay?.[payload.userId]
+        if (typeof userAutoPlay === 'boolean') {
+          console.log(`🔄 Restoring autoPlayMode: ${userAutoPlay}`)
+          setAutoPlayMode(userAutoPlay)
+        }
 
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
@@ -371,6 +377,9 @@ export default function GamePage({
         } else {
           setNoMeldMode(false)
         }
+        if (payload.autoPlay?.[currentUserIdForGameStart] !== undefined) {
+          setAutoPlayMode(payload.autoPlay[currentUserIdForGameStart])
+        }
 
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
@@ -425,6 +434,9 @@ export default function GamePage({
         }
         if (payload.noMeldMode?.[currentUserId] !== undefined) {
           setNoMeldMode(payload.noMeldMode[currentUserId])
+        }
+        if (payload.autoPlay?.[currentUserId] !== undefined) {
+          setAutoPlayMode(payload.autoPlay[currentUserId])
         }
 
         setGameState((prevState) => {
@@ -1020,6 +1032,14 @@ export default function GamePage({
     })
   }, [sendAction])
 
+  const toggleAutoPlayMode = React.useCallback((enabled: boolean) => {
+    setAutoPlayMode(enabled)
+    sendAction({
+      type: 'setAutoPlay',
+      enabled,
+    })
+  }, [sendAction])
+
   const copyHandInfoToClipboard = React.useCallback(async () => {
     if (!gameState || !userId) return
 
@@ -1128,6 +1148,25 @@ export default function GamePage({
   // N-second auto-action timer (configurable per game)
   React.useEffect(() => {
     if (!gameState || !userId || gameState.status !== 'playing') {
+      return;
+    }
+
+    // autoPlayモード中はフロントエンドのタイマーをすべて無効にする（バックエンドCPU AIが操作する）
+    if (autoPlayMode) {
+      setAutoDiscardTimeLeft(null);
+      setPendingPungTimeLeft(null);
+      if (autoDiscardIntervalRef.current !== null) {
+        clearInterval(autoDiscardIntervalRef.current);
+        autoDiscardIntervalRef.current = null;
+      }
+      if (pendingPungIntervalRef.current !== null) {
+        clearInterval(pendingPungIntervalRef.current);
+        pendingPungIntervalRef.current = null;
+      }
+      if (autoDiscardTimeoutRef.current !== null) {
+        clearTimeout(autoDiscardTimeoutRef.current);
+        autoDiscardTimeoutRef.current = null;
+      }
       return;
     }
 
@@ -1299,7 +1338,36 @@ export default function GamePage({
         autoDiscardIntervalRef.current = null;
       }
     }
-  }, [gameState, userId, autoDrawMode, sendAction, isTimerPaused, autoActionTimerSeconds]);
+  }, [gameState, userId, autoDrawMode, autoPlayMode, sendAction, isTimerPaused, autoActionTimerSeconds]);
+
+  // autoPlayMode: 局終了時に自動で「次の局へ」を押す
+  const autoPlayModeRef = useRef(false)
+  useEffect(() => {
+    autoPlayModeRef.current = autoPlayMode
+  }, [autoPlayMode])
+
+  React.useEffect(() => {
+    if (!autoPlayMode || !scoreResult || !gameState) return
+    // gameOverの場合は自動進行しない
+    if (gameState.status === 'gameOver') return
+    // finalResults表示中は自動進行しない
+    if (finalResults && showFinalResults) return
+
+    const timer = window.setTimeout(() => {
+      if (!autoPlayModeRef.current) return
+      if (finalResults && !showFinalResults) {
+        // 最終局の結果表示中 → 最終結果モーダルへ
+        setScoreResult(null)
+        setShowFinalResults(true)
+      } else {
+        // 通常の局終了 → 次の局へ
+        setNextRoundReady(true)
+        handleNextRound()
+      }
+    }, 2000) // 2秒待ってから自動進行
+
+    return () => clearTimeout(timer)
+  }, [autoPlayMode, scoreResult, gameState?.status, finalResults, showFinalResults, handleNextRound])
 
   if (!gameState) {
     const debugLogs = JSON.parse(localStorage.getItem('debugLogs') || '[]')
@@ -1739,7 +1807,7 @@ export default function GamePage({
                           />
                           {/* ツモ切りマーク: 牌の右上に小さな丸印 */}
                           {isTsumogiri && (
-                            <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full opacity-70 pointer-events-none" style={{ transform: 'translate(25%, -25%)' }} />
+                            <div className="hidden absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full opacity-70 pointer-events-none" style={{ transform: 'translate(25%, -25%)' }} />
                           )}
                         </div>
                       );
@@ -1997,7 +2065,7 @@ export default function GamePage({
         </div>
 
         {/* Action buttons section - compact vertical layout */}
-        {isYourTurn && gameState.status === 'playing' && (
+        {isYourTurn && gameState.status === 'playing' && !autoPlayMode && (
           <div className='w-full flex gap-8 justify-end'>
             {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
             {isRiichi && drawnTileIndex >= 0 && canWin && (
@@ -2106,17 +2174,33 @@ export default function GamePage({
             )}
           </div>
         )}
+        {/* autoPlayモード時のインジケーター */}
+        {autoPlayMode && gameState.status === 'playing' && (
+          <div className="w-full flex justify-center">
+            <div className="px-4 py-2 bg-blue-100 border-2 border-blue-500 rounded font-bold text-sm text-blue-800 text-center shadow-md animate-pulse">
+              🤖 CPU操作中...
+            </div>
+          </div>
+        )}
 
         <div className="mt-1 flex gap-3 items-center justify-center flex-wrap">
           <button
+            onClick={() => toggleAutoPlayMode(!autoPlayMode)}
+            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
+          >
+            🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
+          </button>
+          <button
             onClick={() => toggleAutoDrawMode(!autoDrawMode)}
-            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+            disabled={autoPlayMode}
+            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
           >
             自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
           </button>
           <button
             onClick={() => toggleNoMeldMode(!noMeldMode)}
-            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
+            disabled={autoPlayMode}
+            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
           >
             鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
           </button>
