@@ -12,6 +12,7 @@ class MahjongLogic {
     this.currentTurnIndex = dealerIndex;
     this.dealerIndex = dealerIndex;
     this.turnNumber = 0; // ゲーム全体のターン番号（一発判定用）
+    this.firstGoAroundIntact = true; // 最初の巡目が途切れていないか（副露が無い）- 天和/地和/人和/ダブルリーチ判定用
     this.roundWindNumber = Number.isFinite(options.roundWindNumber) ? options.roundWindNumber : 1;
     this.seatWinds = options.seatWinds || {};
     this.wall = [];
@@ -65,6 +66,7 @@ class MahjongLogic {
         riichiDiscardIndex: -1, // リーチ宣言時の捨て牌インデックス
         tempFuriten: false, // 同巡内フリテン（ロンを見逃した巡のみ）
         riichiPassFuriten: false, // リーチ後ロン見逃しフリテン（永続）
+        isDoubleRiichi: false, // ダブル立直かどうか
       };
     });
   }
@@ -870,6 +872,9 @@ class MahjongLogic {
     
     this.players[userId].melds.push(meld);
     
+    // 副露が発生したので最初の巡目の途切れ日フラグを無効にする
+    this.firstGoAroundIntact = false;
+    
     // Remove matched tiles from hand (remove in reverse order to maintain indices)
     for (let i = matchedIndices.length - 1; i >= 0; i--) {
       this.players[userId].hand.splice(matchedIndices[i], 1);
@@ -1115,6 +1120,9 @@ class MahjongLogic {
     const meldIndex = this.players[userId].melds.length;
     this.players[userId].melds.push(meld);
     this.players[userId].daiminkanMeldIndices.add(meldIndex);
+
+    // 副露が発生したので最初の巡目の途切れ日フラグを無効にする
+    this.firstGoAroundIntact = false;
 
     // Remove matched tiles from hand (reverse order for index safety)
     for (let i = matchedIndices.length - 1; i >= 0; i--) {
@@ -2370,7 +2378,21 @@ class MahjongLogic {
     const isHoutei = this.getPlayableTileCount() === 0 && !isTsumo;
     const isRinshan = player.drawnFromKanningWall && isTsumo;
     
+    // 特殊役の判定条件
+    const isDealer = this.playerIds[this.dealerIndex] === playerId;
+    const isDoubleRiichi = player.isDoubleRiichi || false;
+    
+    // 天和: 親の配牌が和了形（親の最初のツモ、誰も打牌していない）
+    const isTenhou = isTsumo && isDealer && this.turnNumber === 0 && player.discards.length === 0;
+    
+    // 地和: 子の最初のツモで和了（副露なし）
+    const isChiihou = isTsumo && !isDealer && player.discards.length === 0 && this.firstGoAroundIntact;
+    
+    // 人和: 子が最初のツモ前にロンで和了（副露なし）
+    const isRenhou = !isTsumo && !isDealer && player.discards.length === 0 && this.firstGoAroundIntact;
+    
     console.log(`[calculateWinScore] isHaitei=${isHaitei}, isHoutei=${isHoutei}, playableTiles=${this.getPlayableTileCount()}, isTsumo=${isTsumo}`);
+    console.log(`[calculateWinScore] isTenhou=${isTenhou}, isChiihou=${isChiihou}, isRenhou=${isRenhou}, isDoubleRiichi=${isDoubleRiichi}`);
     
     // 点数計算
     const scoreResult = this.scoreCalculator.calculateScore({
@@ -2391,7 +2413,11 @@ class MahjongLogic {
       isIppatsumari: isIppatsumari, // 一発判定
       isHaitei: isHaitei, // 海底撈月判定
       isHoutei: isHoutei, // 河底撈魚判定
-      isRinshan: isRinshan // 嶺上開花判定
+      isRinshan: isRinshan, // 嶺上開花判定
+      isDoubleRiichi: isDoubleRiichi, // ダブル立直判定
+      isTenhou: isTenhou, // 天和判定
+      isChiihou: isChiihou, // 地和判定
+      isRenhou: isRenhou // 人和判定
     });
     
     console.log('[calculateWinScore] 点数計算結果:', scoreResult);
@@ -2515,10 +2541,18 @@ class MahjongLogic {
     player.riichi = true;
     player.riichiTurn = this.turnNumber; // ターン番号を記録（一発判定用）
     player.riichiDiscardIndex = player.discards.length - 1; // リーチ宣言時の捨て牌インデックスを記録
+    
+    // ダブル立直判定：最初の巡目で副露が無い状態でのリーチ宣言
+    // 捨て牌が1枚（今捨てた分のみ）かつ、誰も副露していない
+    if (player.discards.length === 1 && this.firstGoAroundIntact) {
+      player.isDoubleRiichi = true;
+      console.log(`[Riichi] ⭐ ダブル立直成立！ Player: ${playerId}`);
+    }
+    
     player.score -= 1000; // 1000点を供託
     this.riichiDeposits += 1000;
     
-    console.log(`[Riichi] ${playerId} declared riichi. Deposit: ${this.riichiDeposits}`);
+    console.log(`[Riichi] ${playerId} declared riichi. Deposit: ${this.riichiDeposits}, isDoubleRiichi: ${player.isDoubleRiichi}`);
     console.log(`[Riichi] New score: ${player.score}`);
     console.log(`[Riichi] Riichi discard index: ${player.riichiDiscardIndex}`);
     

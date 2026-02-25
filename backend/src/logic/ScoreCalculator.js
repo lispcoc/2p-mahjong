@@ -54,7 +54,7 @@ class ScoreCalculator {
    * @returns {Object} 点数計算結果
    */
   calculateScore(winInfo) {
-    const { hand, melds, concealedMeldIndices = new Set(), winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [],  urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false } = winInfo;
+    const { hand, melds, concealedMeldIndices = new Set(), winningTile, isTsumo, isRon, riichi, menzen, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [],  urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false, isDoubleRiichi = false, isTenhou = false, isChiihou = false, isRenhou = false } = winInfo;
     
     let bestResult = null;
     let maxScore = 0;
@@ -65,7 +65,7 @@ class ScoreCalculator {
     
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -90,7 +90,7 @@ class ScoreCalculator {
     
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       // ドラのみの場合はスキップ
@@ -118,7 +118,7 @@ class ScoreCalculator {
     
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
       
       if (han === 0) continue; // 役なしはスキップ
@@ -226,12 +226,35 @@ class ScoreCalculator {
    * @param {boolean} isHaitei - 海底撈月判定
    * @param {boolean} isHoutei - 河底撈魚判定
    * @param {boolean} isRinshan - 嶺上開花判定
+   * @param {boolean} isDoubleRiichi - ダブル立直判定
+   * @param {boolean} isTenhou - 天和判定
+   * @param {boolean} isChiihou - 地和判定
+   * @param {boolean} isRenhou - 人和判定
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false, isDoubleRiichi = false, isTenhou = false, isChiihou = false, isRenhou = false) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
     
     console.log(`[detectYaku] riichi=${riichi}, menzen=${menzen}, isTsumo=${isTsumo}, isRon=${isRon}`);
+    console.log(`[detectYaku] isTenhou=${isTenhou}, isChiihou=${isChiihou}, isRenhou=${isRenhou}, isDoubleRiichi=${isDoubleRiichi}`);
+    
+    // 天和（テンホウ）- 親の配牌が和了形（役満）
+    if (isTenhou) {
+      yaku.push({ name: '天和', han: 13 });
+      return yaku;
+    }
+    
+    // 地和（チーホウ）- 子の最初のツモで和了（役満）
+    if (isChiihou) {
+      yaku.push({ name: '地和', han: 13 });
+      return yaku;
+    }
+    
+    // 人和（レンホウ）- 子が最初のツモ前にロンで和了（役満）
+    if (isRenhou) {
+      yaku.push({ name: '人和', han: 13 });
+      return yaku;
+    }
     
     // 役満チェック（和了形に依存しない）
     // 四槓子（スーカンコ）
@@ -299,10 +322,15 @@ class ScoreCalculator {
       yaku.push({ name: 'ツモ', han: 1 });
     }
 
-    // リーチ（門前のみ）
+    // リーチ / ダブル立直（門前のみ）
     if (riichi && (menzen || melds.length === 0)) {
-      yaku.push({ name: 'リーチ', han: 1 });
-      console.log('[detectYaku] リーチ役を追加');
+      if (isDoubleRiichi) {
+        yaku.push({ name: 'ダブル立直', han: 2 });
+        console.log('[detectYaku] ダブル立直役を追加');
+      } else {
+        yaku.push({ name: 'リーチ', han: 1 });
+        console.log('[detectYaku] リーチ役を追加');
+      }
     } else if (riichi) {
       console.log(`[detectYaku] リーチ役なし: menzen=${menzen}, melds.length=${melds.length}`);
     }
