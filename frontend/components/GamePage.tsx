@@ -1369,7 +1369,10 @@ export default function GamePage({
   // 重要: すべての牌の聴牌情報が取得されているか確認してから判定
   const allTenpaiChecked = fullHand.length > 0 && Object.keys(tenpaiInfoMap).length === fullHand.length
   const tenpaiCount = Object.values(tenpaiInfoMap).filter(info => info?.isTenpai).length
-  const canDeclareRiichi = allTenpaiChecked && !isRiichi && melds.length === 0 && ((gameState?.scores?.[userId] ?? 0) >= 1000) &&
+  // 門前判定: 暗槓は門前扱いなので、全ての副露が暗槓であればリーチ可能
+  const concealedMeldIndicesForRiichi = new Set(gameState.tiles?.[userId]?.concealedMeldIndices ?? [])
+  const isMenzenForRiichi = melds.every((_: Tile[], idx: number) => concealedMeldIndicesForRiichi.has(idx))
+  const canDeclareRiichi = allTenpaiChecked && !isRiichi && isMenzenForRiichi && ((gameState?.scores?.[userId] ?? 0) >= 1000) &&
     tenpaiCount > 0
 
   // デバッグログ
