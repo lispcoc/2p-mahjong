@@ -1852,15 +1852,36 @@ export default function GamePage({
 
                   {/* Highlight drawn tile on the right - always reserve space */}
                   {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                    <span className='ml-8'>
+                    <span className={`ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
                         onClick={() => {
+                          // リーチ中は手牌をクリックできない
+                          if (isRiichi) {
+                            return;
+                          }
                           if (isYourTurn && gameState.status === 'playing') {
                             // ポン・カン・ロンの選択待ち中は打牌を禁止（小牌防止）
                             if (pendingPungFor === userId || ronPossibleFor === userId) {
                               return;
                             }
+                            // リーチモードONの場合、聴牌形になる牌のみクリック可能
+                            if (riichiMode) {
+                              const canDiscardForRiichi = tenpaiInfoMap[drawnTileIndex]?.isTenpai
+                              if (!canDiscardForRiichi) {
+                                return; // グレーアウトされた牌はクリックできない
+                              }
+                              // リーチ宣言
+                              const tileToRiichi = fullHand[drawnTileIndex];
+                              console.log(`🔴 [Riichi] Selected drawn tile index: ${drawnTileIndex}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
+                              sendAction({
+                                type: 'riichi',
+                                tileId: getTileId(tileToRiichi)
+                              });
+                              setRiichiMode(false);
+                              return;
+                            }
+                            // 通常の捨て牌
                             sendAction({
                               type: 'discard',
                               tileIndex: drawnTileIndex
