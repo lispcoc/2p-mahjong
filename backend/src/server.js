@@ -146,9 +146,12 @@ app.get('/api/rooms', (req, res) => {
         status: room.getStatus(),
         playersCount: connectedCount,
         playerNames: players.map(p => p.playerName),
+        createdAt: room.createdAt,
       });
     }
   });
+  // 新しいルームが上に来るようにソート
+  roomsInfo.sort((a, b) => b.createdAt - a.createdAt);
   res.json({ rooms: roomsInfo });
 });
 

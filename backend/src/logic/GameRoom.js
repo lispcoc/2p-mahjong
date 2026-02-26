@@ -47,6 +47,7 @@ class GameRoom {
     this.autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
       ? Math.min(maxAutoActionTimerSeconds, Math.max(minAutoActionTimerSeconds, Math.floor(rawAutoActionTimerSeconds)))
       : 10; // Default 10 seconds
+    this.createdAt = Date.now(); // ルーム作成日時
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join

@@ -16,6 +16,7 @@ interface RoomInfo {
   status: string
   playersCount: number
   playerNames: string[]
+  createdAt: number
 }
 
 export default function HomePage({
@@ -342,6 +343,9 @@ export default function HomePage({
                       <div className="text-xs text-gray-300">
                         {room.status === 'playing' ? 'プレイ中' : room.status === 'finished' ? '終了' : '待機中'}
                         {' '}・{room.playersCount}/2
+                        {room.createdAt && (
+                          <span className="ml-1">・{new Date(room.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
+                        )}
                       </div>
                       {room.playerNames && room.playerNames.length > 0 && (
                         <div className="text-xs text-gray-200 mt-1">
