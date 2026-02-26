@@ -8,11 +8,11 @@ console.log = () => {};
 
 const calc = new SC();
 
-// Test 1: basic hand
+// Test 1: basic tanyao hand (all middle tiles)
 const hand1 = [
-  new Tile('man',1), new Tile('man',2), new Tile('man',3),
+  new Tile('man',2), new Tile('man',3), new Tile('man',4),
   new Tile('pin',4), new Tile('pin',5), new Tile('pin',6),
-  new Tile('sou',7), new Tile('sou',8), new Tile('sou',9),
+  new Tile('sou',3), new Tile('sou',4), new Tile('sou',5),
   new Tile('man',5), new Tile('man',5), new Tile('man',5),
   new Tile('pin',2), new Tile('pin',2),
 ];
