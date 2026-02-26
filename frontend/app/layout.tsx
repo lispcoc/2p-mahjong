@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import React from 'react'
 import './globals.css'
+import { Providers } from './providers'
 
 export const metadata: Metadata = {
   title: '二人麻雀',
@@ -21,7 +22,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   )
 }

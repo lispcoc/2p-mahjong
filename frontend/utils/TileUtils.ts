@@ -58,6 +58,55 @@ export function getTileId(tile: Tile): string {
   return tile.isRed ? `${base}_red` : base
 }
 
+/**
+ * 牌をテキスト表示用の文字列に変換
+ * 萬子: 🀇🀈🀉🀊🀋🀌🀍🀎🀏 (Unicode Mahjong Tiles)
+ * 筒子: ①②③④⑤⑥⑦⑧⑨
+ * 索子: 1s〜9s (色付き)
+ * 字牌: 東南西北白發中
+ */
+export function getTileText(tile: Tile): string {
+  if (tile.suit === 'honor') {
+    const honorText: Record<number, string> = {
+      1: '東', 2: '南', 3: '西', 4: '北',
+      5: '白', 6: '發', 7: '中',
+    }
+    return honorText[tile.number] || '?'
+  }
+
+  const number = tile.number
+  if (tile.suit === 'man') {
+    const manText = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+    return (tile.isRed ? '赤' : manText[number]) + '萬'
+  }
+  if (tile.suit === 'pin') {
+    const pinText = ['', '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨']
+    return tile.isRed ? '赤⑤' : pinText[number]
+  }
+  if (tile.suit === 'sou') {
+    const souText = ['', '１', '２', '３', '４', '５', '６', '７', '８', '９']
+    return (tile.isRed ? '赤５' : souText[number]) + '索'
+  }
+  return tile.display || '?'
+}
+
+/**
+ * テキストモード用の牌の背景色クラスを取得
+ */
+export function getTileTextColorClass(tile: Tile): string {
+  if (tile.isRed) return 'text-red-600'
+  if (tile.suit === 'man') return 'text-black'
+  if (tile.suit === 'pin') return 'text-blue-700'
+  if (tile.suit === 'sou') return 'text-green-700'
+  if (tile.suit === 'honor') {
+    if (tile.number >= 1 && tile.number <= 4) return 'text-gray-800'  // 風牌
+    if (tile.number === 5) return 'text-gray-400'  // 白
+    if (tile.number === 6) return 'text-green-600'  // 發
+    if (tile.number === 7) return 'text-red-600'  // 中
+  }
+  return 'text-black'
+}
+
 export function normalizeTile(tile: Tile | string): Tile {
   if (typeof tile !== 'string') {
     return tile

@@ -565,7 +565,7 @@ export default function HomePage({
                       onChange={(e) => setNotenPenalty(e.target.checked)}
                       className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
                     />
-                    <span className="text-gray-300 text-xs">ノーテン罰符あり（流局時、ノーテン側が聴牌側に3000点支払い）</span>
+                    <span className="text-gray-300 text-xs">ノーテン罰符あり</span>
                   </label>
                 </div>
               </div>

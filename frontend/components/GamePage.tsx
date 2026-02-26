@@ -4,10 +4,12 @@ import React, { useState, useEffect, useRef } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState } from '../types/GameTypes'
-import { normalizeTile, getTileKey, getTileId } from '../utils/TileUtils'
+import { normalizeTile, getTileId } from '../utils/TileUtils'
 import { getTileImageUrl } from '../utils/tileData'
 import { TileImage } from './TileImage'
+import { TileInline } from './TileInline'
 import { FuroDisplay } from './FuroDisplay'
+import { useTextMode } from '../contexts/TextModeContext'
 import { DebugPanel } from './GameBoard/DebugPanel'
 import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
@@ -54,6 +56,7 @@ export default function GamePage({
   const [gameState, setGameState] = useState<GameState | null>(null)
   // Toast notifications via react-hot-toast (no local state needed)
   const [userId, setUserId] = useState('')
+  const { textMode, toggleTextMode } = useTextMode()
   const [isGrayscale, setIsGrayscale] = useState(false)
   const [autoDrawMode, setAutoDrawMode] = useState(false)
   const [noMeldMode, setNoMeldMode] = useState(false)
@@ -1931,12 +1934,9 @@ export default function GamePage({
                 <>
                   <div className="text-white text-xs font-bold whitespace-nowrap">🀄 聴牌 待ち:</div>
                   <div className="flex gap-0.5 flex-row flex-wrap items-center">
-                    {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => {
-                      const tileKey = getTileKey(tile);
-                      return (
-                        <img key={tIdx} src={getTileImageUrl(tileKey)} alt={tile.display} width={28} height={40} className="rounded shadow-sm" />
-                      );
-                    })}
+                    {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => (
+                      <TileInline key={tIdx} tile={tile} height={40} width={28} className="rounded shadow-sm" />
+                    ))}
                     {info.winningTiles.length > 12 && (
                       <div className="text-white text-xs ml-1">+{info.winningTiles.length - 12}</div>
                     )}
@@ -2073,31 +2073,15 @@ export default function GamePage({
                         isHovered={hoveredTileIndex === idx}
                       />
                       {/* Tenpai popup */}
-                      {hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
+                      {!confirmDiscardMode && hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
                           <div className="text-white text-xs font-bold mb-0.5">
                             聴牌
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
-                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
-                              const tileKey = getTileKey(tile);
-                              if (tIdx === 0) {
-                                console.log(`First tile: ${tile.display} -> key: ${tileKey}`);
-                              }
-                              return (
-                                <img
-                                  key={tIdx}
-                                  src={getTileImageUrl(tileKey)}
-                                  alt={tile.display}
-                                  width={22}
-                                  height={31}
-                                  className="rounded shadow-sm"
-                                  onError={(e) => {
-                                    console.error(`Failed to load tile image: ${tileKey}`, tile);
-                                  }}
-                                />
-                              );
-                            })}
+                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => (
+                              <TileInline key={tIdx} tile={tile} height={31} width={22} className="rounded shadow-sm" />
+                            ))}
                             {tenpaiInfo.winningTiles.length > 8 && (
                               <div className="text-white text-[10px] ml-1">
                                 +{tenpaiInfo.winningTiles.length - 8}
@@ -2221,22 +2205,9 @@ export default function GamePage({
                             🀄 聴牌
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
-                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
-                              const tileKey = getTileKey(tile);
-                              return (
-                                <img
-                                  key={tIdx}
-                                  src={getTileImageUrl(tileKey)}
-                                  alt={tile.display}
-                                  width={22}
-                                  height={31}
-                                  className="rounded shadow-sm"
-                                  onError={(e) => {
-                                    console.error(`Failed to load tile image: ${tileKey}`, tile);
-                                  }}
-                                />
-                              );
-                            })}
+                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => (
+                              <TileInline key={tIdx} tile={tile} height={31} width={22} className="rounded shadow-sm" />
+                            ))}
                             {tenpaiInfo.winningTiles.length > 8 && (
                               <div className="text-white text-[10px] ml-1">
                                 +{tenpaiInfo.winningTiles.length - 8}
@@ -2391,12 +2362,20 @@ export default function GamePage({
 
         <div className="mt-1 flex grid grid-cols-4 gap-1 items-center justify-center flex-wrap">
           {DEVELOPMENT_MODE && (
-            <button
-              onClick={() => toggleAutoPlayMode(!autoPlayMode)}
-              className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
-            >
-              🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
-            </button>
+            <>
+              <button
+                onClick={() => toggleAutoPlayMode(!autoPlayMode)}
+                className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
+              >
+                🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={toggleTextMode}
+                className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${textMode ? 'bg-purple-600 text-[#ffffff] border-purple-700' : 'bg-white text-purple-600 border-purple-600'}`}
+              >
+                文字牌: {textMode ? 'ON' : 'OFF'}
+              </button>
+            </>
           )}
           <button
             onClick={() => toggleAutoDrawMode(!autoDrawMode)}

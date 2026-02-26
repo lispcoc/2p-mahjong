@@ -1,7 +1,6 @@
 import React from 'react'
 import { Tile, GameState } from '../../types/GameTypes'
-import { getTileKey } from '../../utils/TileUtils'
-import { getTileImageUrl } from '../../utils/tileData'
+import { TileInline } from '../TileInline'
 
 interface DoraAndKanningProps {
   gameState: GameState
@@ -20,12 +19,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
             </div>
             <div className="flex gap-1.5 items-center">
               {gameState.dora.indicators.map((tile, idx) => (
-                <img
-                  key={`dora-ind-${idx}`}
-                  src={getTileImageUrl(getTileKey(tile))}
-                  alt={tile.display}
-                  className="h-[50px] object-contain"
-                />
+                <TileInline key={`dora-ind-${idx}`} tile={tile} height={50} />
               ))}
             </div>
             {gameState.dora.tiles && gameState.dora.tiles.length > 0 && (
@@ -33,12 +27,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                 <div className="text-xs text-gray-400">→</div>
                 <div className="flex gap-1.5 items-center">
                   {gameState.dora.tiles.map((tile, idx) => (
-                    <img
-                      key={`dora-tile-${idx}`}
-                      src={getTileImageUrl(getTileKey(tile))}
-                      alt={tile.display}
-                      className="h-[48px] object-contain opacity-80"
-                    />
+                    <TileInline key={`dora-tile-${idx}`} tile={tile} height={48} className="opacity-80" />
                   ))}
                 </div>
               </>
@@ -54,12 +43,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
             </div>
             <div className="flex gap-1.5 items-center">
               {gameState.dora.uraIndicators.map((tile, idx) => (
-                <img
-                  key={`ura-ind-${idx}`}
-                  src={getTileImageUrl(getTileKey(tile))}
-                  alt={tile.display}
-                  className="h-[50px] object-contain"
-                />
+                <TileInline key={`ura-ind-${idx}`} tile={tile} height={50} />
               ))}
             </div>
             {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
@@ -67,12 +51,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                 <div className="text-xs text-gray-400">→</div>
                 <div className="flex gap-1.5 items-center">
                   {gameState.dora.uraTiles.map((tile, idx) => (
-                    <img
-                      key={`ura-tile-${idx}`}
-                      src={getTileImageUrl(getTileKey(tile))}
-                      alt={tile.display}
-                      className="h-[48px] object-contain opacity-80"
-                    />
+                    <TileInline key={`ura-tile-${idx}`} tile={tile} height={48} className="opacity-80" />
                   ))}
                 </div>
               </>
@@ -87,12 +66,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
           <div className="text-xs text-gray-600 font-bold min-w-[60px]">嶺上牌</div>
           <div className="flex gap-1 items-center">
             {Array.from({ length: gameState.kanningWall.remaining }).map((_, idx) => (
-              <img
-                key={`kanning-${idx}`}
-                src={getTileImageUrl('pai')}
-                alt="牌の裏"
-                className="h-[50px] object-contain"
-              />
+              <TileInline key={`kanning-${idx}`} tile={{ suit: 'honor', number: 1, display: '裏' }} height={50} faceDown />
             ))}
             <span className="text-xs text-gray-600 ml-1">
               {gameState.kanningWall.remaining}枚
