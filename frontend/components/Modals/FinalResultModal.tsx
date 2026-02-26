@@ -15,7 +15,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
 
   return (
     <div className="fixed inset-0 bg-black/85 flex justify-center items-center z-[2000]">
-      <div className="bg-white p-[25px] rounded-[12px] max-w-[90vw] w-[1000px] max-h-[90vh] overflow-auto shadow-2xl">
+      <div className="bg-white p-4 rounded-[12px] max-w-[90vw] w-[1000px] max-h-[90vh] overflow-auto shadow-2xl">
         <h2 className="mt-0 text-[#ff6b6b] text-center text-2xl mb-5">
           ゲーム終了
         </h2>
@@ -68,7 +68,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
               {/* Final Score Row */}
               <tr className="bg-yellow-100 border-t-[3px] border-yellow-400">
                 <td className="p-3 border border-gray-300 text-center font-bold text-base">
-                  最終得点
+                  合計
                 </td>
                 {gameState?.players && gameState.players.map((player: any) => {
                   const finalScore = gameState?.scores?.[player.userId] ?? 0
@@ -83,7 +83,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
                         finalScore < 0 ? 'text-red-500' : 'text-green-500'
                       }`}
                     >
-                      {finalScore.toLocaleString()}点&nbsp;
+                      {finalScore.toLocaleString()}点<br/>
                       <span className={`text-sm ${diff > 0 ? 'text-green-600' : diff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
                         ({diffStr})
                       </span>
@@ -119,7 +119,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
               onClick={onBack}
               className="px-6 py-3 text-base font-bold rounded bg-green-500 text-white cursor-pointer flex-1 hover:bg-green-600 border-none"
             >
-              タイトルに戻る
+              戻る
             </button>
           </div>
         </div>

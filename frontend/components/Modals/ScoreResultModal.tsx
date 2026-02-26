@@ -57,7 +57,7 @@ export function ScoreResultModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-      <div className="bg-mahjong-dark-primary p-5 max-w-[90vw] w-[1200px] max-h-[90vh] overflow-auto shadow-2xl border-4 border-white">
+      <div className="bg-mahjong-dark-primary p-2 max-w-[95vw] w-[1200px] max-h-[90vh] overflow-auto shadow-2xl border-4 border-white">
         {(winnerName || winnerId) && !isDrawOrAbort && scoreResult.valid && (hasWinnerTiles || scoreResult.winningTile) && (
           <div className="mb-3 p-3 bg-mahjong-dark-secondary border-2 border-white">
             <div className="text-sm font-bold text-white mb-2">
@@ -110,10 +110,10 @@ export function ScoreResultModal({
 
         {/* ドラ・裏ドラ表示 */}
         {scoreResult.valid && !isDrawOrAbort && (
-          <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-yellow-400 flex gap-10 items-center justify-center flex-wrap">
+          <div className="mt-4 p-2 bg-mahjong-dark-secondary border-2 border-yellow-400 flex gap-2 items-center justify-center flex-wrap">
             {/* 表ドラ表示 */}
             {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
-              <div className="flex items-center gap-3 px-3 py-2 bg-yellow-100 rounded border border-yellow-600">
+              <div className="w-full flex items-center gap-3 px-3 py-2 bg-yellow-100 rounded border border-yellow-600">
                 <div className="text-xs text-gray-600 font-bold w-[65px]">
                   表ドラ
                 </div>
@@ -137,7 +137,7 @@ export function ScoreResultModal({
 
             {/* 裏ドラ表示 */}
             {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 && (
-              <div className="flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
+              <div className="w-full flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
                 <div className="text-xs text-gray-600 font-bold w-[65px]">
                   裏ドラ
                 </div>
@@ -164,7 +164,6 @@ export function ScoreResultModal({
         {scoreResult.valid && !isDrawOrAbort ? (
           <>
             <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-white">
-              <h3 className="mt-0 mb-2.5 text-white text-base font-bold">役</h3>
               {scoreResult.yaku && scoreResult.yaku.length > 0 ? (
                 <div className="text-sm">
                   {scoreResult.yaku.map((y: any, idx: number) => (
