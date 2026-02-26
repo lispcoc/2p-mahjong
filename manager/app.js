@@ -19,6 +19,7 @@ let backendProc = null;
 let frontendProc = null;
 let isRunning = false;
 let autoScroll = true;
+let serverMode = localStorage.getItem('serverMode') || 'dev'; // 'dev' or 'start'
 
 // ──────────── DOM refs ────────────
 const logBox = document.getElementById('log-box');
@@ -32,6 +33,54 @@ const btnBrowser = document.getElementById('btn-browser');
 const filterBackend = document.getElementById('filter-backend');
 const filterFrontend = document.getElementById('filter-frontend');
 const filterSystem = document.getElementById('filter-system');
+const modeDevBtn = document.getElementById('mode-dev');
+const modeStartBtn = document.getElementById('mode-start');
+const modeDescription = document.getElementById('mode-description');
+
+// ──────────── Mode Toggle ────────────
+const MODE_INFO = {
+  dev: {
+    label: 'Dev',
+    description: 'Hot reload enabled (nodemon + next dev)',
+    backend: { cmd: 'npm', args: ['run', 'dev'], display: 'npm run dev' },
+    frontend: { cmd: 'npm', args: ['run', 'dev'], display: 'npm run dev' },
+  },
+  start: {
+    label: 'Start',
+    description: 'Production mode (node + next start)',
+    backend: { cmd: 'npm', args: ['start'], display: 'npm start' },
+    frontend: { cmd: 'npm', args: ['run', 'start'], display: 'npm run start' },
+  },
+};
+
+function setMode(mode) {
+  serverMode = mode;
+  localStorage.setItem('serverMode', mode);
+  modeDevBtn.classList.toggle('active', mode === 'dev');
+  modeStartBtn.classList.toggle('active', mode === 'start');
+  modeDescription.textContent = MODE_INFO[mode].description;
+}
+
+modeDevBtn.addEventListener('click', () => {
+  if (isRunning) {
+    log('Cannot switch mode while servers are running', 'error');
+    return;
+  }
+  setMode('dev');
+  log('Switched to Dev mode', 'system');
+});
+
+modeStartBtn.addEventListener('click', () => {
+  if (isRunning) {
+    log('Cannot switch mode while servers are running', 'error');
+    return;
+  }
+  setMode('start');
+  log('Switched to Start mode', 'system');
+});
+
+// Initialize mode from saved preference
+setMode(serverMode);
 
 // ──────────── Log Utilities ────────────
 function timestamp() {
@@ -220,18 +269,20 @@ async function startServers() {
   log('===== Starting Servers =====', 'system');
   cleanupProcesses();
 
+  const modeInfo = MODE_INFO[serverMode];
+
   // Start backend
   setStatus(backendStatus, 'starting');
-  log('Starting backend: npm start (port 3001)', 'system');
-  backendProc = spawnServer('npm', ['start'], BACKEND_DIR, 'backend');
+  log(`Starting backend: ${modeInfo.backend.display} (port 3001)`, 'system');
+  backendProc = spawnServer(modeInfo.backend.cmd, modeInfo.backend.args, BACKEND_DIR, 'backend');
 
   // Wait a bit for backend
   await delay(3000);
 
   // Start frontend
   setStatus(frontendStatus, 'starting');
-  log('Starting frontend: npm run dev (port 3000)', 'system');
-  frontendProc = spawnServer('npm', ['run', 'dev'], FRONTEND_DIR, 'frontend');
+  log(`Starting frontend: ${modeInfo.frontend.display} (port 3000)`, 'system');
+  frontendProc = spawnServer(modeInfo.frontend.cmd, modeInfo.frontend.args, FRONTEND_DIR, 'frontend');
 
   // Wait a bit then mark running
   await delay(3000);

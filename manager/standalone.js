@@ -32,6 +32,7 @@ const MANAGER_PORT = 3100;
 let backendProc  = null;
 let frontendProc = null;
 let isRunning    = false;
+let serverMode   = 'dev'; // 'dev' or 'start'
 
 /** @type {{ ts: string, cat: string, msg: string }[]} */
 const logBuffer = [];
@@ -96,7 +97,7 @@ function spawnServer(cmd, args, cwd, cat) {
 }
 
 function broadcastStatus() {
-  const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped' };
+  const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped', serverMode };
   for (const res of sseClients) {
     try { res.write(`event: status\ndata: ${JSON.stringify(s)}\n\n`); } catch (_) {}
   }
@@ -112,13 +113,18 @@ async function startServers() {
   log('===== Starting Servers =====');
   cleanupProcesses();
 
-  log('Starting backend: npm start (port 3001)');
-  backendProc = spawnServer('npm', ['start'], BACKEND_DIR, 'backend');
+  const modeInfo = {
+    dev:   { be: ['run','dev'], beLabel: 'npm run dev', fe: ['run','dev'], feLabel: 'npm run dev' },
+    start: { be: ['start'],     beLabel: 'npm start',   fe: ['run','start'], feLabel: 'npm run start' },
+  }[serverMode];
+
+  log(`Starting backend: ${modeInfo.beLabel} (port 3001)`);
+  backendProc = spawnServer('npm', modeInfo.be, BACKEND_DIR, 'backend');
   broadcastStatus();
   await delay(3000);
 
-  log('Starting frontend: npm run dev (port 3000)');
-  frontendProc = spawnServer('npm', ['run', 'dev'], FRONTEND_DIR, 'frontend');
+  log(`Starting frontend: ${modeInfo.feLabel} (port 3000)`);
+  frontendProc = spawnServer('npm', modeInfo.fe, FRONTEND_DIR, 'frontend');
   await delay(3000);
 
   isRunning = true;
@@ -164,6 +170,14 @@ body{font-family:'Segoe UI','Meiryo',sans-serif;background:#1a1a2e;color:#e0e0e0
 .status-badge.stopped{background:#4a1525;color:#ff6b6b;border:1px solid #ff6b6b44}
 .status-badge.starting{background:#3a3515;color:#ffd93d;border:1px solid #ffd93d44}
 .status-badge.running{background:#153a25;color:#6bff8b;border:1px solid #6bff8b44}
+.mode-toggle{display:flex;align-items:center;justify-content:center;gap:10px}
+.mode-label{font-size:13px;font-weight:600;color:#a0a0b0}
+.toggle-group{display:flex;border-radius:6px;overflow:hidden;border:1px solid #0f3460}
+.toggle-btn{padding:6px 18px;border:none;background:#16213e;color:#808090;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.toggle-btn:first-child{border-right:1px solid #0f3460}
+.toggle-btn:hover:not(.active){background:#1a2a50;color:#a0a0b0}
+.toggle-btn.active{background:#2980b9;color:#fff}
+.mode-description{font-size:11px;color:#606070;font-style:italic}
 .controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 .btn{display:flex;align-items:center;gap:6px;padding:8px 20px;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#fff}
 .btn:hover:not(:disabled){transform:translateY(-1px);filter:brightness(1.15)}
@@ -198,6 +212,14 @@ body{font-family:'Segoe UI','Meiryo',sans-serif;background:#1a1a2e;color:#e0e0e0
     <div class="status-item"><span class="status-label">Backend (port 3001)</span><span id="backend-status" class="status-badge stopped">Stopped</span></div>
     <div class="status-item"><span class="status-label">Frontend (port 3000)</span><span id="frontend-status" class="status-badge stopped">Stopped</span></div>
   </div>
+  <div class="mode-toggle">
+    <span class="mode-label">Mode:</span>
+    <div class="toggle-group">
+      <button id="mode-dev" class="toggle-btn active" title="Development mode (hot reload)">🔧 Dev</button>
+      <button id="mode-start" class="toggle-btn" title="Production mode (requires build)">🚀 Start</button>
+    </div>
+    <span id="mode-desc" class="mode-description">Hot reload enabled (nodemon + next dev)</span>
+  </div>
   <div class="controls">
     <button id="btn-start" class="btn btn-start"><span class="btn-icon">▶</span> Start</button>
     <button id="btn-stop" class="btn btn-stop" disabled><span class="btn-icon">■</span> Stop</button>
@@ -230,8 +252,28 @@ const logBox=document.getElementById('log-box'),
   btnBrowser=document.getElementById('btn-browser'),
   fBe=document.getElementById('filter-backend'),
   fFe=document.getElementById('filter-frontend'),
-  fSys=document.getElementById('filter-system');
+  fSys=document.getElementById('filter-system'),
+  modeDevBtn=document.getElementById('mode-dev'),
+  modeStartBtn=document.getElementById('mode-start'),
+  modeDesc=document.getElementById('mode-desc');
 let autoScroll=true;
+let currentMode='dev';
+
+const MODE_DESCRIPTIONS={dev:'Hot reload enabled (nodemon + next dev)',start:'Production mode (node + next start)'};
+function setModeUI(mode){
+  currentMode=mode;
+  modeDevBtn.classList.toggle('active',mode==='dev');
+  modeStartBtn.classList.toggle('active',mode==='start');
+  modeDesc.textContent=MODE_DESCRIPTIONS[mode];
+}
+modeDevBtn.addEventListener('click',()=>{
+  if(btnStart.disabled){addLog(new Date().toTimeString().slice(0,8),'error','Cannot switch mode while servers are running');return;}
+  api('mode/dev');
+});
+modeStartBtn.addEventListener('click',()=>{
+  if(btnStart.disabled){addLog(new Date().toTimeString().slice(0,8),'error','Cannot switch mode while servers are running');return;}
+  api('mode/start');
+});
 
 const prefixMap={system:'SYS',backend:'BE',frontend:'FE',error:'ERR',success:'OK'};
 function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
@@ -254,6 +296,7 @@ function setStatus(el,state){
 function updateUI(s){
   setStatus(beStatus,s.backend);setStatus(feStatus,s.frontend);
   btnStart.disabled=s.isRunning;btnStop.disabled=!s.isRunning;btnRestart.disabled=!s.isRunning;
+  if(s.serverMode)setModeUI(s.serverMode);
 }
 logBox.addEventListener('scroll',()=>{autoScroll=logBox.scrollHeight-logBox.scrollTop-logBox.clientHeight<40});
 fBe.addEventListener('change',applyFilters);fFe.addEventListener('change',applyFilters);fSys.addEventListener('change',applyFilters);
@@ -310,7 +353,7 @@ const server = http.createServer(async (req, res) => {
     // Send buffered logs
     res.write(`event: init\ndata: ${JSON.stringify(logBuffer)}\n\n`);
     // Send current status
-    const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped' };
+    const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped', serverMode };
     res.write(`event: status\ndata: ${JSON.stringify(s)}\n\n`);
     sseClients.add(res);
     req.on('close', () => sseClients.delete(res));
@@ -319,7 +362,7 @@ const server = http.createServer(async (req, res) => {
 
   // Status endpoint
   if (req.method === 'GET' && url.pathname === '/api/status') {
-    const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped' };
+    const s = { isRunning, backend: backendProc ? 'running' : 'stopped', frontend: frontendProc ? 'running' : 'stopped', serverMode };
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(s));
     return;
@@ -332,6 +375,8 @@ const server = http.createServer(async (req, res) => {
     if (action === 'start')        { startServers(); res.end('{"ok":true}'); }
     else if (action === 'stop')    { stopServers();  res.end('{"ok":true}'); }
     else if (action === 'restart') { restartServers(); res.end('{"ok":true}'); }
+    else if (action === 'mode/dev')   { serverMode = 'dev';  log('Switched to Dev mode'); broadcastStatus(); res.end('{"ok":true}'); }
+    else if (action === 'mode/start') { serverMode = 'start'; log('Switched to Start mode'); broadcastStatus(); res.end('{"ok":true}'); }
     else { res.writeHead(404); res.end('{"error":"not found"}'); }
     return;
   }

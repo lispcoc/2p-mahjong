@@ -24,6 +24,20 @@
       </div>
     </div>
 
+    <!-- Mode Toggle -->
+    <div class="mode-toggle">
+      <span class="mode-label">Mode:</span>
+      <div class="toggle-group">
+        <button id="mode-dev" class="toggle-btn active" title="Development mode (hot reload)">
+          🔧 Dev
+        </button>
+        <button id="mode-start" class="toggle-btn" title="Production mode (requires build)">
+          🚀 Start
+        </button>
+      </div>
+      <span id="mode-description" class="mode-description">Hot reload enabled (nodemon + next dev)</span>
+    </div>
+
     <!-- Controls -->
     <div class="controls">
       <button id="btn-start" class="btn btn-start" title="Start servers">

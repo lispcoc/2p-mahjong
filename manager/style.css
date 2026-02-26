@@ -84,6 +84,58 @@ body {
   border: 1px solid #6bff8b44;
 }
 
+/* ========== Mode Toggle ========== */
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.mode-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #a0a0b0;
+}
+
+.toggle-group {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #0f3460;
+}
+
+.toggle-btn {
+  padding: 6px 18px;
+  border: none;
+  background: #16213e;
+  color: #808090;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toggle-btn:first-child {
+  border-right: 1px solid #0f3460;
+}
+
+.toggle-btn:hover:not(.active) {
+  background: #1a2a50;
+  color: #a0a0b0;
+}
+
+.toggle-btn.active {
+  background: #2980b9;
+  color: #fff;
+}
+
+.mode-description {
+  font-size: 11px;
+  color: #606070;
+  font-style: italic;
+}
+
 /* ========== Controls ========== */
 .controls {
   display: flex;
