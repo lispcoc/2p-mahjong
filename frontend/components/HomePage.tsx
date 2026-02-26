@@ -344,6 +344,11 @@ export default function HomePage({
                   <div key={room.roomId} className="flex items-center justify-between gap-3 p-3 border-2 border-white bg-[#3d6b20]">
                     <div className="flex flex-col gap-1">
                       <div className="font-bold text-[#ffffff] text-sm">#{room.roomId}</div>
+                      {room.playerNames && room.playerNames.length > 0 && (
+                        <div className="text-xs font-bold text-gray-200">
+                          {room.playerNames.join(', ')}
+                        </div>
+                      )}
                       <div className="text-xs text-gray-300">
                         {room.status === 'playing' ? 'プレイ中' : room.status === 'finished' ? '終了' : '待機中'}
                         {' '}・{room.playersCount}/2
@@ -351,15 +356,10 @@ export default function HomePage({
                           <span className="ml-1">・{new Date(room.createdAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}</span>
                         )}
                       </div>
-                      {room.playerNames && room.playerNames.length > 0 && (
-                        <div className="text-xs text-gray-200 mt-1">
-                          {room.playerNames.join(', ')}
-                        </div>
-                      )}
                     </div>
                     <button
                       onClick={() => handleJoinFromList(room.roomId)}
-                      className="px-3 py-1 border-2 border-white bg-[#1a2e0a] text-[#ffffff] cursor-pointer text-xs font-bold transition-all hover:bg-[#0f1a06] disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      className="px-6 py-3 border-2 border-white bg-[#1a2e0a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f1a06] disabled:opacity-60"
                       disabled={!canJoinRoom(room)}
                     >
                       {getButtonText(room)}
