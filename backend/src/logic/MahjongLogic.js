@@ -1386,6 +1386,13 @@ class MahjongLogic {
     const hand = this.players[userId].hand.slice();
     hand.push(tile);
     
+    // 門前の場合は七対子・国士無双もチェック
+    const melds = this.players[userId].melds;
+    if (melds.length === 0) {
+      if (this.isChiitoitsu(hand)) return true;
+      if (this.isKokushi(hand)) return true;
+    }
+    
     // Check if this hand is winning
     return this.checkValidMeldStructure(hand);
   }
