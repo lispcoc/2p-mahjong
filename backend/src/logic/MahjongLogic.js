@@ -727,8 +727,14 @@ class MahjongLogic {
       }
       
       actualIndex = hand.findIndex(
-        t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number
+        t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number && (t.isRed || false) === (selectedInSortedOrder.isRed || false)
       );
+      // isRedで見つからない場合のフォールバック
+      if (actualIndex < 0) {
+        actualIndex = hand.findIndex(
+          t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number
+        );
+      }
       
       if (actualIndex < 0) {
         return { success: false, message: 'Tile not found in hand' };

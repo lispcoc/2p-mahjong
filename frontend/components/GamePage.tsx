@@ -2192,7 +2192,7 @@ export default function GamePage({
                             if (confirmDiscardMode) {
                               if (selectedTileIndex === drawnTileIndex) {
                                 // 2タップ目 - 打牌実行
-                                sendAction({ type: 'discard', tileIndex: drawnTileIndex });
+                                sendAction({ type: 'discard', tileId: getTileId(fullHand[drawnTileIndex]) });
                                 setSelectedTileIndex(null);
                                 setTenpaiInfo(null);
                               } else {
@@ -2210,7 +2210,7 @@ export default function GamePage({
                             // 通常の捨て牌（1タップ打牌）
                             sendAction({
                               type: 'discard',
-                              tileIndex: drawnTileIndex
+                              tileId: getTileId(fullHand[drawnTileIndex])
                             });
                           }
                         }}
