@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Server Manager - Mahjong Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🀄 Mahjong Game — Server Manager</h1>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-item">
+        <span class="status-label">Backend (port 3001)</span>
+        <span id="backend-status" class="status-badge stopped">Stopped</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Frontend (port 3000)</span>
+        <span id="frontend-status" class="status-badge stopped">Stopped</span>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button id="btn-start" class="btn btn-start" title="Start servers">
+        <span class="btn-icon">▶</span> Start
+      </button>
+      <button id="btn-stop" class="btn btn-stop" disabled title="Stop servers">
+        <span class="btn-icon">■</span> Stop
+      </button>
+      <button id="btn-restart" class="btn btn-restart" disabled title="Restart servers">
+        <span class="btn-icon">↻</span> Restart
+      </button>
+      <button id="btn-clear" class="btn btn-clear" title="Clear log">
+        <span class="btn-icon">🗑</span> Clear
+      </button>
+    </div>
+
+    <!-- Log Area -->
+    <div class="log-section">
+      <div class="log-header">
+        <span>Log</span>
+        <div class="log-filters">
+          <label><input type="checkbox" id="filter-backend" checked> Backend</label>
+          <label><input type="checkbox" id="filter-frontend" checked> Frontend</label>
+          <label><input type="checkbox" id="filter-system" checked> System</label>
+        </div>
+      </div>
+      <div id="log-box" class="log-box"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <button id="btn-browser" class="btn btn-browser" title="Open game in browser">
+        🌐 Open http://localhost:3000
+      </button>
+      <span class="api-info">API: http://localhost:3001</span>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

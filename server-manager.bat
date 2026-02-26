@@ -1,3 +1,3 @@
 @echo off
 chcp 65001 >nul
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0ServerManager.ps1"
+call "%~dp0manager\launch.bat"

@@ -1,4 +1,4 @@
-' Hide command prompt and run PowerShell script
+' Launch nw.js Server Manager (no console window)
 Set objShell = CreateObject("WScript.Shell")
-strScriptPath = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\ServerManager.ps1"
-objShell.Run "powershell -NoProfile -ExecutionPolicy Bypass -File """ & strScriptPath & """", 0, False
+strLaunchPath = CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & "\manager\launch.bat"
+objShell.Run """" & strLaunchPath & """", 0, False

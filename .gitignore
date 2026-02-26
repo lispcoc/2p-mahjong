@@ -29,6 +29,9 @@ dist/
 build/
 .next/
 
+# ServerManager deploy output
+ServerManager.exe
+
 # Testing
 coverage/
 
