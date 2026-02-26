@@ -291,6 +291,21 @@ class AIPlayer {
       // --- 役志向ボーナス (±80以内のタイブレーク) ---
       score += this._yakuBonus(hand, e.i, numMelds);
 
+      // --- 赤ドラ保持: 赤5を切るとペナルティ ---
+      // 同じ数字・スートの通常牌があるなら、そちらを切るべき
+      if (e.tile.isRed) {
+        const hasNormalVersion = hand.some(
+          (t, j) => j !== e.i && t.suit === e.tile.suit && t.number === e.tile.number && !t.isRed
+        );
+        if (hasNormalVersion) {
+          // 通常版がある場合、赤を捨てるのは大きなペナルティ
+          score -= 500;
+        } else {
+          // 通常版がなくても赤ドラは1翻の価値がある
+          score -= 150;
+        }
+      }
+
       e.score = score;
     }
 

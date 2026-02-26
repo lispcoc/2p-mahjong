@@ -9,7 +9,7 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,447行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,462行）
 - **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約4,342行）
 - **テスト**: 17ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
@@ -73,7 +73,7 @@ npm run task:progress   # 進捗表示
 <!-- AUTO:BACKEND_MODULES:START -->
 | ファイル | 行数 |
 |----------|------|
-| `AIPlayer.js` | 883 |
+| `AIPlayer.js` | 898 |
 | `GameRoom.js` | 1,323 |
 | `MahjongLogic.js` | 2,778 |
 | `ScoreCalculator.js` | 1,867 |
