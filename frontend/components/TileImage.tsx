@@ -1,6 +1,7 @@
 import React from 'react'
 import { Tile } from '../types/GameTypes'
 import { getTileKey } from '../utils/TileUtils'
+import { getTileImageUrl } from '../utils/tileData'
 
 interface TileImageProps {
   tile: Tile
@@ -23,7 +24,7 @@ export function TileImage({
   faceDown = false,
   isRotated = false,
 }: TileImageProps) {
-  const src = faceDown ? '/tiles/pai.gif' : `/tiles/${getTileKey(tile)}.gif`
+  const src = faceDown ? getTileImageUrl('pai') : getTileImageUrl(getTileKey(tile))
 
   // 回転時は占有スペースを入れ替える (mobile: 33x47, PC sm+: 45x64)
   const containerClasses = isRotated
@@ -41,7 +42,7 @@ export function TileImage({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onError={(event) => {
-          event.currentTarget.src = '/tiles/missing.png'
+          event.currentTarget.src = getTileImageUrl('missing')
         }}
         className={`w-[33px] h-[47px] sm:w-[45px] sm:h-[64px] transition-all duration-200 ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         style={{

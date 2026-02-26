@@ -5,6 +5,7 @@ import { Toaster, toast } from 'react-hot-toast'
 import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState } from '../types/GameTypes'
 import { normalizeTile, getTileKey, getTileId } from '../utils/TileUtils'
+import { getTileImageUrl } from '../utils/tileData'
 import { TileImage } from './TileImage'
 import { FuroDisplay } from './FuroDisplay'
 import { DebugPanel } from './GameBoard/DebugPanel'
@@ -1723,7 +1724,7 @@ export default function GamePage({
                 return isOtherRiichi ? (
                   <div className="w-full mt-2 flex items-center gap-2">
                     <img
-                      src="/tiles/1000.gif"
+                      src={getTileImageUrl('1000')}
                       alt="リーチ棒"
                       className="drop-shadow"
                     />
@@ -1813,7 +1814,7 @@ export default function GamePage({
                 return isPlayerRiichi ? (
                   <div className="mb-2 flex items-center gap-2">
                     <img
-                      src="/tiles/1000.gif"
+                      src={getTileImageUrl('1000')}
                       alt="リーチ棒"
                       className="drop-shadow"
                     />
@@ -1931,10 +1932,9 @@ export default function GamePage({
                   <div className="text-white text-xs font-bold whitespace-nowrap">🀄 聴牌 待ち:</div>
                   <div className="flex gap-0.5 flex-row flex-wrap items-center">
                     {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => {
-                      const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
-                      const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                      const tileKey = getTileKey(tile);
                       return (
-                        <img key={tIdx} src={imagePath} alt={tile.display} width={28} height={40} className="rounded shadow-sm" />
+                        <img key={tIdx} src={getTileImageUrl(tileKey)} alt={tile.display} width={28} height={40} className="rounded shadow-sm" />
                       );
                     })}
                     {info.winningTiles.length > 12 && (
@@ -2080,21 +2080,20 @@ export default function GamePage({
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
-                              const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
-                              const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                              const tileKey = getTileKey(tile);
                               if (tIdx === 0) {
-                                console.log(`First tile: ${tile.display} -> suit: ${tile.suit}, number: ${tile.number}, path: ${imagePath}`);
+                                console.log(`First tile: ${tile.display} -> key: ${tileKey}`);
                               }
                               return (
                                 <img
                                   key={tIdx}
-                                  src={imagePath}
+                                  src={getTileImageUrl(tileKey)}
                                   alt={tile.display}
                                   width={22}
                                   height={31}
                                   className="rounded shadow-sm"
                                   onError={(e) => {
-                                    console.error(`Failed to load tile image: ${imagePath}`, tile);
+                                    console.error(`Failed to load tile image: ${tileKey}`, tile);
                                   }}
                                 />
                               );
@@ -2223,18 +2222,17 @@ export default function GamePage({
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
-                              const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
-                              const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                              const tileKey = getTileKey(tile);
                               return (
                                 <img
                                   key={tIdx}
-                                  src={imagePath}
+                                  src={getTileImageUrl(tileKey)}
                                   alt={tile.display}
                                   width={22}
                                   height={31}
                                   className="rounded shadow-sm"
                                   onError={(e) => {
-                                    console.error(`Failed to load tile image: ${imagePath}`, tile);
+                                    console.error(`Failed to load tile image: ${tileKey}`, tile);
                                   }}
                                 />
                               );

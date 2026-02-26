@@ -90,21 +90,22 @@ npm run task:progress   # 進捗表示
 | `frontend/hooks/useGameConnection.ts` | 367 |
 | `frontend/utils/DebugUtils.ts` | 27 |
 | `frontend/utils/TenpaiChecker.ts` | 450 |
+| `frontend/utils/tileData.ts` | 59 |
 | `frontend/utils/TileUtils.ts` | 86 |
 | `frontend/components/FuroDisplay.tsx` | 158 |
 | `frontend/components/GameBoard/ConnectingScreen.tsx` | 43 |
 | `frontend/components/GameBoard/DebugPanel.tsx` | 35 |
-| `frontend/components/GameBoard/DoraAndKanning.tsx` | 105 |
+| `frontend/components/GameBoard/DoraAndKanning.tsx` | 106 |
 | `frontend/components/GameBoard/GameHeader.tsx` | 57 |
 | `frontend/components/GameBoard/GameInfo.tsx` | 111 |
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 48 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 40 |
-| `frontend/components/GamePage.tsx` | 2,504 |
+| `frontend/components/GamePage.tsx` | 2,502 |
 | `frontend/components/HomePage.tsx` | 612 |
 | `frontend/components/LoginPage.tsx` | 59 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 123 |
 | `frontend/components/Modals/ScoreResultModal.tsx` | 294 |
-| `frontend/components/TileImage.tsx` | 57 |
+| `frontend/components/TileImage.tsx` | 58 |
 <!-- AUTO:FRONTEND_STRUCTURE:END -->
 
 ### WebSocketプロトコル

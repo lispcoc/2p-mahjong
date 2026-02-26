@@ -1,6 +1,7 @@
 import React from 'react'
 import { Tile, GameState } from '../../types/GameTypes'
 import { getTileKey } from '../../utils/TileUtils'
+import { getTileImageUrl } from '../../utils/tileData'
 
 interface DoraAndKanningProps {
   gameState: GameState
@@ -21,7 +22,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
               {gameState.dora.indicators.map((tile, idx) => (
                 <img
                   key={`dora-ind-${idx}`}
-                  src={`/tiles/${getTileKey(tile)}.gif`}
+                  src={getTileImageUrl(getTileKey(tile))}
                   alt={tile.display}
                   className="h-[50px] object-contain"
                 />
@@ -34,7 +35,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                   {gameState.dora.tiles.map((tile, idx) => (
                     <img
                       key={`dora-tile-${idx}`}
-                      src={`/tiles/${getTileKey(tile)}.gif`}
+                      src={getTileImageUrl(getTileKey(tile))}
                       alt={tile.display}
                       className="h-[48px] object-contain opacity-80"
                     />
@@ -55,7 +56,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
               {gameState.dora.uraIndicators.map((tile, idx) => (
                 <img
                   key={`ura-ind-${idx}`}
-                  src={`/tiles/${getTileKey(tile)}.gif`}
+                  src={getTileImageUrl(getTileKey(tile))}
                   alt={tile.display}
                   className="h-[50px] object-contain"
                 />
@@ -68,7 +69,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
                   {gameState.dora.uraTiles.map((tile, idx) => (
                     <img
                       key={`ura-tile-${idx}`}
-                      src={`/tiles/${getTileKey(tile)}.gif`}
+                      src={getTileImageUrl(getTileKey(tile))}
                       alt={tile.display}
                       className="h-[48px] object-contain opacity-80"
                     />
@@ -88,7 +89,7 @@ export function DoraAndKanning({ gameState }: DoraAndKanningProps) {
             {Array.from({ length: gameState.kanningWall.remaining }).map((_, idx) => (
               <img
                 key={`kanning-${idx}`}
-                src="/tiles/pai.gif"
+                src={getTileImageUrl('pai')}
                 alt="牌の裏"
                 className="h-[50px] object-contain"
               />
