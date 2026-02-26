@@ -172,7 +172,7 @@ export default function Page() {
   // Show loading state while checking for saved session
   if (pageState === 'loading') {
     return (
-      <div className="flex justify-center items-center h-screen text-2xl">
+      <div className="flex justify-center items-center h-[100vh] h-[100dvh] text-2xl">
         🔄 読み込み中...
       </div>
     )

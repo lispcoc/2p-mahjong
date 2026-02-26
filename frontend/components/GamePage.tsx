@@ -1384,7 +1384,7 @@ export default function GamePage({
     const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
 
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
+      <div className="flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
         <div className="bg-[#2d5016] border-4 border-white shadow-xl p-10 w-full max-w-2xl">
           <div className="p-5 text-center">
             <p className="text-lg mb-5">ゲームに接続中...</p>
@@ -1531,7 +1531,7 @@ export default function GamePage({
   }
 
   return (
-    <div className={`flex flex-col justify-start items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
+    <div className={`flex flex-col justify-start items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -1551,14 +1551,11 @@ export default function GamePage({
           },
         }}
       />
-      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl h-[calc(100vh-16rem)] sm:max-h-[75vh] overflow-y-auto">
+      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl flex-1 min-h-0 overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div className="text-white font-bold text-lg">
+          <div className="pl-2 text-white font-bold">
             ルームID: {roomId} / ステータス: {gameState.status}
-          </div>
-          <div className='hidden'>
-            userId: {userId}
           </div>
           <div className="flex gap-2 items-center">
             {/* CPU追加ボタン（待機中のみ表示） */}
@@ -1640,8 +1637,7 @@ export default function GamePage({
                       {/* 手出し時の歯抜け表示: 該当位置に空きスペースを挿入 */}
                       {opponentTedashiGapIdx === idx && (
                         <div
-                          className="inline-block"
-                          style={{ width: 33, height: 47 }}
+                          className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
                         />
                       )}
                       <div className="inline-block">
@@ -1655,8 +1651,7 @@ export default function GamePage({
                   {/* 手出し時の歯抜けが手牌末尾だった場合 */}
                   {opponentTedashiGapIdx >= 0 && opponentTedashiGapIdx >= otherHand.length && (
                     <div
-                      className="inline-block"
-                      style={{ width: 33, height: 47 }}
+                      className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
                     />
                   )}
                 </div>
@@ -1897,7 +1892,8 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] min-h-60 overflow-y-auto">
+      {/* min-h: tiles(47/64) + action-buttons(36) + settings-row(36) + padding(16) + gaps(8) ≈ 143/160 */}
+      <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] shrink-0 overflow-y-auto min-h-[144px] sm:min-h-[168px] flex flex-col">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
@@ -2015,7 +2011,7 @@ export default function GamePage({
 
                   {/* Highlight drawn tile on the right - always reserve space */}
                   {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                    <span className={`ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
+                    <span className={`ml-4 sm:ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
                         onClick={() => {
@@ -2074,6 +2070,8 @@ export default function GamePage({
           </div>
         </div>
 
+        {/* Action buttons & settings - pushed to bottom */}
+        <div className="mt-auto">
         {/* Action buttons section - compact vertical layout */}
         {isYourTurn && gameState.status === 'playing' && !autoPlayMode && (
           <div className='w-full flex gap-8 justify-end'>
@@ -2233,6 +2231,7 @@ export default function GamePage({
               </>
             )}
           </div>
+        </div>
         </div>
       </div>
 

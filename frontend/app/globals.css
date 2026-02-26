@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Mobile viewport height fix: dvh accounts for browser chrome (address bar etc.) */
+html, body {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   @apply bg-[#2d5016];
   color: #1f2937;

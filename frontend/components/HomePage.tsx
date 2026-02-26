@@ -266,7 +266,7 @@ export default function HomePage({
   }
 
   return (
-    <div className="sm:p-2 flex justify-center items-center min-h-screen bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
+    <div className="sm:p-2 flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-[500px]">
         <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>

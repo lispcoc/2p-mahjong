@@ -6,7 +6,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: linear-gradient(135deg, #2d5016 0%, #1a2e0a 100%);
   padding: 20px;
 }
