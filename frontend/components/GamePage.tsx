@@ -58,6 +58,8 @@ export default function GamePage({
   const [noMeldMode, setNoMeldMode] = useState(false)
   const [autoPlayMode, setAutoPlayMode] = useState(false)
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null)
+  const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null) // 打牌確認モード: 選択中の牌
+  const [confirmDiscardMode, setConfirmDiscardMode] = useState(false) // 打牌確認モード（2タップ打牌）
   const [tenpaiInfo, setTenpaiInfo] = useState<{ isTenpai: boolean; winningTiles: any[] } | null>(null)
   const [scoreResult, setScoreResult] = useState<any>(null)
   const [riichiMode, setRiichiMode] = useState(false)
@@ -121,6 +123,23 @@ export default function GamePage({
       tilesRef.current = gameState.tiles
     }
   }, [gameState?.tiles])
+
+  // 打牌確認モードを localStorage から読み込む（部屋設定とは独立）
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('mahjong-confirm-discard')
+      if (saved === 'true') {
+        setConfirmDiscardMode(true)
+      }
+    } catch (e) {
+      console.error('Failed to load confirm discard setting:', e)
+    }
+  }, [])
+
+  // 選択中の牌をターン変更・ステータス変更・手牌変更時にリセット
+  useEffect(() => {
+    setSelectedTileIndex(null)
+  }, [gameState?.currentTurn, gameState?.status])
 
   const triggerOpponentActionModal = React.useCallback((text: string) => {
     if (!text) return
@@ -1902,6 +1921,35 @@ export default function GamePage({
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
       <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] sm:min-h-[168px] flex flex-col shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        {/* Fixed tenpai panel - for confirm discard mode / mobile */}
+        {confirmDiscardMode && selectedTileIndex !== null && isYourTurn && gameState.status === 'playing' && (() => {
+          const info = tenpaiInfoMap[selectedTileIndex];
+          return (
+            <div className="w-full mt-1 mb-1 bg-[#1a2e0a]/80 border border-green-700 rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap">
+              {info?.isTenpai && info.winningTiles.length > 0 ? (
+                <>
+                  <div className="text-white text-xs font-bold whitespace-nowrap">🀄 聴牌 待ち:</div>
+                  <div className="flex gap-0.5 flex-row flex-wrap items-center">
+                    {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => {
+                      const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
+                      const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                      return (
+                        <img key={tIdx} src={imagePath} alt={tile.display} width={28} height={40} className="rounded shadow-sm" />
+                      );
+                    })}
+                    {info.winningTiles.length > 12 && (
+                      <div className="text-white text-xs ml-1">+{info.winningTiles.length - 12}</div>
+                    )}
+                  </div>
+                  <div className="text-yellow-300 text-xs font-bold ml-auto whitespace-nowrap">{riichiMode ? 'もう一度タップでリーチ' : 'もう一度タップで打牌'}</div>
+                </>
+              ) : (
+                <div className="text-gray-400 text-xs">{riichiMode ? '聴牌なし' : '聴牌なし（もう一度タップで打牌）'}</div>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
@@ -1911,7 +1959,7 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
+                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
@@ -1931,7 +1979,32 @@ export default function GamePage({
                               if (!canDiscardForRiichi) {
                                 return; // グレーアウトされた牌はクリックできない
                               }
-                              // リーチ宣言
+                              // 打牌確認モード中は2タップでリーチ宣言
+                              if (confirmDiscardMode) {
+                                if (selectedTileIndex === idx) {
+                                  // 2タップ目 - リーチ宣言実行
+                                  const tileToRiichi = fullHand[idx];
+                                  console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
+                                  sendAction({
+                                    type: 'riichi',
+                                    tileId: getTileId(tileToRiichi)
+                                  });
+                                  setRiichiMode(false);
+                                  setSelectedTileIndex(null);
+                                  setTenpaiInfo(null);
+                                } else {
+                                  // 1タップ目 - 選択して聴牌情報を表示
+                                  setSelectedTileIndex(idx);
+                                  const cached = tenpaiInfoMap[idx];
+                                  if (cached) {
+                                    setTenpaiInfo(cached);
+                                  } else {
+                                    checkTenpai(idx);
+                                  }
+                                }
+                                return;
+                              }
+                              // 通常モード - 1タップでリーチ宣言
                               const tileToRiichi = fullHand[idx];
                               console.log(`🔴 [Riichi] Selected tile index: ${idx}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
                               sendAction({
@@ -1941,7 +2014,27 @@ export default function GamePage({
                               setRiichiMode(false); // リーチモード解除
                               return;
                             }
-                            // 通常の捨て牌
+                            // 打牌確認モード: 1タップ目で選択、2タップ目で打牌
+                            if (confirmDiscardMode) {
+                              if (selectedTileIndex === idx) {
+                                // 2タップ目 - 打牌実行
+                                const tileToDiscard = fullHand[idx];
+                                sendAction({ type: 'discard', tileId: getTileId(tileToDiscard) });
+                                setSelectedTileIndex(null);
+                                setTenpaiInfo(null);
+                              } else {
+                                // 1タップ目 - 選択して聴牌情報を表示
+                                setSelectedTileIndex(idx);
+                                const cached = tenpaiInfoMap[idx];
+                                if (cached) {
+                                  setTenpaiInfo(cached);
+                                } else {
+                                  checkTenpai(idx);
+                                }
+                              }
+                              return;
+                            }
+                            // 通常の捨て牌（1タップ打牌）
                             const tileToDiscard = fullHand[idx];
                             const tileId = getTileId(tileToDiscard);
                             console.log(`🟢 [Discard] Selected tile index: ${idx}`);
@@ -1983,7 +2076,7 @@ export default function GamePage({
                       {hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
                           <div className="text-white text-xs font-bold mb-0.5">
-                            🀄 聴牌
+                            聴牌
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
@@ -2019,7 +2112,7 @@ export default function GamePage({
 
                   {/* Highlight drawn tile on the right - always reserve space */}
                   {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                    <div className={`relative ml-4 sm:ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
+                    <div className={`relative ml-4 sm:ml-8 transition-transform ${selectedTileIndex === drawnTileIndex ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
                         onClick={() => {
@@ -2038,7 +2131,32 @@ export default function GamePage({
                               if (!canDiscardForRiichi) {
                                 return; // グレーアウトされた牌はクリックできない
                               }
-                              // リーチ宣言
+                              // 打牌確認モード中は2タップでリーチ宣言
+                              if (confirmDiscardMode) {
+                                if (selectedTileIndex === drawnTileIndex) {
+                                  // 2タップ目 - リーチ宣言実行
+                                  const tileToRiichi = fullHand[drawnTileIndex];
+                                  console.log(`🔴 [Riichi] Selected drawn tile index: ${drawnTileIndex}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
+                                  sendAction({
+                                    type: 'riichi',
+                                    tileId: getTileId(tileToRiichi)
+                                  });
+                                  setRiichiMode(false);
+                                  setSelectedTileIndex(null);
+                                  setTenpaiInfo(null);
+                                } else {
+                                  // 1タップ目 - 選択して聴牌情報を表示
+                                  setSelectedTileIndex(drawnTileIndex);
+                                  const cached = tenpaiInfoMap[drawnTileIndex];
+                                  if (cached) {
+                                    setTenpaiInfo(cached);
+                                  } else {
+                                    checkTenpai(drawnTileIndex);
+                                  }
+                                }
+                                return;
+                              }
+                              // 通常モード - 1タップでリーチ宣言
                               const tileToRiichi = fullHand[drawnTileIndex];
                               console.log(`🔴 [Riichi] Selected drawn tile index: ${drawnTileIndex}, Tile: ${tileToRiichi?.toString()}, TileID: ${getTileId(tileToRiichi)}`);
                               sendAction({
@@ -2048,7 +2166,26 @@ export default function GamePage({
                               setRiichiMode(false);
                               return;
                             }
-                            // 通常の捨て牌
+                            // 打牌確認モード: 1タップ目で選択、2タップ目で打牌
+                            if (confirmDiscardMode) {
+                              if (selectedTileIndex === drawnTileIndex) {
+                                // 2タップ目 - 打牌実行
+                                sendAction({ type: 'discard', tileIndex: drawnTileIndex });
+                                setSelectedTileIndex(null);
+                                setTenpaiInfo(null);
+                              } else {
+                                // 1タップ目 - 選択して聴牌情報を表示
+                                setSelectedTileIndex(drawnTileIndex);
+                                const cached = tenpaiInfoMap[drawnTileIndex];
+                                if (cached) {
+                                  setTenpaiInfo(cached);
+                                } else {
+                                  checkTenpai(drawnTileIndex);
+                                }
+                              }
+                              return;
+                            }
+                            // 通常の捨て牌（1タップ打牌）
                             sendAction({
                               type: 'discard',
                               tileIndex: drawnTileIndex
@@ -2134,8 +2271,11 @@ export default function GamePage({
         {/* Action buttons & settings - pushed to bottom */}
         <div className="mt-auto">
         {/* Action buttons section - compact vertical layout */}
-        {isYourTurn && gameState.status === 'playing' && !autoPlayMode && (
           <div className='w-full flex gap-8 justify-end'>
+            {/* Fake button for placeholder */}
+            <button disabled className="px-3 py-2 bg-transparent border-2 border-transparent text-xs font-bold rounded text-white cursor-not-allowed invisible">
+              Placeholder
+            </button>
             {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
             {isRiichi && drawnTileIndex >= 0 && canWin && (
               <button
@@ -2242,7 +2382,6 @@ export default function GamePage({
               </div>
             )}
           </div>
-        )}
         {/* autoPlayモード時のインジケーター */}
         {autoPlayMode && gameState.status === 'playing' && (
           <div className="w-full flex justify-center">
@@ -2252,7 +2391,7 @@ export default function GamePage({
           </div>
         )}
 
-        <div className="mt-1 flex gap-3 items-center justify-center flex-wrap">
+        <div className="mt-1 flex grid grid-cols-4 gap-1 items-center justify-center flex-wrap">
           {DEVELOPMENT_MODE && (
             <button
               onClick={() => toggleAutoPlayMode(!autoPlayMode)}
@@ -2264,16 +2403,30 @@ export default function GamePage({
           <button
             onClick={() => toggleAutoDrawMode(!autoDrawMode)}
             disabled={autoPlayMode}
-            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+            className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
           >
-            自動ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
+            ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
           </button>
           <button
             onClick={() => toggleNoMeldMode(!noMeldMode)}
             disabled={autoPlayMode}
-            className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
+            className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : noMeldMode ? 'bg-red-600 text-[#ffffff] border-red-700' : 'bg-white text-red-600 border-red-600'}`}
           >
             鳴き無効: {noMeldMode ? 'ON' : 'OFF'}
+          </button>
+          <button
+            onClick={() => {
+              const newVal = !confirmDiscardMode;
+              setConfirmDiscardMode(newVal);
+              setSelectedTileIndex(null);
+              setTenpaiInfo(null);
+              try {
+                localStorage.setItem('mahjong-confirm-discard', String(newVal));
+              } catch (e) {}
+            }}
+            className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${confirmDiscardMode ? 'bg-yellow-600 text-[#ffffff] border-yellow-700' : 'bg-white text-yellow-700 border-yellow-600'}`}
+          >
+            打牌確認: {confirmDiscardMode ? 'ON' : 'OFF'}
           </button>
           <div className="text-center bg-white rounded-lg border border-gray-300 min-w-24 min-h-8 justify-center">
             {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 ? (
