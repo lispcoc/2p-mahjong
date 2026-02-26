@@ -11,6 +11,8 @@ html, body {
 body {
   @apply bg-[#2d5016];
   color: #1f2937;
+  /* Android/iOS: ナビゲーションバーに隠れないようにsafe-areaを確保 */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 code {

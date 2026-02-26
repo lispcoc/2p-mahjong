@@ -1540,7 +1540,7 @@ export default function GamePage({
   }
 
   return (
-    <div className={`flex flex-col justify-start items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
+    <div className={`flex flex-col justify-start items-center h-[100vh] h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -1901,8 +1901,7 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      {/* min-h: tiles(47/64) + action-buttons(36) + settings-row(36) + padding(16) + gaps(8) ≈ 143/160 */}
-      <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] shrink-0 overflow-y-auto min-h-[144px] sm:min-h-[168px] flex flex-col">
+      <div className="w-full max-w-4xl p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-white bg-[#2d5016] shrink-0 overflow-y-auto sm:min-h-[168px] flex flex-col">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
