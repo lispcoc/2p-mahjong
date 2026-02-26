@@ -1012,27 +1012,27 @@ export default function GamePage({
   }, [gameState, userId])
 
   // ツモ時に全牌の聴牌情報をローカルで計算
+  const handForTenpai = gameState?.tiles?.[userId]?.hand
+  const meldsForTenpai = gameState?.tiles?.[userId]?.melds
+  const handLengthForTenpai = handForTenpai?.length ?? 0
+  const isMyTurnForTenpai = gameState?.currentTurn === userId
+  const myRiichiForTenpai = !!gameState?.riichi?.[userId]
+  const statusForTenpai = gameState?.status
   React.useEffect(() => {
     setRiichiMode(false)
     setTenpaiInfoMap({})
 
     // 自分のターンでリーチしていない場合、全牌の聴牌チェックをローカルで実行
-    const isMyTurn = gameState?.currentTurn === userId
-    if (isMyTurn && !gameState?.riichi?.[userId] && gameState?.status === 'playing') {
-      const hand = gameState?.tiles?.[userId]?.hand || []
-      const melds = gameState?.tiles?.[userId]?.melds || []
+    if (isMyTurnForTenpai && !myRiichiForTenpai && statusForTenpai === 'playing') {
+      const hand = handForTenpai || []
+      const melds = meldsForTenpai || []
 
       if (hand.length > 0) {
-        //console.log('🔍 Computing all tenpai checks locally...')
-        //console.log('  Hand:', hand.map((t: any, i: number) => `[${i}]${t.display}`).join(' '))
-        //console.log('  Melds:', melds.length)
         const results = TenpaiChecker.checkAllTenpai(hand, melds)
-        //console.log('🔍 All tenpai results:', results)
-        //console.log('🔍 Tenpai tiles count:', Object.values(results).filter((r: any) => r.isTenpai).length)
         setTenpaiInfoMap(results)
       }
     }
-  }, [gameState?.tiles?.[userId]?.hand?.length, gameState?.currentTurn, gameState?.riichi, userId, gameState?.status])
+  }, [handLengthForTenpai, isMyTurnForTenpai, myRiichiForTenpai, userId, statusForTenpai, handForTenpai, meldsForTenpai])
 
   const toggleAutoDrawMode = React.useCallback((enabled: boolean) => {
     setAutoDrawMode(enabled)
@@ -1901,7 +1901,7 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-4xl p-2 pb-3 border-white bg-[#2d5016] min-h-0 overflow-y-auto sm:min-h-[168px] flex flex-col">
+      <div className="w-full max-w-4xl p-2 pb-3 border-white bg-[#2d5016] min-h-0 sm:min-h-[168px] flex flex-col">
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
@@ -2019,7 +2019,7 @@ export default function GamePage({
 
                   {/* Highlight drawn tile on the right - always reserve space */}
                   {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                    <span className={`ml-4 sm:ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
+                    <div className={`relative ml-4 sm:ml-8 ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
                         onClick={() => {
@@ -2055,9 +2055,62 @@ export default function GamePage({
                             });
                           }
                         }}
+                        onMouseEnter={() => {
+                          // リーチ中は聴牌チェックしない
+                          if (isRiichi) {
+                            return;
+                          }
+                          if (isYourTurn && gameState.status === 'playing') {
+                            setHoveredTileIndex(drawnTileIndex);
+                            // キャッシュから聴牌情報を取得
+                            const cached = tenpaiInfoMap[drawnTileIndex];
+                            if (cached) {
+                              setTenpaiInfo(cached);
+                            } else {
+                              // キャッシュがない場合のみローカル計算
+                              checkTenpai(drawnTileIndex);
+                            }
+                          }
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredTileIndex(null);
+                          setTenpaiInfo(null);
+                        }}
                         isDrawn={true}
                       />
-                    </span>
+                      {/* Tenpai popup for drawn tile */}
+                      {hoveredTileIndex === drawnTileIndex && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
+                          <div className="text-white text-xs font-bold mb-0.5">
+                            🀄 聴牌
+                          </div>
+                          <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
+                            {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => {
+                              const suitCode = tile.suit === 'honor' ? 'z' : (tile.suit === 'man' ? 'm' : tile.suit === 'pin' ? 'p' : 's');
+                              const imagePath = `/tiles/${suitCode}${tile.number}.gif`;
+                              return (
+                                <img
+                                  key={tIdx}
+                                  src={imagePath}
+                                  alt={tile.display}
+                                  width={22}
+                                  height={31}
+                                  className="rounded shadow-sm"
+                                  onError={(e) => {
+                                    console.error(`Failed to load tile image: ${imagePath}`, tile);
+                                  }}
+                                />
+                              );
+                            })}
+                            {tenpaiInfo.winningTiles.length > 8 && (
+                              <div className="text-white text-[10px] ml-1">
+                                +{tenpaiInfo.winningTiles.length - 8}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </>
