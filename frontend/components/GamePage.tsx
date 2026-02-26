@@ -91,6 +91,11 @@ export default function GamePage({
   const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
   const [rematchRequested, setRematchRequested] = useState(false) // 再戦リクエスト送信済み
   const [opponentRematchRequested, setOpponentRematchRequested] = useState(false) // 相手が再戦を希望
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    try { return localStorage.getItem('mahjong-sound-enabled') !== 'false' } catch { return false }
+  })
+  const soundEnabledRef = useRef(true)
+  const dahaiAudioRef = useRef<HTMLAudioElement | null>(null)
   const opponentTedashiGapTimerRef = useRef<number | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)  // Prevent multiple connection attempts
@@ -116,6 +121,26 @@ export default function GamePage({
   useEffect(() => {
     userIdRef.current = userId
   }, [userId])
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+    try { localStorage.setItem('mahjong-sound-enabled', String(soundEnabled)) } catch {}
+  }, [soundEnabled])
+
+  useEffect(() => {
+    dahaiAudioRef.current = new Audio('/dahai.opus')
+    dahaiAudioRef.current.preload = 'auto'
+    return () => { dahaiAudioRef.current = null }
+  }, [])
+
+  const playDahaiSound = React.useCallback(() => {
+    if (!soundEnabledRef.current) return
+    const audio = dahaiAudioRef.current
+    if (audio) {
+      audio.currentTime = 0
+      audio.play().catch(() => {})
+    }
+  }, [])
 
   useEffect(() => {
     gameStateRef.current = gameState
@@ -438,6 +463,10 @@ export default function GamePage({
           // 相手の手出し検出 → 手牌に歯抜け表示
           const myId = userIdRef.current
           const lastInfo = payload.lastDiscardInfo
+          // 相手の打牌時に音を鳴らす
+          if (lastInfo && lastInfo.userId !== myId) {
+            playDahaiSound()
+          }
           if (lastInfo && lastInfo.userId !== myId && !lastInfo.isTsumogiri) {
             // 相手が手出しした → 手牌の中にランダムな位置で歯抜けを表示
             const opponentHandLen = payload.tiles?.[lastInfo.userId]?.hand?.length ?? 0
@@ -1008,7 +1037,11 @@ export default function GamePage({
         })
       )
     }
-  }, [])
+    // 打牌時に音を鳴らす
+    if (action.type === 'discard' || action.type === 'riichi') {
+      playDahaiSound()
+    }
+  }, [playDahaiSound])
 
   const handleNextRound = React.useCallback(() => {
     // バックエンドに「次の局へ」を伝える
@@ -1600,6 +1633,12 @@ export default function GamePage({
                 {isAddingCPU ? 'CPU追加中...' : '🤖 CPU追加'}
               </button>
             )}
+            <button
+              onClick={() => setSoundEnabled(prev => !prev)}
+              className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${soundEnabled ? 'bg-blue-600 text-[#ffffff] border-blue-700' : 'bg-white text-blue-600 border-blue-600'}`}
+            >
+              🔊 効果音: {soundEnabled ? 'ON' : 'OFF'}
+            </button>
             <button onClick={onBack} className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
               戻る
             </button>
