@@ -62,6 +62,7 @@ export default function HomePage({
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(savedSettings?.opponentTsumoLuck ?? 0)
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(savedSettings?.autoActionTimerSeconds ?? defaultAutoActionTimerSeconds)
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
+  const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
 
   const fetchRooms = async () => {
@@ -141,6 +142,7 @@ export default function HomePage({
           opponentTsumoLuck: opponentTsumoLuck,
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora: useRedDora,
+          notenPenalty: notenPenalty,
         }),
       })
 
@@ -162,6 +164,7 @@ export default function HomePage({
           opponentTsumoLuck,
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora,
+          notenPenalty,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -187,6 +190,7 @@ export default function HomePage({
     setOpponentTsumoLuck(0)
     setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
     setUseRedDora(true)
+    setNotenPenalty(false)
   }
 
   const handleCancelCreateRoom = () => {
@@ -548,6 +552,20 @@ export default function HomePage({
                       className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
                     />
                     <span className="text-gray-300 text-xs">赤ドラあり（ピンズ2枚、マンズ・ソウズ各1枚）</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">ノーテン罰符</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notenPenalty}
+                      onChange={(e) => setNotenPenalty(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">ノーテン罰符あり（流局時、ノーテン側が聴牌側に3000点支払い）</span>
                   </label>
                 </div>
               </div>

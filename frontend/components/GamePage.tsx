@@ -65,6 +65,7 @@ export default function GamePage({
   const [nextRoundReady, setNextRoundReady] = useState(false)
   const [finalResults, setFinalResults] = useState<any[] | null>(null)
   const [tenpaiStatus, setTenpaiStatus] = useState<Record<string, boolean> | null>(null) // 流局時の聴牌状態
+  const [notenPenalty, setNotenPenalty] = useState<{ amount: number; tenpaiPlayer: string; notenPlayer: string } | null>(null) // ノーテン缰符情報
   // 最終結果を表示するかどうか
   const [showFinalResults, setShowFinalResults] = useState(false)
   const [lastWinnerId, setLastWinnerId] = useState<string | null>(null)
@@ -480,6 +481,13 @@ export default function GamePage({
           setTenpaiStatus(null)
         }
 
+        // ノーテン缰符情報を保存
+        if (payload.isDraw && payload.notenPenalty) {
+          setNotenPenalty(payload.notenPenalty)
+        } else {
+          setNotenPenalty(null)
+        }
+
         // finalResults から winner の hand 情報を取得
         const winnerDataFromFinalResults = payload.finalResults?.find((result: any) => result.userId === payload.winner)
         console.log('🏁 Winner data from finalResults (by userId):', winnerDataFromFinalResults)
@@ -776,6 +784,7 @@ export default function GamePage({
         setLastWinnerHand([])
         setLastWinnerMelds([])
         setTenpaiStatus(null)
+        setNotenPenalty(null)
         setGameState(payload)
         toast.success('再戦開始！', { duration: 3000 })
         break
@@ -2261,6 +2270,7 @@ export default function GamePage({
               winnerHand={lastWinnerHand}
               winnerMelds={lastWinnerMelds}
               tenpaiStatus={tenpaiStatus}
+              notenPenalty={notenPenalty}
               playerOrder={gameState?.players?.map((p) => p.userId) || []}
               playerNames={gameState?.players?.reduce((acc, p) => ({ ...acc, [p.userId]: p.playerName }), {}) || {}}
             />

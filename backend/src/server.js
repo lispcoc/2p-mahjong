@@ -4,9 +4,10 @@ const http = require('http');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
+const settings = require('./settings');
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || settings.server.port;
 
 app.use(cors());
 app.use(express.json());
@@ -78,15 +79,13 @@ app.post('/api/rooms', (req, res) => {
   const rawInitialScore = Number(req.body?.initialScore);
   const initialScore = Number.isFinite(rawInitialScore) && rawInitialScore >= 0
     ? Math.floor(rawInitialScore)
-    : 25000;
+    : settings.game.defaultInitialScore;
   const rawWallTiles = Number(req.body?.wallTiles);
   // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
   // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
-  const minWallTiles = 30;
-  const maxWallTiles = 136;
   const wallTiles = Number.isFinite(rawWallTiles)
-    ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles) + 27 + 22))
-    : maxWallTiles;
+    ? Math.min(settings.wall.maxTiles, Math.max(settings.wall.minTiles, Math.floor(rawWallTiles) + settings.game.dealTilesOffset + settings.game.reservedTiles))
+    : settings.wall.maxTiles;
   
   // ゲームモード: 'oneRound' (1局勝負), 'easternsouthern' (東南戦), 'endless' (エンドレス)
   const supportedGameModes = ['oneRound', 'easternsouthern', 'endless'];
@@ -114,13 +113,16 @@ app.post('/api/rooms', (req, res) => {
   // Extract and validate auto-action timer
   const rawAutoActionTimerSeconds = Number(req.body?.autoActionTimerSeconds);
   const autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
-    ? Math.max(3, Math.min(60, Math.floor(rawAutoActionTimerSeconds)))
-    : 10;
+    ? Math.max(settings.timers.autoActionTimer.minSeconds, Math.min(settings.timers.autoActionTimer.maxSeconds, Math.floor(rawAutoActionTimerSeconds)))
+    : settings.timers.autoActionTimer.defaultSeconds;
   
   // 赤ドラの使用
   const useRedDora = req.body?.useRedDora === true;
   
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora });
+  // ノーテン罰符
+  const notenPenalty = req.body?.notenPenalty === true;
+  
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
@@ -675,6 +677,7 @@ async function handleAction(ws, payload) {
         totalPlayers: room.players.size,
         tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
         tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,  // 流局時の聴牌状態
+        notenPenalty: isDraw ? (latestRound?.notenPenalty || result.notenPenalty || null) : null,  // ノーテン罰符情報
       };
 
       // ゲームオーバー（誰かの点数がマイナス）の場合
@@ -779,7 +782,7 @@ function handleDisconnect(ws) {
     connections.delete(ws);
 
     if (player && !player.isCPU) {
-      const gracePeriodMs = 10 * 60 * 1000; // 10 minutes
+      const gracePeriodMs = settings.timers.disconnectGracePeriodMs;
       if (player.disconnectTimerId) {
         clearTimeout(player.disconnectTimerId);
       }
@@ -951,6 +954,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
       totalPlayers: room.players.size,
       tiles: gameState.tiles || {},
       tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,
+      notenPenalty: isDraw ? (latestRound?.notenPenalty || room.lastResult?.notenPenalty || null) : null,
     };
     
     if (room.isGameOver()) {
@@ -1033,7 +1037,7 @@ function executeCPUTurnIfNeeded(room) {
         handleAutoPlayGameFinished(room, 'BOTH_RIICHI');
       } else {
         // ロン可能やツモ可能で停止した場合 → 次のアクションを待つ
-        setTimeout(() => executeCPUTurnIfNeeded(room), 100);
+        setTimeout(() => executeCPUTurnIfNeeded(room), settings.cpuDelays.cpuTurnRecheckDelayMs);
       }
     });
     return;
@@ -1054,7 +1058,7 @@ function executeCPUTurnIfNeeded(room) {
         handleAutoPlayGameFinished(room, 'CPU CALLBACK');
       } else {
         // 次のターンがCPUなら再度実行
-        setTimeout(() => executeCPUTurnIfNeeded(room), 100);
+        setTimeout(() => executeCPUTurnIfNeeded(room), settings.cpuDelays.cpuTurnRecheckDelayMs);
       }
     });
   }

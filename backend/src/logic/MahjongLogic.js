@@ -1,6 +1,7 @@
 const Tile = require('./Tile');
 const ScoreCalculator = require('./ScoreCalculator');
 const TenpaiChecker = require('./TenpaiChecker');
+const settings = require('../settings');
 
 class MahjongLogic {
   constructor(playerIds, playerScores = {}, isPlayerInNoMeldMode, options = {}) {
@@ -41,11 +42,9 @@ class MahjongLogic {
     const rawWallTiles = Number(options.wallTiles);
     // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
     // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
-    const minWallTiles = 30;
-    const maxWallTiles = 136;
     this.wallTiles = Number.isFinite(rawWallTiles)
-      ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
-      : maxWallTiles;
+      ? Math.min(settings.wall.maxTiles, Math.max(settings.wall.minTiles, Math.floor(rawWallTiles)))
+      : settings.wall.maxTiles;
     
     // Tsumo luck settings: userId -> luck level (0=none, 1=light, 2=heavy)
     this.tsumoLuckSettings = options.tsumoLuckSettings || {};
@@ -59,7 +58,7 @@ class MahjongLogic {
         daiminkanMeldIndices: new Set(), // Indices of daiminkan (大明槓) in melds array
         discards: [],
         discardFlags: [], // ツモ切り/手出し情報 { isTsumogiri: boolean }[]
-        score: playerScores[id] || 25000, // 持ち点（デフォルト25000点）
+        score: playerScores[id] || settings.game.defaultInitialScore, // 持ち点
         drawnTile: null, // Last tile drawn from wall
         drawnTileIndex: -1, // Index of drawn tile in hand
         drawnFromKanningWall: false, // 嶺上牌から引いたか（嶺上開花用）
@@ -130,8 +129,8 @@ class MahjongLogic {
   }
   
   dealTiles() {
-    // Deal 13 tiles to each player
-    const tilesPerPlayer = 13;
+    // Deal tiles to each player
+    const tilesPerPlayer = settings.game.tilesPerPlayer;
     for (let i = 0; i < tilesPerPlayer; i++) {
       this.playerIds.forEach((playerId) => {
         if (this.wall.length > 0) {
@@ -172,47 +171,50 @@ class MahjongLogic {
     // - ドラタイル候補：4枚
     // - 裏ドラ表示牌候補：4枚
     // - 裏ドラタイル候補：4枚
-    if (this.wall.length > 22) {
-      // かん牌スペース（嶺上牌）3枚（壁の最後から1-3番目）
-      for (let i = 0; i < 3 && this.wall.length > 0; i++) {
+    if (this.wall.length > settings.game.reservedTiles) {
+      // かん牌スペース（嶺上牌）（壁の最後から）
+      for (let i = 0; i < settings.wall.kanningWallSize && this.wall.length > 0; i++) {
         this.kanningWall.push(this.wall[this.wall.length - 1 - i]);
       }
       
-      // かん牌補充用3枚（壁の最後から4-6番目）
-      for (let i = 0; i < 3; i++) {
-        const idx = this.wall.length - 4 - i;
+      // かん牌補充用（壁の最後から）
+      for (let i = 0; i < settings.wall.kanningWallSupplySize; i++) {
+        const idx = this.wall.length - (settings.wall.kanningWallSize + 1) - i;
         if (idx >= 0) {
           this.kanningWallSupply.push(this.wall[idx]);
         }
       }
       
-      // ドラ表示牌の候補4枚（壁の最後から7-10番目：カン最大4回分）
-      for (let i = 0; i < 4; i++) {
-        const idx = this.wall.length - 7 - i;
+      // ドラ表示牌の候補（壁の最後から）
+      for (let i = 0; i < settings.wall.candidateCount; i++) {
+        const idx = this.wall.length - (settings.wall.kanningWallSize + settings.wall.kanningWallSupplySize + 1) - i;
         if (idx >= 0) {
           this.candidateDoraIndicators.push(this.wall[idx]);
         }
       }
       
-      // ドラタイル候補4枚（壁の最後から11-14番目）
-      for (let i = 0; i < 4; i++) {
-        const idx = this.wall.length - 11 - i;
+      // ドラタイル候補（壁の最後から）
+      const doraTileOffset = settings.wall.kanningWallSize + settings.wall.kanningWallSupplySize + settings.wall.candidateCount + 1;
+      for (let i = 0; i < settings.wall.candidateCount; i++) {
+        const idx = this.wall.length - doraTileOffset - i;
         if (idx >= 0) {
           this.candidateDoraTiles.push(this.wall[idx]);
         }
       }
       
-      // 裏ドラ表示牌候補4枚（壁の最後から15-18番目）
-      for (let i = 0; i < 4; i++) {
-        const idx = this.wall.length - 15 - i;
+      // 裏ドラ表示牌候補（壁の最後から）
+      const uraDoraIndicatorOffset = doraTileOffset + settings.wall.candidateCount;
+      for (let i = 0; i < settings.wall.candidateCount; i++) {
+        const idx = this.wall.length - uraDoraIndicatorOffset - i;
         if (idx >= 0) {
           this.candidateUraDoraIndicators.push(this.wall[idx]);
         }
       }
       
-      // 裏ドラタイル候補4枚（壁の最後から19-22番目）
-      for (let i = 0; i < 4; i++) {
-        const idx = this.wall.length - 19 - i;
+      // 裏ドラタイル候補（壁の最後から）
+      const uraDoraOffset = uraDoraIndicatorOffset + settings.wall.candidateCount;
+      for (let i = 0; i < settings.wall.candidateCount; i++) {
+        const idx = this.wall.length - uraDoraOffset - i;
         if (idx >= 0) {
           this.candidateUraDoraTiles.push(this.wall[idx]);
         }
@@ -295,12 +297,8 @@ class MahjongLogic {
    * @returns {number} 試行回数
    */
   getHaipaiAttempts(luckLevel) {
-    switch (luckLevel) {
-      case 1: return 1;  // レベル1: 1回（通常配牌）
-      case 2: return 5;  // レベル2: 5回試行
-      case 3: return 10; // レベル3: 10回試行
-      default: return 1; // レベル0: 通常配牌
-    }
+    const attempts = settings.tsumoLuck.haipaiAttempts;
+    return attempts[luckLevel] || 1;
   }
 
   /**
@@ -1986,8 +1984,8 @@ class MahjongLogic {
     }
     
     // 運あり：スコアに基づいて確率的に選択（手牌分析を考慮）
-    // luckLevel 1: 30%, 2: 50%, 3: 70%
-    const selectionProbability = luckLevel === 1 ? 0.3 : luckLevel === 2 ? 0.5 : 0.7;
+    const probabilities = settings.tsumoLuck.selectionProbabilities;
+    const selectionProbability = probabilities[luckLevel] || 0;
     const useQualitySelection = Math.random() < selectionProbability;
     
     if (useQualitySelection) {
@@ -2482,9 +2480,9 @@ class MahjongLogic {
       return { success: false, message: '既にリーチしています' };
     }
     
-    // 持ち点が1000点未満
-    if (player.score < 1000) {
-      return { success: false, message: '持ち点が1000点未満のためリーチできません（現在' + player.score + '点）' };
+    // 持ち点がリーチ供託点未満
+    if (player.score < settings.game.riichiDeposit) {
+      return { success: false, message: '持ち点が' + settings.game.riichiDeposit + '点未満のためリーチできません（現在' + player.score + '点）' };
     }
     
     // 門前でない（副露している）- 暗槓は門前扱いのため除外
@@ -2567,8 +2565,8 @@ class MahjongLogic {
       console.log(`[Riichi] ⭐ ダブル立直成立！ Player: ${playerId}`);
     }
     
-    player.score -= 1000; // 1000点を供託
-    this.riichiDeposits += 1000;
+    player.score -= settings.game.riichiDeposit;
+    this.riichiDeposits += settings.game.riichiDeposit;
     
     console.log(`[Riichi] ${playerId} declared riichi. Deposit: ${this.riichiDeposits}, isDoubleRiichi: ${player.isDoubleRiichi}`);
     console.log(`[Riichi] New score: ${player.score}`);
@@ -2589,7 +2587,7 @@ class MahjongLogic {
       return {
         success: true,
         message: `リーチ！（待ち: ${waitingTiles.map(t => t.display).join(', ')}）`,
-        deposit: 1000,
+        deposit: settings.game.riichiDeposit,
         waitingTiles: waitingTiles,
         riichi: true
       };
@@ -2616,7 +2614,7 @@ class MahjongLogic {
       return {
         success: true,
         message: `リーチ！（待ち: ${waitingTiles.map(t => t.display).join(', ')}）`,
-        deposit: 1000,
+        deposit: settings.game.riichiDeposit,
         waitingTiles: waitingTiles,
         riichi: true,
         bothRiichiAutoPlay: true,
@@ -2633,7 +2631,7 @@ class MahjongLogic {
           finished: true,
           message: drawResult.message,
           isDraw: drawResult.isDraw === true,
-          deposit: 1000,
+          deposit: settings.game.riichiDeposit,
           waitingTiles: waitingTiles,
           riichi: true,
         };
@@ -2645,7 +2643,7 @@ class MahjongLogic {
     return {
       success: true,
       message: `リーチ！（待ち: ${waitingTiles.map(t => t.display).join(', ')}）`,
-      deposit: 1000,
+      deposit: settings.game.riichiDeposit,
       waitingTiles: waitingTiles,
       riichi: true
     };

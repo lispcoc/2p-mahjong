@@ -12,6 +12,7 @@ interface ScoreResultModalProps {
   winnerHand: Tile[]
   winnerMelds: Tile[][]
   tenpaiStatus?: Record<string, boolean> | null
+  notenPenalty?: { amount: number; tenpaiPlayer: string; notenPlayer: string } | null
   playerOrder?: string[]
   playerNames?: Record<string, string>
 }
@@ -25,6 +26,7 @@ export function ScoreResultModal({
   winnerHand,
   winnerMelds,
   tenpaiStatus,
+  notenPenalty,
   playerOrder,
   playerNames,
 }: ScoreResultModalProps) {
@@ -209,6 +211,14 @@ export function ScoreResultModal({
               <p className="text-sm text-gray-300 my-2.5">
                 (このラウンドは引き分けです)
               </p>
+              {notenPenalty && (
+                <div className="mt-3 p-3 bg-yellow-800/50 border border-yellow-400 rounded">
+                  <p className="text-sm text-yellow-300 font-bold m-0 mb-1">ノーテン缰符</p>
+                  <p className="text-sm text-white m-0">
+                    {playerNames?.[notenPenalty.notenPlayer] || notenPenalty.notenPlayer} → {playerNames?.[notenPenalty.tenpaiPlayer] || notenPenalty.tenpaiPlayer}: {notenPenalty.amount.toLocaleString()}点
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* 流局時の手牌と聴牌情報表示 */}

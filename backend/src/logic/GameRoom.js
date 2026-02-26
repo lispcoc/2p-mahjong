@@ -1,5 +1,6 @@
 const MahjongLogic = require('./MahjongLogic');
 const AIPlayer = require('./AIPlayer');
+const settings = require('../settings');
 
 class GameRoom {
   constructor(roomId, options = {}) {
@@ -24,15 +25,13 @@ class GameRoom {
     this.lastResult = null; // 最後のアクション結果を保存（CPU callback用）
     this.initialScore = Number.isFinite(options.initialScore) && options.initialScore >= 0
       ? Math.floor(options.initialScore)
-      : 25000;
+      : settings.game.defaultInitialScore;
     const rawWallTiles = Number(options.wallTiles);
     // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
     // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
-    const minWallTiles = 30;
-    const maxWallTiles = 136;
     this.wallTiles = Number.isFinite(rawWallTiles)
-      ? Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(rawWallTiles)))
-      : maxWallTiles;
+      ? Math.min(settings.wall.maxTiles, Math.max(settings.wall.minTiles, Math.floor(rawWallTiles)))
+      : settings.wall.maxTiles;
     // gameMode: 'oneRound' (1局勝負) | 'easternsouthern' (東南戦: 2回目の東1局に入る時点で終了) | 'endless' (エンドレス: 0点になるまで継続)
     const supportedModes = ['oneRound', 'easternsouthern', 'endless'];
     this.gameMode = supportedModes.includes(options.gameMode) ? options.gameMode : 'oneRound';
@@ -42,16 +41,15 @@ class GameRoom {
     }
     this.oneRoundMatch = this.gameMode === 'oneRound'; // 後方互換性のため保持
     const rawAutoActionTimerSeconds = Number(options.autoActionTimerSeconds);
-    const minAutoActionTimerSeconds = 3;
-    const maxAutoActionTimerSeconds = 60;
     this.autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
-      ? Math.min(maxAutoActionTimerSeconds, Math.max(minAutoActionTimerSeconds, Math.floor(rawAutoActionTimerSeconds)))
-      : 10; // Default 10 seconds
+      ? Math.min(settings.timers.autoActionTimer.maxSeconds, Math.max(settings.timers.autoActionTimer.minSeconds, Math.floor(rawAutoActionTimerSeconds)))
+      : settings.timers.autoActionTimer.defaultSeconds;
     this.createdAt = Date.now(); // ルーム作成日時
     this.riichiDepositsCarryover = 0; // 流局時の供託点持ち越し
     this.tsumoLuckSettings = new Map(); // userId -> luck level (0=none, 1=light, 2=heavy, 3=heavy)
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
+    this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
   }
   
@@ -109,7 +107,7 @@ class GameRoom {
   
   addPlayer(userId, playerName, ws, isCPU = false) {
     // Check if room is full
-    if (this.players.size >= 2) {
+    if (this.players.size >= settings.game.maxPlayersPerRoom) {
       return { success: false, message: 'Room is full' };
     }
     
@@ -386,6 +384,46 @@ class GameRoom {
           player.score = newScore;
           roundResult.scores[uid] = newScore;
         });
+
+        // ノーテン罰符の適用（流局時のみ）
+        if (result.isDraw === true && this.notenPenalty && tenpaiStatus) {
+          const playerIds = Array.from(this.players.keys());
+          const tenpaiPlayers = playerIds.filter(uid => tenpaiStatus[uid] === true);
+          const notenPlayers = playerIds.filter(uid => tenpaiStatus[uid] !== true);
+          
+          // 2人麻雀: 一方が聴牌・他方がノーテンの場合のみ罰符発生
+          // 聴牌者にpenaltyAmount点、ノーテン者からpenaltyAmount点
+          if (tenpaiPlayers.length === 1 && notenPlayers.length === 1) {
+            const penaltyAmount = settings.game.notenPenaltyAmount;
+            const tenpaiUid = tenpaiPlayers[0];
+            const notenUid = notenPlayers[0];
+            
+            // MahjongLogic内のスコアを直接更新
+            this.gameLogic.players[tenpaiUid].score += penaltyAmount;
+            this.gameLogic.players[notenUid].score -= penaltyAmount;
+            
+            // GameRoom側のスコアも更新
+            const tenpaiPlayer = this.players.get(tenpaiUid);
+            const notenPlayer = this.players.get(notenUid);
+            if (tenpaiPlayer) tenpaiPlayer.score += penaltyAmount;
+            if (notenPlayer) notenPlayer.score -= penaltyAmount;
+            
+            // roundResultのスコアも更新
+            roundResult.scores[tenpaiUid] = tenpaiPlayer ? tenpaiPlayer.score : roundResult.scores[tenpaiUid] + penaltyAmount;
+            roundResult.scores[notenUid] = notenPlayer ? notenPlayer.score : roundResult.scores[notenUid] - penaltyAmount;
+            
+            // ノーテン罰符情報を結果に保存
+            roundResult.notenPenalty = {
+              amount: penaltyAmount,
+              tenpaiPlayer: tenpaiUid,
+              notenPlayer: notenUid,
+            };
+            result.notenPenalty = roundResult.notenPenalty;
+            result.scores = roundResult.scores;
+            
+            console.log(`[GameRoom.handlePlayerAction] 💰 ノーテン罰符適用: ${notenUid} → ${tenpaiUid} (${penaltyAmount}点)`);
+          }
+        }
         
         this.roundHistory.push(roundResult);
         console.log(`[GameRoom.handlePlayerAction] ✅ Round history saved: ${roundResult.winType}, winner: ${roundResult.winner || 'none (draw)'}`);
@@ -749,7 +787,7 @@ class GameRoom {
       }
 
       this.autoReadyTimerId = null;
-    }, 10000); // 10秒
+    }, settings.timers.autoReadyTimeoutMs);
   }
 
   // 準備完了タイマーをクリア
@@ -791,7 +829,7 @@ class GameRoom {
       }
 
       this.gameOverTimerId = null;
-    }, 5 * 60 * 1000); // 5分
+    }, settings.timers.gameOverDeletionMs);
   }
 
   // ゲーム終了タイマーをクリア
@@ -828,7 +866,7 @@ class GameRoom {
       }
 
       this.inactivityTimerId = null;
-    }, 5 * 60 * 1000); // 5分
+    }, settings.timers.inactivityDeletionMs);
   }
 
   // 非アクティブタイマーをクリア
@@ -856,7 +894,7 @@ class GameRoom {
    * @returns {Promise<Object>} - 最終的なアクション結果
    */
   async executeBothRiichiAutoPlay(broadcastCallback) {
-    const delay = this.testMode ? 0 : 500; // 0.5秒遅延（テストモード時はスキップ）
+    const delay = this.testMode ? 0 : settings.cpuDelays.bothRiichiAutoPlayDelayMs;
 
     while (this.status === 'playing') {
       const currentTurnId = this.gameLogic.getCurrentTurn();
@@ -944,9 +982,9 @@ class GameRoom {
 
     console.log(`🤖 CPU Turn: ${currentPlayer.playerName} (${currentTurn})`);
 
-    // 少し遅延を入れてリアルっぽくする（500ms～1500ms）
+    // 少し遅延を入れてリアルっぽくする
     // テストモード時は遅延をスキップ
-    const delay = this.testMode ? 0 : (500 + Math.random() * 1000);
+    const delay = this.testMode ? 0 : (settings.cpuDelays.turnDelayMinMs + Math.random() * settings.cpuDelays.turnDelayRangeMs);
     
     setTimeout(() => {
       this.executeCPUMainTurn(currentTurn, callback);
@@ -982,7 +1020,7 @@ class GameRoom {
 
       // ドロー後、再度ターン処理を実行
       // テストモード時は遅延をスキップ
-      const drawDelay = this.testMode ? 0 : 300;
+      const drawDelay = this.testMode ? 0 : settings.cpuDelays.drawDelayMs;
       setTimeout(() => {
         this.executeCPUAfterDraw(userId, callback);
       }, drawDelay);
@@ -1104,7 +1142,7 @@ class GameRoom {
         if (kanResult.success) {
           console.log('🤖 CPU 大明槓 成功');
           // 大明槓後、嶺上牌を引いた状態 → ディスカード処理へ
-          const kanDelay = this.testMode ? 0 : 300;
+          const kanDelay = this.testMode ? 0 : settings.cpuDelays.daiminkanDelayMs;
           setTimeout(() => {
             this.executeCPUAfterDraw(userId, callback);
           }, kanDelay);
@@ -1129,7 +1167,7 @@ class GameRoom {
         // ポン後、このプレイヤーはドロー待ち状態
         // 次のターンでドロー＆ディスカード処理を実行
         // テストモード時は遅延をスキップ
-        const pungDelay = this.testMode ? 0 : 300;
+        const pungDelay = this.testMode ? 0 : settings.cpuDelays.pungDelayMs;
         setTimeout(() => {
           this.executeCPUMainTurn(userId, callback);
         }, pungDelay);
@@ -1164,7 +1202,7 @@ class GameRoom {
         // カン後、このプレイヤーは手牌が14枚で嶺上牌を引いた状態
         // 次のターンでディスカード待ち状態なので、続行
         // テストモード時は遅延をスキップ
-        const kanDelay = this.testMode ? 0 : 100;
+        const kanDelay = this.testMode ? 0 : settings.cpuDelays.kanDelayMs;
         setTimeout(() => {
           // カン後はディスカード待ちなのでそのまま進行
           if (callback) callback();
