@@ -2281,7 +2281,7 @@ export default function GamePage({
         {/* Action buttons section - compact vertical layout */}
           <div className='w-full flex gap-8 justify-end'>
             {/* Fake button for placeholder */}
-            <button disabled className="px-3 py-2 bg-transparent border-2 border-transparent text-xs font-bold rounded text-white cursor-not-allowed ">
+            <button disabled className="px-3 py-2 bg-transparent border-2 border-transparent text-xs font-bold rounded text-white cursor-not-allowed invisible">
               a
             </button>
             {/* リーチ中で和了できる場合はツモ切りボタンを表示 */}
