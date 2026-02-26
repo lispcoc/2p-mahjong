@@ -1393,7 +1393,7 @@ export default function GamePage({
     const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
 
     return (
-      <div className="flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
+      <div className="fixed inset-0 flex justify-center items-center overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] p-5">
         <div className="bg-[#2d5016] border-4 border-white shadow-xl p-10 w-full max-w-2xl">
           <div className="p-5 text-center">
             <p className="text-lg mb-5">ゲームに接続中...</p>
@@ -1540,7 +1540,7 @@ export default function GamePage({
   }
 
   return (
-    <div className={`flex flex-col justify-start items-center h-[100vh] h-[100dvh] overflow-y-auto bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
+    <div className={`fixed inset-0 flex flex-col items-center bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] overflow-hidden sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -1901,7 +1901,7 @@ export default function GamePage({
       </div>
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
-      <div className="w-full max-w-4xl p-2 pb-3 border-white bg-[#2d5016] min-h-0 sm:min-h-[168px] flex flex-col">
+      <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] sm:min-h-[168px] flex flex-col shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
