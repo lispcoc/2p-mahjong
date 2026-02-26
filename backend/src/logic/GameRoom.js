@@ -909,7 +909,23 @@ class GameRoom {
       }
 
       if (!drawResult.bothRiichiAutoPlay) {
-        // ツモ和了可能 - プレイヤーに選択させる
+        // ツモ和了可能 - CPU/autoPlayなら自動ツモ和了、人間なら選択待ち
+        const currentPlayer = this.players.get(currentTurnId);
+        if (currentPlayer && (currentPlayer.isCPU || currentPlayer.autoPlay)) {
+          // CPU: ツモ和了を自動実行
+          if (this.gameLogic.isWinningHand(currentTurnId)) {
+            const aiPlayer = this.aiPlayers.get(currentTurnId);
+            if (aiPlayer && aiPlayer.shouldWin()) {
+              console.log(`🔴 [bothRiichiAutoPlay] CPU ${currentTurnId} auto-tsumo`);
+              broadcastCallback();
+              if (delay > 0) await new Promise(r => setTimeout(r, delay));
+              const winResult = this.handlePlayerAction(currentTurnId, { type: 'win' });
+              broadcastCallback();
+              return winResult;
+            }
+          }
+        }
+        // 人間プレイヤーに選択させる
         broadcastCallback();
         return drawResult;
       }

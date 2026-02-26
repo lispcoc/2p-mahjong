@@ -1018,6 +1018,20 @@ function executeCPUTurnIfNeeded(room) {
   // 両方リーチの場合は自動進行ループを開始（CPUターンかどうかに関わらず）
   if (room.gameLogic && room.gameLogic.areBothPlayersInRiichi() &&
       !room.gameLogic.getRonPossibleFor() && !room.gameLogic.getPendingPungFor()) {
+    // ツモ和了可能な場合はauto-playループに入らない（通常のターン処理で対応）
+    const ct = room.gameLogic.getCurrentTurn();
+    const hasTsumoOpportunity = room.gameLogic.getDrawnTileIndex(ct) >= 0 && room.gameLogic.isWinningHand(ct);
+    if (hasTsumoOpportunity) {
+      const cp = room.players?.get(ct);
+      if (cp?.isCPU || cp?.autoPlay) {
+        // CPU: 通常のCPUターン処理へフォールスルー（ツモ和了を実行する）
+        console.log('🔴 Both riichi but CPU has tsumo opportunity - falling through to normal CPU turn');
+      } else {
+        // 人間プレイヤーのツモ和了待ち
+        console.log('🔴 Both riichi but human has tsumo opportunity - waiting for player decision');
+        return;
+      }
+    } else {
     const roomId = room.roomId;
     console.log('🔴 Both players in riichi detected in executeCPUTurnIfNeeded - starting auto-play loop');
     room.executeBothRiichiAutoPlay(() => {
@@ -1041,6 +1055,7 @@ function executeCPUTurnIfNeeded(room) {
       }
     });
     return;
+    } // end of !hasTsumoOpportunity block
   }
   
   if (room.isCurrentTurnCPU()) {
