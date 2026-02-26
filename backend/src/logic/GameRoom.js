@@ -501,6 +501,7 @@ class GameRoom {
         seatWinds: this.buildSeatWinds(this.playerOrder),
         nextRoundReadyCount: this.nextRoundReady.size,
         totalPlayers: this.players.size,
+        initialScore: this.initialScore,
       };
       // ゲームオーバー時は最終結果も含める
       if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
@@ -536,6 +537,7 @@ class GameRoom {
       nextRoundReadyCount: this.nextRoundReady.size, // 次の局への準備完了人数
       totalPlayers: this.players.size, // 総プレイヤー数
       autoActionTimerSeconds: this.autoActionTimerSeconds, // ツモ切り・ポン見逃しのタイマー秒数
+      initialScore: this.initialScore, // 初期持ち点
     };
     
     // Send each player their own hand and public information

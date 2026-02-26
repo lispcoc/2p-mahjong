@@ -72,6 +72,10 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
                 </td>
                 {gameState?.players && gameState.players.map((player: any) => {
                   const finalScore = gameState?.scores?.[player.userId] ?? 0
+                  const startScore = gameState?.initialScore ?? 25000
+                  const diff = finalScore - startScore
+                  const diffInThousands = diff >= 0 ? Math.ceil(diff / 1000) : -Math.ceil(Math.abs(diff) / 1000)
+                  const diffStr = diffInThousands >= 0 ? `+${diffInThousands}` : `${diffInThousands}`
                   return (
                     <td 
                       key={player.userId} 
@@ -79,7 +83,10 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
                         finalScore < 0 ? 'text-red-500' : 'text-green-500'
                       }`}
                     >
-                      {finalScore.toLocaleString()}点
+                      {finalScore.toLocaleString()}点&nbsp;
+                      <span className={`text-sm ${diff > 0 ? 'text-green-600' : diff < 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                        ({diffStr})
+                      </span>
                     </td>
                   )
                 })}

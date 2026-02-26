@@ -51,4 +51,5 @@ export interface GameState {
   nextRoundReadyCount?: number
   totalPlayers?: number
   autoActionTimerSeconds?: number
+  initialScore?: number
 }

@@ -9,8 +9,8 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,438行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約4,342行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,440行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約4,343行）
 - **テスト**: 17ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -74,7 +74,7 @@ npm run task:progress   # 進捗表示
 | ファイル | 行数 |
 |----------|------|
 | `AIPlayer.js` | 883 |
-| `GameRoom.js` | 1,321 |
+| `GameRoom.js` | 1,323 |
 | `MahjongLogic.js` | 2,771 |
 | `ScoreCalculator.js` | 1,867 |
 | `TenpaiChecker.js` | 446 |
@@ -86,7 +86,7 @@ npm run task:progress   # 進捗表示
 <!-- AUTO:FRONTEND_STRUCTURE:START -->
 | パス | 行数 |
 |------|------|
-| `frontend/types/GameTypes.ts` | 55 |
+| `frontend/types/GameTypes.ts` | 56 |
 | `frontend/hooks/useGameConnection.ts` | 367 |
 | `frontend/utils/DebugUtils.ts` | 27 |
 | `frontend/utils/TenpaiChecker.ts` | 450 |
@@ -103,7 +103,7 @@ npm run task:progress   # 進捗表示
 | `frontend/components/GamePage.tsx` | 2,520 |
 | `frontend/components/HomePage.tsx` | 612 |
 | `frontend/components/LoginPage.tsx` | 59 |
-| `frontend/components/Modals/FinalResultModal.tsx` | 129 |
+| `frontend/components/Modals/FinalResultModal.tsx` | 130 |
 | `frontend/components/Modals/ScoreResultModal.tsx` | 294 |
 | `frontend/components/TileImage.tsx` | 98 |
 | `frontend/components/TileInline.tsx` | 58 |
