@@ -1976,7 +1976,7 @@ export default function GamePage({
             <div className="w-full mt-1 mb-1 bg-[#1a2e0a]/80 border border-green-700 rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap">
               {info?.isTenpai && info.winningTiles.length > 0 ? (
                 <>
-                  <div className="text-white text-xs font-bold whitespace-nowrap">🀄 聴牌 待ち:</div>
+                  <div className="text-white text-xs font-bold whitespace-nowrap">待ち:</div>
                   <div className="flex gap-0.5 flex-row flex-wrap items-center">
                     {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => (
                       <TileInline key={tIdx} tile={tile} height={40} width={28} className="rounded shadow-sm" />
