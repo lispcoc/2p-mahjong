@@ -50,6 +50,7 @@ class GameRoom {
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
+    this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
   }
 
@@ -257,6 +258,7 @@ class GameRoom {
         seatWinds: seatWinds,
         tsumoLuckSettings: tsumoLuckSettings,
         useRedDora: this.useRedDora,
+        aotenjou: this.aotenjou,
       }
     );
     if (this.riichiDepositsCarryover > 0) {

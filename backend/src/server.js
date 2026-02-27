@@ -122,7 +122,10 @@ app.post('/api/rooms', (req, res) => {
   // ノーテン罰符
   const notenPenalty = req.body?.notenPenalty === true;
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty });
+  // 青天井モード
+  const aotenjou = req.body?.aotenjou === true;
+
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, aotenjou });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

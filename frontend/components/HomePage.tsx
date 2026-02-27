@@ -66,6 +66,7 @@ export default function HomePage({
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(savedSettings?.autoActionTimerSeconds ?? defaultAutoActionTimerSeconds)
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
   const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? false)
+  const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
 
@@ -147,6 +148,7 @@ export default function HomePage({
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora: useRedDora,
           notenPenalty: notenPenalty,
+          aotenjou: aotenjou,
         }),
       })
 
@@ -169,6 +171,7 @@ export default function HomePage({
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora,
           notenPenalty,
+          aotenjou,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -195,6 +198,7 @@ export default function HomePage({
     setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
     setUseRedDora(true)
     setNotenPenalty(false)
+    setAotenjou(false)
   }
 
   const handleCancelCreateRoom = () => {
@@ -588,6 +592,20 @@ export default function HomePage({
                       className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
                     />
                     <span className="text-gray-300 text-xs">ノーテン罰符あり</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">青天井</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={aotenjou}
+                      onChange={(e) => setAotenjou(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">青天井（点数上限なし・満貫以上の丸めなし）</span>
                   </label>
                 </div>
               </div>

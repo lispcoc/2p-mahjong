@@ -35,7 +35,8 @@ class MahjongLogic {
     this.pendingPungFor = null;
     this.ronPossibleFor = null; // Track if Ron is possible for a player
     this.ronTile = null; // The tile that can be claimed for Ron
-    this.scoreCalculator = new ScoreCalculator();
+    this.aotenjou = options.aotenjou || false; // 青天井モード
+    this.scoreCalculator = new ScoreCalculator({ aotenjou: this.aotenjou });
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか

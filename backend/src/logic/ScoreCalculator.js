@@ -1,7 +1,8 @@
 const Tile = require('./Tile');
 
 class ScoreCalculator {
-  constructor() {
+  constructor(options = {}) {
+    this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
     // 基本点数表（切り上げ後の実際の支払い点数）
     this.scoreTable = {
       // [飜数][符] = {ron: ロン時の点数, tsumo: ツモ時の各自の支払い}
@@ -180,6 +181,11 @@ class ScoreCalculator {
     let score = 0;
     let scoreType = '';
 
+    // 青天井モード: 上限なしで基本点を計算
+    if (this.aotenjou) {
+      return this.calculateScoreAotenjou(han, fu, isRon, yakumanCount);
+    }
+
     // 役満（ダブル・トリプル対応）
     if (yakumanCount > 0) {
       score = 32000 * yakumanCount;
@@ -231,6 +237,31 @@ class ScoreCalculator {
     }
 
     return { score, scoreType: scoreType || `${han}飜 ${this.roundFu(fu)}符` };
+  }
+
+  /**
+   * 青天井モード: 点数上限なしで計算
+   * 基本点 = 符 × 2^(飜数+2) をそのまま使い、切り上げて点数を算出
+   * 役満も13飜として基本点計算する（役満の特別点数は使わない）
+   */
+  calculateScoreAotenjou(han, fu, isRon, yakumanCount = 0) {
+    let effectiveHan = han;
+    const roundedFu = this.roundFu(fu);
+
+    // 役満は13飜×役満数として扱う
+    if (yakumanCount > 0) {
+      effectiveHan = 13 * yakumanCount;
+    }
+
+    // 基本点 = 符 × 2^(飜数+2)
+    const basePoints = roundedFu * Math.pow(2, effectiveHan + 2);
+    // 二人麻雀: ロン = 基本点 × 4（切り上げ）
+    const score = Math.ceil(basePoints * 4 / 100) * 100;
+
+    // スコアタイプの表示
+    let scoreType = `${effectiveHan}飜 ${roundedFu}符 【青天井】`;
+
+    return { score, scoreType };
   }
 
   /**
