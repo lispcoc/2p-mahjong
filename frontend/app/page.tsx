@@ -63,10 +63,17 @@ export default function Page() {
       localStorage.removeItem('mahjong-session')
     }
     
-    // No valid session, go to login
+    // No valid session - check for saved player name
     if (shouldGoToLogin) {
-      console.log('➡️ No valid session, going to login')
-      setPageState('login')
+      const savedName = localStorage.getItem('mahjong-playerName')
+      if (savedName) {
+        console.log('➡️ No valid session, but found saved playerName, going to home')
+        setPlayerName(savedName)
+        setPageState('home')
+      } else {
+        console.log('➡️ No valid session, going to login')
+        setPageState('login')
+      }
     }
     
     // Cleanup function - always returned
@@ -78,6 +85,7 @@ export default function Page() {
 
   const handleLogin = (name: string) => {
     setPlayerName(name)
+    localStorage.setItem('mahjong-playerName', name)
     setPageState('home')
   }
 
@@ -160,9 +168,10 @@ export default function Page() {
   }
 
   const handleLogout = () => {
-    // Clear session on logout
+    // Clear session and saved player name on logout
     localStorage.removeItem('mahjong-session')
-    console.log('🗑️ Cleared session on logout')
+    localStorage.removeItem('mahjong-playerName')
+    console.log('🗑️ Cleared session and playerName on logout')
     
     setPageState('login')
     setPlayerName('')

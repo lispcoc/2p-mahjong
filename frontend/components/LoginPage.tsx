@@ -8,7 +8,13 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onLogin }: LoginPageProps) {
-  const [playerName, setPlayerName] = useState('')
+  const [playerName, setPlayerName] = useState(() => {
+    try {
+      return localStorage.getItem('mahjong-playerName') || ''
+    } catch {
+      return ''
+    }
+  })
   const [error, setError] = useState('')
   const { whiteMode, toggleWhiteMode } = useWhiteMode()
 
