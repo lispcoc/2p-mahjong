@@ -128,7 +128,7 @@ class ScoreCalculator {
       if (!hasNonDoraYaku) continue;
       
       // 符を計算
-      const fu = this.calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination);
+      const fu = this.calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination, roundWind, seatWind);
       
       // 点数を計算
       const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
@@ -1453,14 +1453,20 @@ class ScoreCalculator {
   /**
    * 符を計算 - combination版
    */
-  calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination) {
+  calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination, roundWind, seatWind) {
     let fu = 20; // 副底
     
     // 平和ツモの場合は一律20符（ツモ符なし）
     // 平和の条件: 門前・副露なし・全順子・役牌でない雀頭・両面待ち
     if (isTsumo && melds.length === 0) {
       const allSeq = combination.melds.every(m => this.isSequence(m));
-      const pairNotYakuhai = !(combination.pair.suit === 'honor' && combination.pair.number >= 5);
+      // 役牌の雀頭チェック: 三元牌（白=5, 發=6, 中=7）と場風・自風
+      let pairNotYakuhai = true;
+      if (combination.pair.suit === 'honor') {
+        if (combination.pair.number >= 5) pairNotYakuhai = false; // 三元牌
+        if (roundWind && combination.pair.number === roundWind) pairNotYakuhai = false; // 場風牌
+        if (seatWind && combination.pair.number === seatWind) pairNotYakuhai = false; // 自風牌
+      }
       const isRyanmen = this.checkRyanmenWaitInMelds(combination.melds, winningTile);
       if (allSeq && pairNotYakuhai && isRyanmen) {
         return 20; // 平和ツモは20符固定
@@ -1507,12 +1513,90 @@ class ScoreCalculator {
     });
     
     // 雀頭の符
-    if (combination.pair.suit === 'honor' && [5, 6, 7].includes(combination.pair.number)) {
-      fu += 2; // 役牌の雀頭
+    if (combination.pair.suit === 'honor') {
+      // 三元牌（白=5, 發=6, 中=7）の雀頭: +2符
+      if ([5, 6, 7].includes(combination.pair.number)) {
+        fu += 2;
+      }
+      // 場風牌の雀頭: +2符
+      if (roundWind && combination.pair.number === roundWind) {
+        fu += 2;
+      }
+      // 自風牌の雀頭: +2符
+      if (seatWind && combination.pair.number === seatWind) {
+        fu += 2;
+      }
+      // 連風牌（場風と自風が同じ）の場合は上記で +2 + +2 = +4符になる
     }
+    
+    // 待ち形の符
+    fu += this.getWaitFu(combination, winningTile);
     
     // 最低30符
     return Math.max(fu, 30);
+  }
+
+  /**
+   * 待ち形の符を計算
+   * 嵌張（カンチャン）・辺張（ペンチャン）・単騎（タンキ）: +2符
+   * 両面（リャンメン）・双碰（シャンポン）: 0符
+   */
+  getWaitFu(combination, winningTile) {
+    // 和了牌が雀頭を完成させた場合（単騎待ち）の可能性をチェック
+    const isTankiCandidate = combination.pair.suit === winningTile.suit &&
+                             combination.pair.number === winningTile.number;
+    
+    // 和了牌が順子内にある場合の待ち形をチェック
+    let bestSequenceWaitFu = -1; // -1 = 順子に和了牌なし
+    for (const meld of combination.melds) {
+      if (!this.isSequence(meld)) continue;
+      
+      const hasTile = meld.some(t => t.suit === winningTile.suit && t.number === winningTile.number);
+      if (!hasTile) continue;
+      
+      const sorted = [...meld].sort((a, b) => a.number - b.number);
+      const nums = sorted.map(t => t.number);
+      const winNum = winningTile.number;
+      const winIndex = nums.indexOf(winNum);
+      
+      if (winIndex === 1) {
+        // 真ん中 → 嵌張待ち: +2符
+        bestSequenceWaitFu = Math.max(bestSequenceWaitFu, 2);
+      } else if ((nums[0] === 1 && nums[2] === 3 && winNum === 3) ||
+                 (nums[0] === 7 && nums[2] === 9 && winNum === 7)) {
+        // 端 → 辺張待ち: +2符
+        bestSequenceWaitFu = Math.max(bestSequenceWaitFu, 2);
+      } else {
+        // 両面待ち: 0符
+        bestSequenceWaitFu = Math.max(bestSequenceWaitFu, 0);
+      }
+    }
+    
+    // 和了牌が刻子内にある場合（双碰待ち）の可能性をチェック
+    let isShanponCandidate = false;
+    for (const meld of combination.melds) {
+      if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+        if (meld[0].suit === winningTile.suit && meld[0].number === winningTile.number) {
+          isShanponCandidate = true;
+          break;
+        }
+      }
+    }
+    
+    // 複数の解釈がある場合、最も有利な（符が高い）解釈を選ぶ
+    let waitFu = 0;
+    
+    if (isTankiCandidate) {
+      waitFu = Math.max(waitFu, 2); // 単騎: +2符
+    }
+    if (bestSequenceWaitFu >= 0) {
+      waitFu = Math.max(waitFu, bestSequenceWaitFu);
+    }
+    if (isShanponCandidate) {
+      waitFu = Math.max(waitFu, 0); // 双碰: 0符
+    }
+    
+    return waitFu;
   }
   
   /**
