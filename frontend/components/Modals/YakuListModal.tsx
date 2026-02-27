@@ -8,8 +8,9 @@ interface YakuListModalProps {
   onClose: () => void
 }
 
-/** ヘルパー: 牌オブジェクト生成 */
+/** ヘルパー: 牌オブジェクト生成 (m=萬子, p=筒子, s=索子, z=字牌) */
 function t(suit: string, number: number, isRed = false): Tile {
+  const suitMap: Record<string, string> = { m: 'man', p: 'pin', s: 'sou', z: 'honor' }
   const suitNames: Record<string, string> = { m: '萬', p: '筒', s: '索', z: '' }
   const windNames: Record<number, string> = { 1: '東', 2: '南', 3: '西', 4: '北' }
   const dragonNames: Record<number, string> = { 5: '白', 6: '發', 7: '中' }
@@ -19,7 +20,7 @@ function t(suit: string, number: number, isRed = false): Tile {
   } else {
     display = `${isRed ? '赤' : ''}${number}${suitNames[suit] || ''}`
   }
-  return { suit, number, display, isRed }
+  return { suit: suitMap[suit] || suit, number, display, isRed }
 }
 
 /** 手牌を一列表示するコンポーネント */
