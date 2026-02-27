@@ -11,7 +11,7 @@
 
 - **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,644行）
 - **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約5,287行）
-- **テスト**: 22ファイル
+- **テスト**: 18ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
 

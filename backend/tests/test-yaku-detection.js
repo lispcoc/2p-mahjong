@@ -3,8 +3,10 @@
  * - 緑一色、大車輪、三槓子、四槓子
  * - 大四喜、小四喜
  * - ドラ・裏ドラ計算
+ * - ダブル立直、天和、地和、人和（統合元: test-special-yaku.js）
  */
 const ScoreCalculator = require('../src/logic/ScoreCalculator');
+const MahjongLogic = require('../src/logic/MahjongLogic');
 const Tile = require('../src/logic/Tile');
 const { assert, assertEqual, section, report } = require('./test-helper');
 
@@ -231,6 +233,136 @@ section('ドラ: 裏ドラ（リーチ時）');
   });
   assert(result.valid, '有効な和了');
   assert(result.yaku.some(y => y.name === 'リーチ' || y.name === '立直'), 'リーチ含む');
+}
+
+// ========== 特殊役: 天和・地和・人和・ダブル立直 ==========
+// (統合元: test-special-yaku.js)
+
+// ヘルパー: ピンフ形の完成手牌
+function makePinfuHand() {
+  return [
+    new Tile('man', 1), new Tile('man', 2), new Tile('man', 3),
+    new Tile('man', 4), new Tile('man', 5), new Tile('man', 6),
+    new Tile('man', 7), new Tile('man', 8), new Tile('man', 9),
+    new Tile('pin', 1), new Tile('pin', 2), new Tile('pin', 3),
+    new Tile('sou', 5), new Tile('sou', 5),
+  ];
+}
+
+section('天和: 親の配牌が和了形 (役満)');
+{
+  const hand = makePinfuHand();
+  const winningTile = hand[hand.length - 1];
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: true, isRon: false,
+    riichi: false, menzen: true,
+    roundWind: 1, seatWind: 1,
+    isTenhou: true,
+  });
+  assert(result.valid, '天和: 和了が有効');
+  assert(result.yaku?.some(y => y.name === '天和'), '天和役が存在する');
+  assert(result.yaku?.find(y => y.name === '天和')?.han === 13, '天和: 13翻（役満）');
+  assertEqual(result.score, 32000, `天和: 32000点`);
+}
+
+section('地和: 子の最初のツモで和了 (役満)');
+{
+  const hand = makePinfuHand();
+  const winningTile = hand[hand.length - 1];
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: true, isRon: false,
+    riichi: false, menzen: true,
+    roundWind: 1, seatWind: 2,
+    isChiihou: true,
+  });
+  assert(result.valid, '地和: 和了が有効');
+  assert(result.yaku?.some(y => y.name === '地和'), '地和役が存在する');
+  assert(result.yaku?.find(y => y.name === '地和')?.han === 13, '地和: 13翻（役満）');
+  assertEqual(result.score, 32000, `地和: 32000点`);
+}
+
+section('人和: 子がロンで和了 (役満)');
+{
+  const hand = makePinfuHand();
+  const winningTile = new Tile('pin', 3);
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: false, isRon: true,
+    riichi: false, menzen: true,
+    roundWind: 1, seatWind: 2,
+    isRenhou: true,
+  });
+  assert(result.valid, '人和: 和了が有効');
+  assert(result.yaku?.some(y => y.name === '人和'), '人和役が存在する');
+  assert(result.yaku?.find(y => y.name === '人和')?.han === 13, '人和: 13翻（役満）');
+  assertEqual(result.score, 32000, `人和: 32000点`);
+}
+
+section('ダブル立直: 最初の巡目でのリーチ宣言 (2翻)');
+{
+  const hand = makePinfuHand();
+  const winningTile = hand[hand.length - 1];
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: true, isRon: false,
+    riichi: true, menzen: true,
+    roundWind: 1, seatWind: 1,
+    isDoubleRiichi: true,
+    isIppatsumari: true,
+  });
+  assert(result.valid, 'ダブル立直: 和了が有効');
+  assert(result.yaku?.some(y => y.name === 'ダブル立直'), 'ダブル立直役が存在する');
+  assert(result.yaku?.find(y => y.name === 'ダブル立直')?.han === 2, 'ダブル立直: 2翻');
+  assert(!result.yaku?.some(y => y.name === 'リーチ'), 'ダブル立直時に通常リーチが含まれない');
+  assert(result.yaku?.some(y => y.name === '一発'), 'ダブル立直: 一発と複合できる');
+}
+
+section('通常リーチ: ダブル立直でない場合 (1翻)');
+{
+  const hand = makePinfuHand();
+  const winningTile = hand[hand.length - 1];
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: true, isRon: false,
+    riichi: true, menzen: true,
+    roundWind: 1, seatWind: 1,
+    isDoubleRiichi: false,
+  });
+  assert(result.valid, '通常リーチ: 和了が有効');
+  assert(result.yaku?.some(y => y.name === 'リーチ'), '通常リーチ役が存在する');
+  assert(result.yaku?.find(y => y.name === 'リーチ')?.han === 1, '通常リーチ: 1翻');
+  assert(!result.yaku?.some(y => y.name === 'ダブル立直'), 'ダブル立直が含まれない');
+}
+
+section('MahjongLogic: ダブル立直フラグの設定');
+{
+  const game = new MahjongLogic(['player1', 'player2'], {}, undefined, {
+    dealerIndex: 0,
+    roundWindNumber: 1,
+    seatWinds: { player1: 1, player2: 2 },
+  });
+  game.initialize();
+  game.dealTiles();
+  const player1 = game.players['player1'];
+  assert(game.firstGoAroundIntact === true, 'firstGoAroundIntact初期値はtrue');
+  assert(player1.isDoubleRiichi === false, 'isDoubleRiichi初期値はfalse');
+  assertEqual(player1.discards.length, 0, '最初は捨て牌0');
+}
+
+section('天和: ScoreCalculatorはフラグに忠実');
+{
+  const hand = makePinfuHand();
+  const winningTile = hand[hand.length - 1];
+  const result = calc.calculateScore({
+    hand, melds: [], winningTile,
+    isTsumo: false, isRon: true,
+    riichi: false, menzen: true,
+    roundWind: 1, seatWind: 1,
+    isTenhou: true,
+  });
+  assert(result.yaku?.some(y => y.name === '天和'), 'ScoreCalculatorはフラグに忠実に天和を付ける');
 }
 
 report();

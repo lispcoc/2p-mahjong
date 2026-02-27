@@ -3,20 +3,16 @@
  */
 const Tile = require('../src/logic/Tile');
 const ScoreCalculator = require('../src/logic/ScoreCalculator');
+const { assert: helperAssert, section, report } = require('./test-helper');
 
 const calc = new ScoreCalculator();
-
-let passed = 0;
-let failed = 0;
 
 function test(name, fn) {
   try {
     fn();
-    console.log(`  ✓ ${name}`);
-    passed++;
+    helperAssert(true, name);
   } catch (e) {
-    console.log(`  ✗ ${name}: ${e.message}`);
-    failed++;
+    helperAssert(false, `${name}: ${e.message}`);
   }
 }
 
@@ -29,7 +25,7 @@ function t(suit, num) {
 }
 
 // =========================================================
-console.log('\n=== 混全帯么九（チャンタ）テスト ===');
+section('混全帯么九（チャンタ）テスト');
 
 test('チャンタ: 123m 789p 111s 東東東 9m9m (門前)', () => {
   const combination = {
@@ -109,7 +105,7 @@ test('チャンタ: 混老頭の場合は不成立（detectYaku側で制御）',
 });
 
 // =========================================================
-console.log('\n=== 純全帯么九（ジュンチャン）テスト ===');
+section('純全帯么九（ジュンチャン）テスト');
 
 test('純チャン: 123m 789p 111s 789s 9m9m (門前)', () => {
   const combination = {
@@ -161,7 +157,7 @@ test('純チャン: 副露を含む場合 (食い下がり2翻)', () => {
 });
 
 // =========================================================
-console.log('\n=== 九蓮宝燈テスト ===');
+section('九蓮宝燈テスト');
 
 test('九蓮宝燈: 1112345678999m + 5m', () => {
   const tiles = [
@@ -210,7 +206,7 @@ test('九蓮宝燈: 1が2枚しかない場合は不成立', () => {
 });
 
 // =========================================================
-console.log('\n=== 七対子複合テスト ===');
+section('七対子複合テスト');
 
 test('七対子 + 断么九', () => {
   const hand = [
@@ -281,7 +277,7 @@ test('七対子 + 混老頭', () => {
 });
 
 // =========================================================
-console.log('\n=== detectYaku 統合テスト ===');
+section('detectYaku 統合テスト');
 
 test('detectYaku: チャンタが正しく検出される (門前2翻)', () => {
   const hand = [
@@ -355,6 +351,4 @@ test('detectYaku: チャンタ 食い下がり1翻', () => {
 });
 
 // =========================================================
-console.log('\n');
-console.log(`結果: ${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+report();

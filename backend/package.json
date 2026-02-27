@@ -6,6 +6,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "test": "node tests/run-all-tests.js",
+    "test:verbose": "node tests/run-all-tests.js --verbose",
+    "test:quiet": "node tests/run-all-tests.js --quiet",
     "task:complete": "node task-manager.js complete",
     "task:uncomplete": "node task-manager.js uncomplete",
     "task:progress": "node task-manager.js progress",

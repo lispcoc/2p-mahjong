@@ -56,4 +56,19 @@ function report() {
   }
 }
 
-module.exports = { assert, assertEqual, assertIncludes, section, report };
+/**
+ * カウンタをリセット（テストランナーでの連続実行用）
+ */
+function reset() {
+  passed = 0;
+  failed = 0;
+}
+
+/**
+ * 現在のカウンタを取得（テストランナー用）
+ */
+function getResults() {
+  return { passed, failed };
+}
+
+module.exports = { assert, assertEqual, assertIncludes, section, report, reset, getResults };
