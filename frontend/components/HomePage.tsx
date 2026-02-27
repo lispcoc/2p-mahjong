@@ -402,7 +402,6 @@ export default function HomePage({
           <div className="w-full max-w-[520px] border-2 border-white bg-[#2d5016] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="mb-5 border-b-2 border-gray-300 pb-3">
               <h3 className="text-xl font-bold text-white m-0">ルール設定</h3>
-              <p className="text-xs text-gray-300 mt-2 mb-0">持ち点と壁の枚数を設定してください</p>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -414,7 +413,7 @@ export default function HomePage({
                   id="initialScoreModal"
                   type="number"
                   min={0}
-                  step={100}
+                  step={1000}
                   value={initialScore}
                   onChange={(e) => setInitialScore(Number(e.target.value))}
                   className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"

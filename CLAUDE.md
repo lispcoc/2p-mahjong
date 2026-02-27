@@ -10,7 +10,7 @@
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
 - **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約8,644行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約5,287行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約5,286行）
 - **テスト**: 18ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -21,47 +21,53 @@
 
 ### 起動
 ```bash
-# ワンクリック起動（推奨）
-.\Start-Game.ps1
-# または
-start-game.bat
+# Server Manager（GUI）から起動
+manager\launch.bat
 
-# 初回セットアップ（npm install含む）
-setup-and-start.bat
+# 手動起動（ターミナル2つ必要）
+cd backend && npm run dev     # バックエンド
+cd frontend && npm run dev    # フロントエンド
 ```
 
 ### バックエンド
 ```bash
 cd backend
-npm start          # 本番起動
+npm start          # 本番起動（node src/server.js）
 npm run dev        # nodemon開発モード（ホットリロード）
 ```
 
 ### フロントエンド
 ```bash
 cd frontend
-npm run dev        # 開発サーバー
-npm run build      # プロダクションビルド
-npm run lint       # ESLint
+npm run dev            # 開発サーバー
+npm run build          # プロダクションビルド
+npm start              # プロダクション起動
+npm run lint           # ESLint
+npm run generate-tiles # 牌画像データ生成
 ```
 
 ### テスト実行
 ```bash
-# 個別テスト（テストフレームワークなし、Node.js直接実行）
 cd backend
-node tests/test-kan-scenarios.js
-node tests/test-cpu-battle.js
+npm test               # 全テスト一括実行（16ファイル、推奨）
+npm run test:verbose   # 全テスト詳細出力
+npm run test:quiet     # サマリーのみ
 
-# CPU対戦バッチ
+# 個別テスト（特定テストのデバッグ時）
+node tests/test-yaku-detection.js
+
+# CPU対戦シミュレーション（長時間、別枠）
 run-cpu-battle.bat
 ```
 
-### タスク管理
+### メンテナンス
 ```bash
 cd backend
-npm run task:list       # タスク一覧
-npm run task:complete   # タスク完了
-npm run task:progress   # 進捗表示
+npm run update-claude  # CLAUDE.mdの自動更新セクションを再生成
+npm run task:list      # タスク一覧
+npm run task:complete  # タスク完了
+npm run task:progress  # 進捗表示
+npm run task:generate  # タスク生成
 ```
 
 ---
@@ -101,7 +107,7 @@ npm run task:progress   # 進捗表示
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 48 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 40 |
 | `frontend/components/GamePage.tsx` | 2,552 |
-| `frontend/components/HomePage.tsx` | 635 |
+| `frontend/components/HomePage.tsx` | 634 |
 | `frontend/components/LoginPage.tsx` | 73 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 130 |
 | `frontend/components/Modals/HandEditorModal.tsx` | 181 |
@@ -113,8 +119,31 @@ npm run task:progress   # 進捗表示
 
 ### WebSocketプロトコル
 
-- Client → Server: `join`, `action`（discard/tsumo/pung/ron/tsumoAgari/riichi/kan）
-- Server → Client: `joined`, `playerJoined`, `playerReconnected`, `gameStateUpdate`, `gameStarted`, `scoreResult`, `roomDeleted`, `error`
+- Client → Server: `join`, `action`（discard/tsumo/pung/ron/tsumoAgari/riichi/kan/nextRound）, `rematch`
+- Server → Client: `joined`, `playerJoined`, `playerLeft`, `playerReconnected`, `gameStateUpdate`, `gameStarted`, `scoreResult`, `rematchRequested`, `roomDeleted`, `error`
+
+### 設定の一元管理（`backend/src/settings.js`）
+
+すべてのマジックナンバーは `settings.js` に集約。新しい定数を追加する場合は必ずここに定義すること。
+
+| カテゴリ | 主な設定 |
+|---------|--------|
+| `server` | ポート番号 |
+| `game` | プレイヤー数、初期点、配牌枚数、リーチ供託、ノーテン罰符 |
+| `wall` | 壁牌数の上下限、嶺上牌数、ドラ表示牌候補数 |
+| `timers` | 自動アクション、ルーム削除、切断猶予（10分） |
+| `cpuDelays` | AIの思考遅延、ポン/カン後遅延 |
+| `tsumoLuck` | 配牌運のレベル別試行回数・選択確率 |
+
+### 環境変数
+
+| 変数 | 使用箇所 | デフォルト |
+|------|---------|--------|
+| `PORT` | バックエンド | `3001` |
+| `NEXT_PUBLIC_BACKEND_URL` | フロントエンド（WS） | `ws://localhost:3001` |
+| `NEXT_PUBLIC_BACKEND_URL_HTTP` | フロントエンド（HTTP） | `http://localhost:3001` |
+
+`.env`ファイルは使用していない。すべてハードコードのフォールバック値あり。
 
 ---
 
@@ -239,6 +268,7 @@ if (result === expected) {
 | `wallTiles` | number | 70 | 壁牌数 |
 | `autoActionTimerSeconds` | number (3-60) | - | 自動アクションタイマー |
 | `useRedDora` | boolean | true | 赤ドラ使用 |
+| `notenPenalty` | boolean | false | ノーテン罰符 |
 | `tsumoLuckSettings` | object | - | ツモ運バイアス |
 | `testMode` | boolean | false | テストモード |
 
@@ -273,8 +303,9 @@ if (result === expected) {
 ### 新しいテストを追加する場合
 1. `backend/tests/test-機能名.js` を作成
 2. CommonJSで必要なモジュールをrequire
-3. 手動セットアップ → 実行 → console.logで検証
+3. 手動セットアップ → 実行 → `✅`/`❌` + `結果: N/N` 形式で検証
 4. `node tests/test-機能名.js` で実行確認
+5. **`tests/run-all-tests.js` の `testFiles` 配列にファイル名を追加**
 
 ---
 
@@ -313,6 +344,21 @@ if (result === expected) {
 
 ---
 
+## 重要な開発ルール
+
+### 変更前に必ず確認
+- **ロジック変更後は `cd backend && npm test` を実行**して全テスト通過を確認
+- **`TenpaiChecker`を変更したら、バックエンド（JS）とフロントエンド（TS）の両方を更新**すること
+- **定数・マジックナンバーは `settings.js` に定義**。ロジックファイルに直接書かない
+- **テストを追加したら `run-all-tests.js` のテストファイル一覧にも追加**すること
+
+### テスト結果の判定ルール
+- テストは `✅` / `✓` / `✔` マーカー + `結果: N/N` パターンで成否を出力
+- テストランナーはこれらを解析して集計する。新規テストもこの形式に従うこと
+- 各テストファイルのタイムアウトは60秒
+
+---
+
 ## 注意点・落とし穴
 
 - **Tile.equals()はredを無視する**: 赤ドラを区別する必要がある場合は`exactEquals()`を使用
@@ -322,3 +368,7 @@ if (result === expected) {
 - **手牌枚数**: 通常13枚、ツモ後14枚。槓後は嶺上ツモで14枚に戻る
 - **フリテンは3種類**: 捨て牌フリテン、同巡フリテン、リーチ後見逃しフリテン（永続）
 - **GameRoom.jsのクリーンアップ**: 非アクティブルームは5分で自動削除される
+- **データベースなし**: すべての状態はインメモリ（Mapオブジェクト）。サーバー再起動で全ゲームが消える
+- **package-lock.jsonはgitignore対象**: 依存関係のバージョンロックなし。`npm install`の結果が環境により変わりうる
+- **バックエンドにlint設定なし**: フロントエンドのみESLint（`next/core-web-vitals`）
+- **`manager/`はnw.jsアプリ**: バックエンド/フロントエンドの起動管理GUIで、ゲームロジックとは独立

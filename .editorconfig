@@ -1,0 +1,23 @@
+# EditorConfig - https://editorconfig.org
+root = true
+
+# 全ファイル共通
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 2
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Markdown（末尾スペースに意味がある場合）
+[*.md]
+trim_trailing_whitespace = false
+
+# JSON
+[*.json]
+indent_size = 2
+
+# バッチファイル（Windows改行必須）
+[*.bat]
+end_of_line = crlf
