@@ -64,6 +64,7 @@ class MahjongLogic {
         drawnFromKanningWall: false, // 嶺上牌から引いたか（嶺上開花用）
         riichi: false, // リーチ状態
         riichiTurn: -1, // リーチした巡目
+        ippatsuValid: false, // 一発有効フラグ（鳴きで消える）
         riichiDiscardIndex: -1, // リーチ宣言時の捨て牌インデックス
         tempFuriten: false, // 同巡内フリテン（ロンを見逃した巡のみ）
         riichiPassFuriten: false, // リーチ後ロン見逃しフリテン（永続）
@@ -639,6 +640,12 @@ class MahjongLogic {
       this.players[userId].drawnTile = null;
       this.players[userId].drawnFromKanningWall = false;
 
+      // リーチ後最初のツモで和了できなかった場合、一発を無効化
+      if (player.ippatsuValid) {
+        console.log(`[Ippatsu] 一発無効化: ${userId} (ツモで和了せず打牌)`);
+        player.ippatsuValid = false;
+      }
+
       // 最後の打牌情報を記録（ツモ切り/手出し判別用）
       this.lastDiscardInfo = { userId, isTsumogiri: true };
 
@@ -892,6 +899,9 @@ class MahjongLogic {
     // 副露が発生したので最初の巡目の途切れ日フラグを無効にする
     this.firstGoAroundIntact = false;
     
+    // 鳴き（ポン）が入ったので全プレイヤーの一発を無効化
+    this.cancelAllIppatsu();
+    
     // Remove matched tiles from hand (remove in reverse order to maintain indices)
     for (let i = matchedIndices.length - 1; i >= 0; i--) {
       this.players[userId].hand.splice(matchedIndices[i], 1);
@@ -1004,6 +1014,9 @@ class MahjongLogic {
         // Mark this meld as a concealed kan (面前扱い)
         this.players[userId].concealedMeldIndices.add(meldIndex);
         
+        // 暗槓でも巡目が中断するので全プレイヤーの一発を無効化
+        this.cancelAllIppatsu();
+        
         // Draw a tile from the kanning wall to restore hand size
         const drawnTile = this.drawFromKanningWall();
         if (drawnTile) {
@@ -1064,6 +1077,9 @@ class MahjongLogic {
           
           // Add the tile to the pung (convert to kan)
           meld.push(matchingTile);
+          
+          // 加槓でも巡目が中断するので全プレイヤーの一発を無効化
+          this.cancelAllIppatsu();
           
           // Draw a tile from the kanning wall to restore hand size
           const drawnTile = this.drawFromKanningWall();
@@ -1140,6 +1156,9 @@ class MahjongLogic {
 
     // 副露が発生したので最初の巡目の途切れ日フラグを無効にする
     this.firstGoAroundIntact = false;
+    
+    // 鳴き（大明槓）が入ったので全プレイヤーの一発を無効化
+    this.cancelAllIppatsu();
 
     // Remove matched tiles from hand (reverse order for index safety)
     for (let i = matchedIndices.length - 1; i >= 0; i--) {
@@ -1637,6 +1656,19 @@ class MahjongLogic {
   nextTurn() {
     this.currentTurnIndex = (this.currentTurnIndex + 1) % this.playerIds.length;
     this.turnNumber++; // ターン番号を進める
+  }
+  
+  /**
+   * 全プレイヤーの一発有効フラグを無効にする
+   * 鳴き（ポン・カン）が発生した場合に呼び出す
+   */
+  cancelAllIppatsu() {
+    for (const id of this.playerIds) {
+      if (this.players[id] && this.players[id].ippatsuValid) {
+        console.log(`[Ippatsu] 一発無効化: ${id} (鳴きにより消滅)`);
+        this.players[id].ippatsuValid = false;
+      }
+    }
   }
 
   drawForTurn(userId) {
@@ -2399,8 +2431,7 @@ class MahjongLogic {
     }
     
     // 偶然役の判定条件を計算
-    const numPlayers = this.playerIds.length;
-    const isIppatsumari = player.riichi && this.turnNumber === player.riichiTurn + numPlayers;
+    const isIppatsumari = player.ippatsuValid || false;
     // 海底撈月: ツモ可能な牌が0枚の状態でのツモ和了
     const isHaitei = this.getPlayableTileCount() === 0 && isTsumo;
     // 河底撈魚: ツモ可能な牌が0枚の状態でのロン和了（最後の捨て牌でロン）
@@ -2569,6 +2600,7 @@ class MahjongLogic {
     // リーチ成立（捨て牌後）
     player.riichi = true;
     player.riichiTurn = this.turnNumber; // ターン番号を記録（一発判定用）
+    player.ippatsuValid = true; // 一発有効フラグをセット
     player.riichiDiscardIndex = player.discards.length - 1; // リーチ宣言時の捨て牌インデックスを記録
     
     // ダブル立直判定：最初の巡目で副露が無い状態でのリーチ宣言
