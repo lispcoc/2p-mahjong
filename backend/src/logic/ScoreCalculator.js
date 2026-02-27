@@ -269,7 +269,7 @@ class ScoreCalculator {
     }
     
     // 四暗刻（スーアンコー）
-    if (combination && this.isSuuankouWithCombination(combination, isTsumo)) {
+    if (combination && this.isSuuankouWithCombination(combination, isTsumo, winningTile)) {
       yaku.push({ name: '四暗刻', han: 13 });
       return yaku; // 役満は単独
     }
@@ -938,10 +938,10 @@ class ScoreCalculator {
   
   /**
    * 四暗刻（スーアンコー）判定 - combination版
+   * ツモの場合は常に有効。ロンの場合は単騎待ち（和了牌が雀頭）のみ有効。
+   * 双碰待ち（和了牌が刻子の一部）のロンは無効。
    */
-  isSuuankouWithCombination(combination, isTsumo) {
-    if (!isTsumo) return false; // ツモのみ
-    
+  isSuuankouWithCombination(combination, isTsumo, winningTile) {
     let ankouCount = 0;
     
     combination.melds.forEach(meld => {
@@ -950,7 +950,19 @@ class ScoreCalculator {
       }
     });
     
-    return ankouCount === 4;
+    if (ankouCount !== 4) return false;
+    
+    // ツモの場合は常に四暗刻成立
+    if (isTsumo) return true;
+    
+    // ロンの場合は単騎待ち（和了牌が雀頭を完成させた）のみ有効
+    // 双碰待ち（和了牌が刻子の一部）のロンは不可
+    if (winningTile && combination.pair) {
+      return combination.pair.suit === winningTile.suit &&
+             combination.pair.number === winningTile.number;
+    }
+    
+    return false;
   }
   
   /**
@@ -1186,10 +1198,11 @@ class ScoreCalculator {
   
   /**
    * 四暗刻（スーアンコー）判定
+   * ツモの場合は常に有効。ロンの場合は単騎待ちのみ有効。
+   * @param {Tile} winningTile - 和了牌（ロン時の単騎判定に使用）
    */
-  isSuuankou(hand, melds, isTsumo) {
+  isSuuankou(hand, melds, isTsumo, winningTile) {
     if (melds.length > 0) return false; // 門前のみ
-    if (!isTsumo) return false; // ツモのみ
     
     const combinations = this.findAllCombinations(hand);
     if (combinations.length === 0) return false;
@@ -1204,7 +1217,18 @@ class ScoreCalculator {
         }
       });
       
-      if (ankouCount === 4) return true;
+      if (ankouCount === 4) {
+        // ツモの場合は常に四暗刻成立
+        if (isTsumo) return true;
+        
+        // ロンの場合は単騎待ち（和了牌が雀頭）のみ有効
+        if (winningTile && combo.pair) {
+          if (combo.pair.suit === winningTile.suit &&
+              combo.pair.number === winningTile.number) {
+            return true;
+          }
+        }
+      }
     }
     
     return false;
