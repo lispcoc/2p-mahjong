@@ -17,7 +17,7 @@ export default function Page() {
   // Check for saved session on mount
   useEffect(() => {
     console.log('🔍 useEffect running, sessionCheckDone:', sessionCheckDone.current)
-    
+
     // Prevent double execution in React Strict Mode during the same mount
     if (sessionCheckDone.current) {
       console.log('⚠️ Session check already done during this mount, skipping')
@@ -25,25 +25,25 @@ export default function Page() {
         console.log('🧹 Cleanup from skipped check')
       }
     }
-    
+
     console.log('🔍 Starting session check...')
     sessionCheckDone.current = true
-    
+
     let shouldGoToLogin = true
-    
+
     // Check localStorage immediately
     try {
       const savedData = localStorage.getItem('mahjong-session')
       console.log('📦 LocalStorage data:', savedData ? 'found' : 'not found')
-      
+
       if (savedData) {
         const session = JSON.parse(savedData)
         console.log('🔄 Session data:', session)
-        
+
         // Check if session is not too old (within 24 hours)
         const sessionAge = Date.now() - (session.timestamp || 0)
         const maxAge = 24 * 60 * 60 * 1000 // 24 hours
-        
+
         if (sessionAge < maxAge && session.roomId && session.playerName) {
           console.log('✅ Valid session found, restoring...')
           setPlayerName(session.playerName)
@@ -62,7 +62,7 @@ export default function Page() {
       console.error('❌ Error checking session:', err)
       localStorage.removeItem('mahjong-session')
     }
-    
+
     // No valid session - check for saved player name
     if (shouldGoToLogin) {
       const savedName = localStorage.getItem('mahjong-playerName')
@@ -75,7 +75,7 @@ export default function Page() {
         setPageState('login')
       }
     }
-    
+
     // Cleanup function - always returned
     return () => {
       console.log('🧹 Cleanup: resetting session check flag')
@@ -118,7 +118,7 @@ export default function Page() {
         localStorage.removeItem('mahjong-session')
       }
     }
-    
+
     setRoomId(newRoomId)
     setPageState('game')
     console.log('✅ State updated to game')
@@ -153,7 +153,7 @@ export default function Page() {
         localStorage.removeItem('mahjong-session')
       }
     }
-    
+
     setRoomId(existingRoomId)
     setPageState('game')
     console.log('✅ State updated to game')
@@ -172,7 +172,7 @@ export default function Page() {
     localStorage.removeItem('mahjong-session')
     localStorage.removeItem('mahjong-playerName')
     console.log('🗑️ Cleared session and playerName on logout')
-    
+
     setPageState('login')
     setPlayerName('')
     setRoomId('')

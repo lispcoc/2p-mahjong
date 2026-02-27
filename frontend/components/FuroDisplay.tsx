@@ -14,8 +14,8 @@ interface FuroDisplayProps {
   daiminkanMeldIndices?: Set<number>  // Indices of daiminkan (大明槓)
 }
 
-export function FuroDisplay({ 
-  melds, 
+export function FuroDisplay({
+  melds,
   layout = 'horizontal',
   compact = false,
   meldClassName,
@@ -29,10 +29,10 @@ export function FuroDisplay({
     return null
   }
 
-  const defaultWrapperClass = layout === 'vertical' 
+  const defaultWrapperClass = layout === 'vertical'
     ? 'flex flex-col items-end flex-shrink-0 gap-2 min-w-max'
     : 'flex max-sm:flex-col gap-4'
-  
+
   const finalWrapperClass = wrapperClassName || defaultWrapperClass
 
   // items-end ensures bottom-alignment when kakan stacking makes one element taller

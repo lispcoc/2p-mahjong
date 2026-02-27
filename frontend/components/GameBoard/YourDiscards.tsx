@@ -20,8 +20,8 @@ export function YourDiscards({ discards, gameState, userId }: YourDiscardsProps)
             discards.map((tile, idx) => {
               const isRiichiDiscard = gameState.riichiDiscards?.[userId] === idx
               return (
-                <div 
-                  key={`yd-${idx}`} 
+                <div
+                  key={`yd-${idx}`}
                   className={`inline-block ${isRiichiDiscard ? 'rotate-90 my-2' : ''}`}
                   style={{
                     transformOrigin: 'center',

@@ -35,7 +35,7 @@ export function useGameConnection({
         console.log('✅ Successfully joined room - setting states now')
         console.log('Payload:', payload)
         setUserId(payload.userId)
-        
+
         // Save to localStorage for reconnection
         const sessionData = {
           userId: payload.userId,
@@ -56,7 +56,7 @@ export function useGameConnection({
         } catch (err) {
           console.error('❌ Failed to save to localStorage:', err)
         }
-        
+
         const initialState: GameState = {
           status: payload.gameState?.status || 'waiting',
           players: payload.players || [],
@@ -70,7 +70,7 @@ export function useGameConnection({
         setGameState(initialState)
         debugLog(`✅ setGameState called`)
         console.log('✅ setGameState called with initialState')
-        
+
         if (payload.isReconnecting) {
           setMessage('ゲームに再接続しました')
         } else {
@@ -142,7 +142,7 @@ export function useGameConnection({
         console.log('🏁 Game finished - payload:', JSON.stringify(payload, null, 2))
         console.log('🏁 payload.gameOver:', payload?.gameOver)
         console.log('🏁 payload.finalResults:', payload?.finalResults?.length ?? 'undefined/null')
-        
+
         const noYaku =
           payload?.scoreResult?.valid === false ||
           (typeof payload?.scoreResult?.error === 'string' && payload.scoreResult.error.includes('役がありません'))
@@ -151,7 +151,7 @@ export function useGameConnection({
           setAutoNextTimer(null)
           break
         }
-        
+
         if (payload.gameOver) {
           console.log('🏁 Game Over confirmed! Calling onFinalResults with:', payload.finalResults?.length ?? 'undefined', 'results')
           onFinalResults(payload.finalResults)
@@ -166,14 +166,14 @@ export function useGameConnection({
           console.log('ℹ️ Removed automatic nextRound - user must manually click "Next Round" button')
           setAutoNextTimer(null)
         }
-        
+
         setGameState((prevState) => {
           const winnerName = prevState?.players?.find((p: any) => p.userId === payload.winner)?.playerName || payload.winner
           if (!payload.gameOver) {
             setMessage(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`)
           }
-          return prevState ? { 
-            ...prevState, 
+          return prevState ? {
+            ...prevState,
             status: payload.gameOver ? 'gameOver' : 'finished',
             currentRound: payload.currentRound,
             roundWind: payload.roundWind ?? prevState.roundWind,
@@ -204,7 +204,7 @@ export function useGameConnection({
         debugLog(`❌ Server error: ${payload.message}`)
         console.error('❌ Server error:', payload.message)
         setError(payload.message || 'エラーが発生しました')
-        
+
         // If room not found or reconnection failed, clear the saved session
         if (payload.message && (payload.message.includes('Room not found') || payload.message.includes('found'))) {
           console.log('🗑️ Clearing invalid session due to room not found')
@@ -225,7 +225,7 @@ export function useGameConnection({
 
   useEffect(() => {
     console.log('🔵 useGameConnection useEffect running, connectionAttempted:', connectionAttempted.current)
-    
+
     if (connectionAttempted.current) {
       debugLog(`⚠️ Connection already attempted, skipping duplicate connection`)
       console.log('⚠️ Connection already attempted during this mount, skipping')
@@ -235,11 +235,11 @@ export function useGameConnection({
         connectionAttempted.current = false
       }
     }
-    
+
     debugLog('🔵 useEffect running - initializing WebSocket connection')
     console.log('🔵 useEffect running - initializing WebSocket connection')
     connectionAttempted.current = true
-    
+
     // Check for existing session in localStorage
     let savedSession = null
     try {
@@ -247,13 +247,13 @@ export function useGameConnection({
       if (savedData) {
         savedSession = JSON.parse(savedData)
         console.log('📂 Found saved session:', savedSession)
-        
+
         // Check if session is for the same room
         if (savedSession.roomId === roomId && savedSession.playerName === playerName) {
           // Check if session is not too old (e.g., within 24 hours)
           const sessionAge = Date.now() - (savedSession.timestamp || 0)
           const maxAge = 24 * 60 * 60 * 1000 // 24 hours
-          
+
           if (sessionAge < maxAge) {
             console.log('✅ Valid session found, will attempt reconnection')
           } else {
@@ -270,30 +270,30 @@ export function useGameConnection({
       console.error('Error loading saved session:', err)
       savedSession = null
     }
-    
+
     const wsUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'ws://localhost:3001'
     debugLog(`🔌 Attempting WebSocket connection to: ${wsUrl}`)
     console.log('🔌 Attempting WebSocket connection to:', wsUrl)
-    
+
     const ws = new WebSocket(wsUrl)
 
     ws.onopen = () => {
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
       setError('')
-      
+
       const joinPayload: any = {
         roomId,
         playerName,
       }
-      
+
       // If we have a saved session, include the userId for reconnection
       if (savedSession && savedSession.userId) {
         joinPayload.userId = savedSession.userId
         debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
         console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
       }
-      
+
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
       console.log('📤 Sending join message:', joinPayload)
       ws.send(

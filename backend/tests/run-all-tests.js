@@ -2,7 +2,7 @@
 
 /**
  * 全テスト一括実行ランナー
- * 
+ *
  * 使い方:
  *   node tests/run-all-tests.js           # 全テスト実行
  *   node tests/run-all-tests.js --verbose # 詳細出力
@@ -21,29 +21,29 @@ const quiet = args.includes('--quiet');
 const testFiles = [
   // 回帰テスト（スモーク）
   'test-regression-quick.js',
-  
+
   // 役判定
   'test-yaku-detection.js',
   'test-chanta-junchan-chuuren.js',
   'test-pinfu-fix.js',
   'test-suuankou-tanki.js',
   'test-accidental-yaku.js',
-  
+
   // 得点計算
   'test-fu-calculation.js',
-  
+
   // テンパイ・フリテン
   'test-tenpai-detection.js',
   'test-furiten-multipattern.js',
-  
+
   // ゲームメカニクス
   'test-game-mechanics.js',
   'test-ippatsu-cancellation.js',
   'test-kan-uradora.js',
-  
+
   // AI
   'test-ai-decisions.js',
-  
+
   // ツモ運
   'test-tsumo-luck-combined.js',
   'test-adaptive-luck.js',
@@ -77,7 +77,7 @@ for (const file of testFiles) {
     // テスト結果行からパス/フェイル数を抽出
     const resultMatch = output.match(/結果:\s*(\d+)\/(\d+)/);
     const allPassMatch = output.match(/ALL.*PASSED|全テスト成功|All.*passed|All.*PASSED/i);
-    
+
     let passed = 0, total = 0;
     if (resultMatch) {
       passed = parseInt(resultMatch[1]);
@@ -107,7 +107,7 @@ for (const file of testFiles) {
     }
   } catch (err) {
     const output = (err.stdout || '') + (err.stderr || '');
-    
+
     // エラー時もパス/フェイル数を抽出
     const resultMatch = output.match(/結果:\s*(\d+)\/(\d+)/);
     let passed = 0, total = 0;

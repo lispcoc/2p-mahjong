@@ -40,7 +40,7 @@ export function ScoreResultModal({
     ? (gameState?.players?.find((player: any) => player.userId === winnerId)?.playerName || winnerId)
     : null
   const hasWinnerTiles = winnerHand.length > 0 || winnerMelds.length > 0
-  
+
   // デバッグログ
   if (process.env.NODE_ENV === 'development') {
     console.log('[ScoreResultModal] render:', {
@@ -66,8 +66,8 @@ export function ScoreResultModal({
             <div className="flex gap-3 items-start flex-wrap">
               {winnerMelds.length > 0 && (
                 <div className="flex gap-2 flex-wrap">
-                  <FuroDisplay 
-                    melds={winnerMelds} 
+                  <FuroDisplay
+                    melds={winnerMelds}
                     layout="horizontal"
                     wrapperClassName="flex gap-2 flex-wrap"
                     seatWindYou={gameState?.seatWinds?.[winnerId ?? '']}
@@ -101,10 +101,10 @@ export function ScoreResultModal({
         <h2 className={`text-2xl font-bold text-center mb-2 ${
           isDrawOrAbort ? 'text-yellow-300' : (scoreResult.valid ? 'text-green-300' : 'text-red-400')
         }`}>
-          {isDrawOrAbort 
+          {isDrawOrAbort
             ? (scoreResult.scoreType?.includes('Draw') ? '流局' : (scoreResult.scoreType || 'ゲーム終了'))
-            : (scoreResult.valid 
-                ? `${winnerName} が${(scoreResult.winType || scoreResult.scoreType || '和了').replace('!', '')}で和了` 
+            : (scoreResult.valid
+                ? `${winnerName} が${(scoreResult.winType || scoreResult.scoreType || '和了').replace('!', '')}で和了`
                 : '役なし')}
         </h2>
 
@@ -160,7 +160,7 @@ export function ScoreResultModal({
             )}
           </div>
         )}
-        
+
         {scoreResult.valid && !isDrawOrAbort ? (
           <>
             <div className="mt-4 p-4 bg-mahjong-dark-secondary border-2 border-white">
@@ -233,7 +233,7 @@ export function ScoreResultModal({
                     const hand = gameState?.tiles?.[playerId]?.hand || []
                     const melds = gameState?.tiles?.[playerId]?.melds || []
                     const isTenpai = tenpaiStatus[playerId]
-                    
+
                     return (
                       <div key={playerId} className="p-3 bg-mahjong-dark-tertiary border border-white">
                         <div className="text-sm font-bold text-white mb-2 flex items-center gap-3">
@@ -245,8 +245,8 @@ export function ScoreResultModal({
                         <div className="flex gap-3 items-start flex-wrap">
                           {melds.length > 0 && (
                             <div className="flex gap-2 flex-wrap">
-                              <FuroDisplay 
-                                melds={melds} 
+                              <FuroDisplay
+                                melds={melds}
                                 layout="horizontal"
                                 wrapperClassName="flex gap-2 flex-wrap"
                                 seatWindYou={gameState?.seatWinds?.[playerId]}
@@ -279,8 +279,8 @@ export function ScoreResultModal({
           onClick={onNextRound}
           disabled={nextRoundReady}
           className={`mt-4 px-5 py-2.5 text-sm font-bold border-2 border-white w-full transition-colors ${
-            nextRoundReady 
-              ? 'bg-gray-600 cursor-not-allowed text-white' 
+            nextRoundReady
+              ? 'bg-gray-600 cursor-not-allowed text-white'
               : 'bg-mahjong-dark-secondary hover:bg-green-700 text-white cursor-pointer'
           }`}
         >

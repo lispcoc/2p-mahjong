@@ -23,7 +23,7 @@ class DetailedNaniKiriAnalyzer {
 
       const combination = this.ai.evaluateCombinationPotential(handWithout, tile);
       const isolation = this.ai.evaluateTileIsolation(handWithout, tile);
-      const ryanmen = tile.suit !== 'honor' && tile.number >= 2 && tile.number <= 8 
+      const ryanmen = tile.suit !== 'honor' && tile.number >= 2 && tile.number <= 8
         ? this.ai.evaluateRyanmenEfficiency(handWithout, tile)
         : 0;
       const tileEff = isolation * 80 + combination * 3.0 + ryanmen * 1.2;

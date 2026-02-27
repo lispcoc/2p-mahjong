@@ -62,7 +62,7 @@ class ComprehensiveNaniKiriTester {
 
       const combination = this.ai.evaluateCombinationPotential(handWithout, tile);
       const isolation = this.ai.evaluateTileIsolation(handWithout, tile);
-      const ryanmen = tile.suit !== 'honor' && tile.number >= 2 && tile.number <= 8 
+      const ryanmen = tile.suit !== 'honor' && tile.number >= 2 && tile.number <= 8
         ? this.ai.evaluateRyanmenEfficiency(handWithout, tile)
         : 0;
       const tileEff = isolation * 80 + combination * 3.0 + ryanmen * 1.2;
@@ -124,7 +124,7 @@ class ComprehensiveNaniKiriTester {
 
       // 削除牌別統計
       stats.discardTileStats.byClass[tileClass]++;
-      stats.discardTileStats.byNumber[discardTile.number] = 
+      stats.discardTileStats.byNumber[discardTile.number] =
         (stats.discardTileStats.byNumber[discardTile.number] || 0) + 1;
 
       // 最高スコアの牌が削除されていればOK
@@ -243,7 +243,7 @@ const report = `
 - 標準牌: ${stats.discardTileStats.byClass.standard}回
 
 ## 評価
-${stats.correctDiscards === '1000 (100.00%)' 
+${stats.correctDiscards === '1000 (100.00%)'
   ? '✅ AIの判定は非常に妥当です。複合性スコアの評価が適切に機能しています。'
   : '⚠️ 改善の余地があります。スコアギャップが大きいケースを確認してください。'}
 `;

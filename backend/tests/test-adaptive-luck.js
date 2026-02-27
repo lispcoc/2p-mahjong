@@ -4,7 +4,7 @@
  * - 手牌ベースのスコア調整
  * - アダプティブツモ抽選
  * - 統計的検証（字牌傾向手での字牌出現率）
- * 
+ *
  * 統合元: test-adaptive-quick.js, test-adaptive-tsumo-luck.js
  */
 const MahjongLogic = require('../src/logic/MahjongLogic');

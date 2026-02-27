@@ -86,50 +86,50 @@ app.post('/api/rooms', (req, res) => {
   const wallTiles = Number.isFinite(rawWallTiles)
     ? Math.min(settings.wall.maxTiles, Math.max(settings.wall.minTiles, Math.floor(rawWallTiles) + settings.game.dealTilesOffset + settings.game.reservedTiles))
     : settings.wall.maxTiles;
-  
+
   // ゲームモード: 'oneRound' (1局勝負), 'easternsouthern' (東南戦), 'endless' (エンドレス)
   const supportedGameModes = ['oneRound', 'easternsouthern', 'endless'];
-  const gameMode = supportedGameModes.includes(req.body?.gameMode) 
-    ? req.body.gameMode 
+  const gameMode = supportedGameModes.includes(req.body?.gameMode)
+    ? req.body.gameMode
     : 'oneRound';
-  
+
   // 後方互換性: oldoneRoundMatch パラメーターがある場合を処理
   let finalGameMode = gameMode;
   if (req.body?.oneRoundMatch === true && !req.body?.gameMode) {
     finalGameMode = 'oneRound';
   }
-  
+
   // Extract and validate tsumo luck for both players
   const rawMyTsumoLuck = Number(req.body?.myTsumoLuck);
   const myTsumoLuck = Number.isFinite(rawMyTsumoLuck)
     ? Math.max(0, Math.min(3, Math.floor(rawMyTsumoLuck)))
     : 1;
-  
+
   const rawOpponentTsumoLuck = Number(req.body?.opponentTsumoLuck);
   const opponentTsumoLuck = Number.isFinite(rawOpponentTsumoLuck)
     ? Math.max(0, Math.min(3, Math.floor(rawOpponentTsumoLuck)))
     : 1;
-  
+
   // Extract and validate auto-action timer
   const rawAutoActionTimerSeconds = Number(req.body?.autoActionTimerSeconds);
   const autoActionTimerSeconds = Number.isFinite(rawAutoActionTimerSeconds)
     ? Math.max(settings.timers.autoActionTimer.minSeconds, Math.min(settings.timers.autoActionTimer.maxSeconds, Math.floor(rawAutoActionTimerSeconds)))
     : settings.timers.autoActionTimer.defaultSeconds;
-  
+
   // 赤ドラの使用
   const useRedDora = req.body?.useRedDora === true;
-  
+
   // ノーテン罰符
   const notenPenalty = req.body?.notenPenalty === true;
-  
+
   const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
-  
+
   // 非アクティブタイマーを開始
   room.startInactivityTimer(createInactivityCallback(roomId));
-  
+
   console.log(`Room created: ${roomId} (myTsumoLuck=${myTsumoLuck}, opponentTsumoLuck=${opponentTsumoLuck})`);
   res.json({ roomId });
 });
@@ -161,11 +161,11 @@ app.get('/api/rooms', (req, res) => {
 app.get('/api/rooms/:roomId', (req, res) => {
   const { roomId } = req.params;
   const room = rooms.get(roomId);
-  
+
   if (!room) {
     return res.status(404).json({ error: 'Room not found' });
   }
-  
+
   res.json({
     roomId,
     players: room.getPlayers(),
@@ -177,26 +177,26 @@ app.get('/api/rooms/:roomId', (req, res) => {
 app.delete('/api/rooms/:roomId/players/:userId', (req, res) => {
   const { roomId, userId } = req.params;
   const room = rooms.get(roomId);
-  
+
   if (!room) {
     return res.status(404).json({ error: 'Room not found' });
   }
-  
+
   const player = room.players.get(userId);
   if (!player) {
     return res.status(404).json({ error: 'Player not found' });
   }
-  
+
   console.log(`🗑️ Removing player ${player.playerName} (${userId}) from room ${roomId}`);
-  
+
   // Clear any pending disconnect timer
   if (player.disconnectTimerId) {
     clearTimeout(player.disconnectTimerId);
     player.disconnectTimerId = null;
   }
-  
+
   room.removePlayer(userId);
-  
+
   // Notify other connected players
   if (!room.isEmpty()) {
     broadcastToRoom(roomId, {
@@ -213,7 +213,7 @@ app.delete('/api/rooms/:roomId/players/:userId', (req, res) => {
     rooms.delete(roomId);
     console.log(`Room deleted: ${roomId}`);
   }
-  
+
   res.json({ success: true, message: 'Player removed' });
 });
 
@@ -221,30 +221,30 @@ app.delete('/api/rooms/:roomId/players/:userId', (req, res) => {
 app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
   const { roomId } = req.params;
   const room = rooms.get(roomId);
-  
+
   if (!room) {
     return res.status(404).json({ error: 'Room not found' });
   }
-  
+
   if (room.isFull()) {
     return res.status(400).json({ error: 'Room is full' });
   }
-  
+
   // Generate CPU player
   const cpuId = uuidv4();
   const cpuName = `CPU${room.players.size + 1}`;
-  
+
   const addResult = room.addPlayer(cpuId, cpuName, null, true);
-  
+
   if (!addResult.success) {
     return res.status(400).json({ error: addResult.message });
   }
-  
+
   console.log(`🤖 CPU player added: ${cpuName} (${cpuId}) to room ${roomId}`);
-  
+
   // アクティビティを記録してタイマーをリセット
   room.recordActivity(createInactivityCallback(roomId));
-  
+
   // Notify all players about the new CPU
   broadcastToRoom(roomId, {
     type: 'playerJoined',
@@ -253,7 +253,7 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
       players: room.getPlayers(),
     },
   });
-  
+
   // If room is full, start the game
   if (room.isFull()) {
     console.log(`🎮 Starting game in room: ${roomId}`);
@@ -263,14 +263,14 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
       type: 'gameStarted',
       payload: gameStartedPayload,
     });
-    
+
     // ゲーム開始後、非アクティブタイマーを再開
     room.startInactivityTimer(createInactivityCallback(roomId));
-    
+
     // Check if CPU should play first
     executeCPUTurnIfNeeded(room);
   }
-  
+
   res.json({
     success: true,
     cpuId,
@@ -282,7 +282,7 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
 // WebSocket Connection
 wss.on('connection', (ws) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);
-  
+
   ws.on('message', async (message) => {
     try {
       console.log(`📨 Received message: ${message}`);
@@ -293,12 +293,12 @@ wss.on('connection', (ws) => {
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
     }
   });
-  
+
   ws.on('close', () => {
     console.log(`\n✗✗✗ Client disconnected (Total connections: ${wss.clients.size})`);
     handleDisconnect(ws);
   });
-  
+
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
   });
@@ -307,7 +307,7 @@ wss.on('connection', (ws) => {
 // Message handlers
 async function handleMessage(ws, data) {
   const { type, payload } = data;
-  
+
   switch (type) {
     case 'join':
       handleJoin(ws, payload);
@@ -329,33 +329,33 @@ function handleJoin(ws, payload) {
     ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
     return;
   }
-  
+
   const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck } = payload;
-  
+
   if (!roomId || !playerName) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
     return;
   }
-  
+
   const room = rooms.get(roomId);
   if (!room) {
     console.log(`❌ Room not found: ${roomId}`);
     ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
     return;
   }
-  
+
   let userId = existingUserId;
   let isReconnecting = false;
-  
+
   // Check if this is a reconnection attempt
   if (existingUserId) {
     console.log(`🔍 Reconnection attempt: userId=${existingUserId}, playerName=${playerName}`);
     console.log(`🔍 Room players:`, Array.from(room.players.keys()));
     console.log(`🔍 Room status: ${room.status}`);
-    
+
     const existingPlayer = room.players.get(existingUserId);
     console.log(`🔍 Player found:`, existingPlayer ? `yes (name: ${existingPlayer.playerName})` : 'no');
-    
+
     if (existingPlayer && existingPlayer.playerName === playerName) {
       // Reconnecting - update the WebSocket connection
       console.log(`🔄 Player reconnecting: ${playerName} (${existingUserId}) to room ${roomId}`);
@@ -379,7 +379,7 @@ function handleJoin(ws, payload) {
   } else {
     console.log(`ℹ️ No userId provided - new player joining`);
   }
-  
+
   if (!isReconnecting) {
     // New player joining - check connected players count, not total count
     // This allows new players to join if a previous player is disconnected
@@ -388,20 +388,20 @@ function handleJoin(ws, payload) {
       ws.send(JSON.stringify({ type: 'error', message: 'Room is full' }));
       return;
     }
-    
+
     userId = uuidv4();
     const addPlayerResult = room.addPlayer(userId, playerName, ws);
-    
+
     if (!addPlayerResult.success) {
       console.log(`❌ Failed to add player: ${playerName} - ${addPlayerResult.message}`);
       ws.send(JSON.stringify({ type: 'error', message: addPlayerResult.message }));
       return;
     }
-    
+
     // Determine which player this is (1st or 2nd) to assign correct tsumo luck
     const playerIndex = room.getPlayers().length; // 1 or 2
     let assignedTsumoLuck = 1; // default
-    
+
     // Try to use pending settings first (set during room creation)
     const pendingSettings = room.getPendingTsumoLuckSettings?.();
     if (pendingSettings) {
@@ -420,18 +420,18 @@ function handleJoin(ws, payload) {
       }
       console.log(`✓ Set tsumo luck for ${playerName} (player 2): level ${assignedTsumoLuck}`);
     }
-    
+
     room.setTsumoLuck(userId, assignedTsumoLuck);
   }
-  
+
   connections.set(ws, { userId, roomId, playerName });
-  
+
   if (isReconnecting) {
     console.log(`✓ Player reconnected: ${playerName} (${userId}) to room ${roomId}`);
   } else {
     console.log(`✓ Player joined: ${playerName} (${userId}) to room ${roomId}`);
   }
-  
+
   // Send join confirmation
   const joinedPayload = {
     userId,
@@ -441,7 +441,7 @@ function handleJoin(ws, payload) {
     gameState: room.getGameState(),
     isReconnecting,
   };
-  
+
   console.log('Sending joined message:', JSON.stringify(joinedPayload, null, 2));
   try {
     ws.send(JSON.stringify({
@@ -452,7 +452,7 @@ function handleJoin(ws, payload) {
   } catch (err) {
     console.error('❌ Error sending joined message:', err);
   }
-  
+
   // Notify other players (only if not reconnecting, or notify about reconnection)
   if (isReconnecting) {
     console.log(`Broadcasting playerReconnected to room: ${roomId}`);
@@ -473,7 +473,7 @@ function handleJoin(ws, payload) {
       },
     }, ws);
   }
-  
+
   // If room is full and waiting, start the game (avoid restarting on reconnect)
   if (!isReconnecting && room.isFull() && room.status === 'waiting') {
     console.log(`🎮 Starting game in room: ${roomId}`);
@@ -484,7 +484,7 @@ function handleJoin(ws, payload) {
       type: 'gameStarted',
       payload: gameStartedPayload,
     });
-    
+
     // ゲーム開始後、非アクティブタイマーを再開
     room.startInactivityTimer(createInactivityCallback(roomId));
   } else {
@@ -499,18 +499,18 @@ async function handleAction(ws, payload) {
     ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
     return;
   }
-  
+
   const { roomId, userId } = connection;
   const room = rooms.get(roomId);
-  
+
   if (!room) {
     ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
     return;
   }
-  
+
   // アクティビティを記録してタイマーをリセット
   room.recordActivity(createInactivityCallback(roomId));
-  
+
   const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   console.log(`\n[🔵 ${requestId}] ============ INCOMING ACTION ============`);
   console.log(`[🔵 ${requestId}] [server.handleAction] Received action from userId=${userId}`);
@@ -518,18 +518,18 @@ async function handleAction(ws, payload) {
   if (payload.type === 'discard') {
     console.log(`[🔵 ${requestId}] >>> Discard action with tileId='${payload.tileId}'`);
   }
-  
+
   let result = room.handlePlayerAction(userId, payload);
-  
+
   console.log(`[🔵 ${requestId}] [CHECK] handlePlayerAction returned:`, {
     success: result.success,
     finished: result.finished,
     gameOver: result.gameOver,
     message: result.message,
   });
-  
+
   if (!result.success) {
-    ws.send(JSON.stringify({ 
+    ws.send(JSON.stringify({
       type: 'actionResponse',
       payload: {
         success: false,
@@ -547,10 +547,10 @@ async function handleAction(ws, payload) {
       type: 'gameStarted',
       payload: room.getGameState(),
     });
-    
+
     // 次のラウンドが開始されたので非アクティブタイマーを再開
     room.startInactivityTimer(createInactivityCallback(roomId));
-    
+
     // Check if CPU should play first
     executeCPUTurnIfNeeded(room);
     return;
@@ -559,25 +559,25 @@ async function handleAction(ws, payload) {
   // nextRoundアクションで準備状況が更新された場合、gameStateをbroadcast
   if (payload.type === 'nextRound' && result.success) {
     console.log(`📢 nextRound action processed: userId=${userId}, startNextRound=${result.startNextRound}`);
-    
+
     // Both players are ready - start the next round
     if (result.startNextRound) {
       console.log(`\n🎮 Starting next round in room: ${roomId} (both players ready)`);
-      
+
       // 全員準備完了したので自動タイマーをクリア
       room.clearAutoReadyTimer();
-      
+
       room.start();
       broadcastToRoom(roomId, {
         type: 'gameStarted',
         payload: room.getGameState(),
       });
-      
+
       // Check if CPU should play first
       executeCPUTurnIfNeeded(room);
       return;
     }
-    
+
     // Otherwise, just broadcast the updated ready count
     // タイマーは継続（残りのプレイヤーが準備完了しない場合でも自動進行する）
     console.log(`📢 Broadcasting updated nextRound status to room: ${roomId}`);
@@ -587,10 +587,10 @@ async function handleAction(ws, payload) {
     });
     return;
   }
-  
+
   // For riichi actions, send confirmation to the player
   if (payload.type === 'riichi') {
-    ws.send(JSON.stringify({ 
+    ws.send(JSON.stringify({
       type: 'actionResponse',
       payload: {
         success: true,
@@ -599,15 +599,15 @@ async function handleAction(ws, payload) {
       }
     }));
   }
-  
+
   // Broadcast game state to all players
   broadcastToRoom(roomId, {
     type: 'gameStateUpdate',
     payload: room.getGameState(),
   });
-  
+
   console.log(`[🔵 ${requestId}] After broadcast, checking: room.isFinished()=${room.isFinished()}, result.finished=${result.finished}`);
-  
+
   // 両方リーチ時の自動進行処理
   if (result.bothRiichiAutoPlay && !room.isFinished()) {
     console.log(`[🔵 ${requestId}] 🔴 Both players in riichi - starting auto-play loop`);
@@ -622,16 +622,16 @@ async function handleAction(ws, payload) {
       console.log(`[🔵 ${requestId}] 🔴 Auto-play loop completed: finished=${result.finished}, bothRiichiAutoPlay=${result.bothRiichiAutoPlay}`);
     }
   }
-  
+
   // Check if CPU should play next
   executeCPUTurnIfNeeded(room);
-  
+
   console.log(`[🔵 ${requestId}] After CPU check, room.isFinished()=${room.isFinished()}, room.status=${room.status}`);
-  
+
   // Check if game is finished
   if (room.isFinished()) {
     console.log(`[🔵 ${requestId}] [CHECK] ✅ Game is finished! room.status=${room.status}`);
-    
+
     if (result?.scoreResult?.valid === false) {
       // 役がない場合はゲーム状態を更新せず、エラーのみ返す
       // ただし、相手プレイヤーにはゲーム状態を送信して同期を保つ
@@ -642,13 +642,13 @@ async function handleAction(ws, payload) {
           message: result.scoreResult.error || '役がありません'
         }
       }));
-      
+
       // 相手プレイヤーにゲーム状態を送信して同期を保つ
       broadcastToRoom(roomId, {
         type: 'gameStateUpdate',
         payload: room.getGameState(),
       }, ws);
-      
+
       return;
     }
 
@@ -700,12 +700,12 @@ async function handleAction(ws, payload) {
         isDraw: finishedPayload.isDraw,
         roundName: finishedPayload.roundName,
       });
-      
+
       broadcastToRoom(roomId, {
         type: 'gameFinished',
         payload: finishedPayload,
       });
-      
+
       console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
       console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
     } catch (err) {
@@ -713,10 +713,10 @@ async function handleAction(ws, payload) {
       console.error(`[🔵 ${requestId}] Error details:`, err.message, err.stack);
       // 繰り返し実行を防ぐため、スタックトレース出力のみで処理を続行
     }
-    
+
     // ゲーム終了時は非アクティブタイマーをクリア（auto-ready or game-overタイマーで管理）
     room.clearInactivityTimer();
-    
+
     // ゲーム終了（流局や勝ちなど）後の処理
     console.log(`[🔵 ${requestId}] [TIMER] gameOver=${result.gameOver}`);
     if (!result.gameOver) {
@@ -729,7 +729,7 @@ async function handleAction(ws, payload) {
           console.log(`🎮 [AUTO] Calling room.start()...`);
           room.start();
           console.log(`🎮 [AUTO] room.start() completed`);
-          
+
           const gameStartPayload = room.getGameState();
           console.log(`🎮 [AUTO] Broadcasting gameStarted...`);
           broadcastToRoom(roomId, {
@@ -737,10 +737,10 @@ async function handleAction(ws, payload) {
             payload: gameStartPayload,
           });
           console.log(`🎮 [AUTO] gameStarted broadcast complete`);
-          
+
           // 次のラウンドが開始されたので非アクティブタイマーを再開
           room.startInactivityTimer(createInactivityCallback(roomId));
-          
+
           // Check if CPU should play first
           console.log(`🎮 [AUTO] Checking if CPU should play...`);
           executeCPUTurnIfNeeded(room);
@@ -773,10 +773,10 @@ async function handleAction(ws, payload) {
 function handleDisconnect(ws) {
   const connection = connections.get(ws);
   if (!connection) return;
-  
+
   const { roomId, userId, playerName } = connection;
   const room = rooms.get(roomId);
-  
+
   if (room) {
     const player = room.markDisconnected(userId);
     connections.delete(ws);
@@ -876,7 +876,7 @@ function handleRematch(ws) {
         totalPlayers: room.players.size,
       },
     }, ws); // 要求者以外に送信
-    
+
     // 要求者に確認応答
     ws.send(JSON.stringify({
       type: 'rematchWaiting',
@@ -894,11 +894,11 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
     console.log(`⚠️ Room ${roomId} not found for broadcast`);
     return;
   }
-  
+
   // Access players directly from the room's internal players map to get WebSocket references
   console.log(`📡 Broadcasting ${message.type} to room ${roomId} with ${room.players.size} players`);
   let broadcastCount = 0;
-  
+
   room.players.forEach((player) => {
     console.log(`  - Checking player: ${player.playerName} (${player.userId}) - isCPU: ${player.isCPU} - ws ready: ${player.ws?.readyState === 1}`);
     // CPUプレイヤーはスキップ
@@ -914,7 +914,7 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
       console.log(`    ❌ Skipped (ws: ${!!player.ws}, ready: ${player.ws?.readyState})`);
     }
   });
-  
+
   console.log(`📡 Broadcast complete: sent to ${broadcastCount}/${room.players.size} players`);
 }
 
@@ -923,7 +923,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
   const roomId = room.roomId;
   console.log(`[🔵 ${logPrefix}] ✅ gameFinished detected`);
   console.log(`[🔵 ${logPrefix}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
-  
+
   let finishedPayload = null;
   try {
     // 最新のラウンド履歴から winType と scoreResult を取得
@@ -931,7 +931,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
     const latestRound = roundHistory.length > 0 ? roundHistory[roundHistory.length - 1] : null;
     const winType = room.lastResult?.message || latestRound?.winType || '';
     const scoreResult = room.lastResult?.scoreResult || latestRound?.scoreResult || null;
-    
+
     console.log(`[🔵 ${logPrefix}] [DEBUG] room.lastResult?.isDraw = ${room.lastResult?.isDraw}`);
     console.log(`[🔵 ${logPrefix}] [DEBUG] latestRound?.isDraw = ${latestRound?.isDraw}`);
     const isDraw = room.lastResult?.isDraw === true || latestRound?.isDraw === true || false;
@@ -956,12 +956,12 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
       tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,
       notenPenalty: isDraw ? (latestRound?.notenPenalty || room.lastResult?.notenPenalty || null) : null,
     };
-    
+
     if (room.isGameOver()) {
       finishedPayload.gameOver = true;
       finishedPayload.finalResults = room.getRoundHistory();
     }
-    
+
     console.log(`[🔵 ${logPrefix}] 📢 Broadcasting gameFinished`);
     console.log(`[🔵 ${logPrefix}] Payload:`, JSON.stringify(finishedPayload, null, 2));
     broadcastToRoom(roomId, {
@@ -972,13 +972,13 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
     console.error(`[🔵 ${logPrefix}] ❌ Error while broadcasting gameFinished:`, err);
     console.error(`[🔵 ${logPrefix}] Error details:`, err.message, err.stack);
   }
-  
+
   // ゲーム終了時は非アクティブタイマーをクリア
   room.clearInactivityTimer();
-  
+
   const isGameOver = finishedPayload?.gameOver || false;
   console.log(`[🔵 ${logPrefix}] [TIMER] gameOver=${isGameOver}`);
-  
+
   if (!isGameOver) {
     console.log(`[🔵 ${logPrefix}] [TIMER] Setting up auto-ready timer...`);
     room.startAutoReadyTimer(() => {
@@ -1014,7 +1014,7 @@ function executeCPUTurnIfNeeded(room) {
   if (!room || room.status !== 'playing') {
     return;
   }
-  
+
   // 両方リーチの場合は自動進行ループを開始（CPUターンかどうかに関わらず）
   if (room.gameLogic && room.gameLogic.areBothPlayersInRiichi() &&
       !room.gameLogic.getRonPossibleFor() && !room.gameLogic.getPendingPungFor()) {
@@ -1045,7 +1045,7 @@ function executeCPUTurnIfNeeded(room) {
         type: 'gameStateUpdate',
         payload: room.getGameState(),
       });
-      
+
       if (room.isFinished()) {
         room.lastResult = autoPlayResult;
         handleAutoPlayGameFinished(room, 'BOTH_RIICHI');
@@ -1057,7 +1057,7 @@ function executeCPUTurnIfNeeded(room) {
     return;
     } // end of !hasTsumoOpportunity block
   }
-  
+
   if (room.isCurrentTurnCPU()) {
     console.log('🤖 Executing CPU turn...');
     room.executeCPUTurn(() => {
@@ -1067,7 +1067,7 @@ function executeCPUTurnIfNeeded(room) {
         type: 'gameStateUpdate',
         payload: room.getGameState(),
       });
-      
+
       // ゲームが終了しているかチェック
       if (room.isFinished()) {
         handleAutoPlayGameFinished(room, 'CPU CALLBACK');

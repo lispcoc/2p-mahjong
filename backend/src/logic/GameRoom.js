@@ -52,14 +52,14 @@ class GameRoom {
     this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
   }
-  
+
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
     this.pendingTsumoLuckSettings = {
       my: Math.max(0, Math.min(3, Math.floor(myTsumoLuck))),
       opponent: Math.max(0, Math.min(3, Math.floor(opponentTsumoLuck))),
     };
   }
-  
+
   getPendingTsumoLuckSettings() {
     return this.pendingTsumoLuckSettings;
   }
@@ -100,29 +100,29 @@ class GameRoom {
     const level = Number.isFinite(luckLevel) ? Math.max(0, Math.min(3, Math.floor(luckLevel))) : 0;
     this.tsumoLuckSettings.set(userId, level);
   }
-  
+
   getTsumoLuck(userId) {
     return this.tsumoLuckSettings.get(userId) || 0;
   }
-  
+
   addPlayer(userId, playerName, ws, isCPU = false) {
     // Check if room is full
     if (this.players.size >= settings.game.maxPlayersPerRoom) {
       return { success: false, message: 'Room is full' };
     }
-    
+
     // Check if player with same name already exists
     for (const player of this.players.values()) {
       if (player.playerName === playerName) {
         return { success: false, message: 'Player with this name already exists in the room' };
       }
     }
-    
+
     // Check if same userId already exists (shouldn't happen but safety check)
     if (this.players.has(userId)) {
       return { success: false, message: 'Player already connected to this room' };
     }
-    
+
     const player = {
       userId,
       playerName,
@@ -137,17 +137,17 @@ class GameRoom {
       disconnectedAt: null,
       disconnectTimerId: null,
     };
-    
+
     this.players.set(userId, player);
-    
+
     // CPUプレイヤーの場合はAIPlayerを初期化
     if (isCPU) {
       this.aiPlayers.set(userId, new AIPlayer(false)); // false = 通常モード（ツモ切りではない）
     }
-    
+
     return { success: true, player };
   }
-  
+
   removePlayer(userId) {
     const player = this.players.get(userId);
     if (player?.disconnectTimerId) {
@@ -172,7 +172,7 @@ class GameRoom {
     player.disconnectedAt = Date.now();
     return player;
   }
-  
+
   getPlayers() {
     return Array.from(this.players.values()).map((p) => ({
       userId: p.userId,
@@ -192,20 +192,20 @@ class GameRoom {
     });
     return count;
   }
-  
+
   isFull() {
     return this.players.size === 2;
   }
-  
+
   isEmpty() {
     return this.players.size === 0;
   }
-  
+
   start() {
     if (this.players.size !== 2) {
       return false;
     }
-    
+
     this.status = 'playing';
     this.nextRoundReady.clear(); // 準備状態をクリア
     // Prevent stale timers from firing during an active round.
@@ -224,28 +224,28 @@ class GameRoom {
       this.dealerIndex = 0;
     }
     this.currentRound = this.getRoundIndex();
-    
+
     // 初期持ち点を取得
     const playerScores = {};
     this.players.forEach((player, userId) => {
       playerScores[userId] = player.score;
       player.riichi = false; // リーチ状態をリセット
     });
-    
+
     // Create a callback function to check if a player is in no-meld mode
     const isPlayerInNoMeldMode = (userId) => {
       const player = this.players.get(userId);
       return player?.noMeldMode || false;
     };
-    
+
     const seatWinds = this.buildSeatWinds(this.playerOrder);
-    
+
     // Build tsumo luck settings for each player
     const tsumoLuckSettings = {};
     this.playerOrder.forEach((userId) => {
       tsumoLuckSettings[userId] = this.getTsumoLuck(userId);
     });
-    
+
     this.gameLogic = new MahjongLogic(
       this.playerOrder,
       playerScores,
@@ -263,36 +263,36 @@ class GameRoom {
       this.gameLogic.riichiDeposits = this.riichiDepositsCarryover;
     }
     this.gameLogic.initialize();
-    
+
     // Deal initial tiles
     this.gameLogic.dealTiles();
-    
+
     return true;
   }
-  
+
   handlePlayerAction(userId, action) {
     // Handle next round ready - これはfinished状態でも受け付ける
     if (action.type === 'nextRound') {
       if (this.status !== 'finished') {
         return { success: false, message: 'Can only advance to next round after current round is finished' };
       }
-      
+
       this.nextRoundReady.add(userId);
-      
+
       // CPU/autoPlay対戦時は、人間プレイヤーが押したら即座に全CPU/autoPlayプレイヤーも準備完了にする
       for (const [playerId, player] of this.players) {
         if ((player.isCPU || player.autoPlay) && !this.nextRoundReady.has(playerId)) {
           this.nextRoundReady.add(playerId);
         }
       }
-      
+
       console.log(`Player ${userId} ready for next round (${this.nextRoundReady.size}/${this.players.size})`);
-      
+
       // 全プレイヤーが準備完了したら次の局を開始
       if (this.nextRoundReady.size === this.players.size) {
         return { success: true, startNextRound: true };
       }
-      
+
       return { success: true, message: 'Waiting for other players...' };
     }
 
@@ -371,14 +371,14 @@ class GameRoom {
       }
       return result;
     }
-    
+
     const result = this.gameLogic.processAction(userId, action);
-    
+
     if (result.finished) {
       console.log(`[GameRoom.handlePlayerAction] 🏁 Game finished detected, message: "${result.message}"`);
       this.status = 'finished';
       this.lastResult = result; // CPU callback用に保存
-      
+
       try {
         // 局の結果を履歴に保存
         const tenpaiStatus = result.isDraw === true ? this.gameLogic.getTenpaiStatus() : null;
@@ -397,12 +397,12 @@ class GameRoom {
           isDraw: result.isDraw === true,
           tenpai: tenpaiStatus,
         };
-        
+
         // 各プレイヤーの前回点数を保存
         this.players.forEach((player, uid) => {
           roundResult.previousScores[uid] = player.score;
         });
-        
+
         // 各プレイヤーの点数を更新・保存
         this.players.forEach((player, uid) => {
           const newScore = this.gameLogic.getPlayerScore(uid);
@@ -415,28 +415,28 @@ class GameRoom {
           const playerIds = Array.from(this.players.keys());
           const tenpaiPlayers = playerIds.filter(uid => tenpaiStatus[uid] === true);
           const notenPlayers = playerIds.filter(uid => tenpaiStatus[uid] !== true);
-          
+
           // 2人麻雀: 一方が聴牌・他方がノーテンの場合のみ罰符発生
           // 聴牌者にpenaltyAmount点、ノーテン者からpenaltyAmount点
           if (tenpaiPlayers.length === 1 && notenPlayers.length === 1) {
             const penaltyAmount = settings.game.notenPenaltyAmount;
             const tenpaiUid = tenpaiPlayers[0];
             const notenUid = notenPlayers[0];
-            
+
             // MahjongLogic内のスコアを直接更新
             this.gameLogic.players[tenpaiUid].score += penaltyAmount;
             this.gameLogic.players[notenUid].score -= penaltyAmount;
-            
+
             // GameRoom側のスコアも更新
             const tenpaiPlayer = this.players.get(tenpaiUid);
             const notenPlayer = this.players.get(notenUid);
             if (tenpaiPlayer) tenpaiPlayer.score += penaltyAmount;
             if (notenPlayer) notenPlayer.score -= penaltyAmount;
-            
+
             // roundResultのスコアも更新
             roundResult.scores[tenpaiUid] = tenpaiPlayer ? tenpaiPlayer.score : roundResult.scores[tenpaiUid] + penaltyAmount;
             roundResult.scores[notenUid] = notenPlayer ? notenPlayer.score : roundResult.scores[notenUid] - penaltyAmount;
-            
+
             // ノーテン罰符情報を結果に保存
             roundResult.notenPenalty = {
               amount: penaltyAmount,
@@ -445,11 +445,11 @@ class GameRoom {
             };
             result.notenPenalty = roundResult.notenPenalty;
             result.scores = roundResult.scores;
-            
+
             console.log(`[GameRoom.handlePlayerAction] 💰 ノーテン罰符適用: ${notenUid} → ${tenpaiUid} (${penaltyAmount}点)`);
           }
         }
-        
+
         this.roundHistory.push(roundResult);
         console.log(`[GameRoom.handlePlayerAction] ✅ Round history saved: ${roundResult.winType}, winner: ${roundResult.winner || 'none (draw)'}`);
 
@@ -457,11 +457,11 @@ class GameRoom {
           ? this.gameLogic.getRiichiDeposits()
           : 0;
         this.nextRoundState = this.computeNextRoundState(roundResult);
-        
+
         // ゲーム終了判定ロジック
         let shouldGameEnd = false;
         let endReason = '';
-        
+
         if (this.gameMode === 'oneRound') {
           // 1局勝負: 和了があったらゲーム終了
           if (!result.isDraw) {
@@ -473,8 +473,8 @@ class GameRoom {
           // 南2局で和了または流局（親が聴牌しない場合も含む）して、次局が東1局になればゲーム終了
           console.log(`[GameRoom.easternsouthern check] currentRound: ${this.currentRound}, roundName: ${this.getRoundName()}`);
           console.log(`[GameRoom.easternsouthern check] nextRoundState:`, this.nextRoundState);
-          if (this.nextRoundState && 
-              this.nextRoundState.roundWindIndex === 0 && 
+          if (this.nextRoundState &&
+              this.nextRoundState.roundWindIndex === 0 &&
               this.nextRoundState.roundNumber === 1) {
             shouldGameEnd = true;
             endReason = 'Eastern-Southern match - reached second east round';
@@ -495,7 +495,7 @@ class GameRoom {
             endReason = 'Endless - negative score detected';
           }
         }
-        
+
         if (shouldGameEnd) {
           console.log(`[GameRoom.handlePlayerAction] 🏁 Game over - ${endReason}`);
           console.log(`[GameRoom.handlePlayerAction] 📊 roundHistory length: ${this.roundHistory.length}`);
@@ -509,10 +509,10 @@ class GameRoom {
         console.error(`[GameRoom.handlePlayerAction] ❌ Error while processing finished game state:`, err);
       }
     }
-    
+
     return result;
   }
-  
+
   getGameState() {
     if (!this.gameLogic) {
       const state = {
@@ -535,7 +535,7 @@ class GameRoom {
       }
       return state;
     }
-    
+
     const playerIds = Array.from(this.players.keys());
     const state = {
       status: this.status,
@@ -564,7 +564,7 @@ class GameRoom {
       autoActionTimerSeconds: this.autoActionTimerSeconds, // ツモ切り・ポン見逃しのタイマー秒数
       initialScore: this.initialScore, // 初期持ち点
     };
-    
+
     // Send each player their own hand and public information
     // Only if game is in progress or finished (including gameOver to show winning hand)
     if (this.status === 'playing' || this.status === 'finished' || this.status === 'gameOver') {
@@ -587,7 +587,7 @@ class GameRoom {
           state.noMeldMode[userId] = player?.noMeldMode || false;
           state.autoPlay = state.autoPlay || {};
           state.autoPlay[userId] = player?.autoPlay || false;
-          
+
           // Check if this player can win
           if (this.gameLogic.getCurrentTurn() === userId && this.gameLogic.isWinningHand(userId)) {
             state.canWinFor = userId;
@@ -608,36 +608,36 @@ class GameRoom {
         }
       });
     }
-    
+
     // Add wall and discards info
     state.wall = this.gameLogic.getWallCount();
     const discardsData = this.gameLogic.getDiscards();
     state.discards = discardsData.discards;
     state.riichiDiscards = discardsData.riichiDiscards;
     state.lastDiscardInfo = this.gameLogic.getLastDiscardInfo();
-    
+
     // ゲームオーバー時は最終結果（roundHistory）も含める
     if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
       state.gameOver = true;
       state.finalResults = this.roundHistory;
     }
-    
+
     return state;
   }
-  
+
   getStatus() {
     return this.status;
   }
-  
+
   isFinished() {
     return this.status === 'finished' || this.status === 'gameOver';
   }
-  
+
   getWinner() {
     if (!this.gameLogic) return null;
     return this.gameLogic.getWinner();
   }
-  
+
   getScores() {
     if (!this.gameLogic) {
       const scores = {};
@@ -782,10 +782,10 @@ class GameRoom {
 
     console.log(`⏱️ Starting auto-ready timer for room ${this.roomId}`);
     console.log(`⏱️ Current players:`, Array.from(this.players.entries()).map(([uid, p]) => `${p.playerName}(${uid})`).join(', '));
-    
+
     this.autoReadyTimerId = setTimeout(() => {
       console.log(`⏱️ [TIMEOUT] Auto-ready timeout triggered for room ${this.roomId}`);
-      
+
       // CPUプレイヤーと人間プレイヤーの両方を自動的に準備完了にする
       this.players.forEach((player, userId) => {
         if (!this.nextRoundReady.has(userId)) {
@@ -798,7 +798,7 @@ class GameRoom {
       const readyCount = this.nextRoundReady.size;
       const totalCount = this.players.size;
       console.log(`⏱️ Ready count: ${readyCount}/${totalCount}`);
-      
+
       if (readyCount === totalCount && totalCount > 0) {
         console.log(`⏱️ ✅ All players auto-ready, calling callback`);
         // コールバック関数を呼び出してserver側で次のラウンドを開始
@@ -841,11 +841,11 @@ class GameRoom {
     }
 
     console.log(`⏱️ Starting game-over timer for room ${this.roomId} (5 minutes until deletion)`);
-    
+
     this.gameOverTimerId = setTimeout(() => {
       console.log(`⏱️ [TIMEOUT] Game-over timeout triggered for room ${this.roomId}`);
       console.log(`⏱️ Room ${this.roomId} will be deleted now`);
-      
+
       // コールバック関数を呼び出してserver側でルームを削除
       if (typeof onGameOverTimeout === 'function') {
         console.log(`⏱️ Executing game-over callback...`);
@@ -878,11 +878,11 @@ class GameRoom {
 
     this.lastActivityTime = Date.now();
     console.log(`⏱️ Starting inactivity timer for room ${this.roomId} (5 minutes until deletion)`);
-    
+
     this.inactivityTimerId = setTimeout(() => {
       console.log(`⏱️ [TIMEOUT] Inactivity timeout triggered for room ${this.roomId}`);
       console.log(`⏱️ Room ${this.roomId} will be deleted due to inactivity`);
-      
+
       // コールバック関数を呼び出してserver側でルームを削除
       if (typeof onInactivityTimeout === 'function') {
         console.log(`⏱️ Executing inactivity callback...`);
@@ -1028,7 +1028,7 @@ class GameRoom {
     // 少し遅延を入れてリアルっぽくする
     // テストモード時は遅延をスキップ
     const delay = this.testMode ? 0 : (settings.cpuDelays.turnDelayMinMs + Math.random() * settings.cpuDelays.turnDelayRangeMs);
-    
+
     setTimeout(() => {
       this.executeCPUMainTurn(currentTurn, callback);
     }, delay);
@@ -1039,7 +1039,7 @@ class GameRoom {
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const melds = this.gameLogic.players[userId].melds || [];
-    
+
     // 副露（ポン・チー・カン）の構造上の牌数を計算（カンは4枚だが構造を3枚分として数える）
     const meldTiles = melds.reduce((sum, m) => sum + Math.min(m ? m.length : 0, 3), 0);
     const totalTiles = hand.length + meldTiles;
@@ -1054,7 +1054,7 @@ class GameRoom {
     if (totalTiles < 14) {
       console.log('🤖 CPU drawing tile...');
       const drawResult = this.handlePlayerAction(userId, { type: 'draw' });
-      
+
       if (!drawResult.success) {
         console.log('🤖 CPU draw failed:', drawResult.message);
         if (callback) callback();
@@ -1199,7 +1199,7 @@ class GameRoom {
     if (lastDiscard && aiPlayer.shouldPung(hand, lastDiscard, melds)) {
       console.log('🤖 CPU will pung');
       const pungResult = this.handlePlayerAction(userId, { type: 'pung' });
-      
+
       if (!pungResult.success) {
         console.log('🤖 CPU pung failed:', pungResult.message);
         // ポン失敗時は draw
@@ -1235,7 +1235,7 @@ class GameRoom {
     if (aiPlayer.shouldKan(hand, melds, isRiichi)) {
       console.log('🤖 CPU will kan');
       const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
-      
+
       if (!kanResult.success) {
         console.log('🤖 CPU kan failed:', kanResult.message);
         // カン失敗時は続行（通常のディスカード処理へ）
@@ -1297,7 +1297,7 @@ class GameRoom {
     const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];
     const tileId = tileToDiscard.isRed ? `${tileToDiscard.suit}_${tileToDiscard.number}_red` : `${tileToDiscard.suit}_${tileToDiscard.number}`;
-    
+
     console.log(`🤖 CPU discarding tile: ${tileId} (index: ${discardIndex}, drawnIndex: ${drawnTileIndex})`);
 
     const discardResult = this.handlePlayerAction(userId, {

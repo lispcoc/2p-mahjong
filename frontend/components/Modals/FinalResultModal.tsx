@@ -52,8 +52,8 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
                     {gameState?.players && gameState.players.map((player: any) => {
                       const change = scoreChanges[player.userId] ?? 0
                       return (
-                        <td 
-                          key={player.userId} 
+                        <td
+                          key={player.userId}
                           className={`p-2.5 border border-gray-300 text-center font-bold ${
                             change > 0 ? 'text-green-500' : change < 0 ? 'text-red-500' : 'text-gray-600'
                           }`}
@@ -77,8 +77,8 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
                   const diffInThousands = diff >= 0 ? Math.ceil(diff / 1000) : -Math.ceil(Math.abs(diff) / 1000)
                   const diffStr = diffInThousands >= 0 ? `+${diffInThousands}` : `${diffInThousands}`
                   return (
-                    <td 
-                      key={player.userId} 
+                    <td
+                      key={player.userId}
                       className={`p-3 border border-gray-300 text-center font-bold text-base ${
                         finalScore < 0 ? 'text-red-500' : 'text-green-500'
                       }`}

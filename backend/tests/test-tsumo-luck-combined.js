@@ -4,7 +4,7 @@
  * - ツモ運設定（レベル0-3）
  * - GameRoom → MahjongLogic 連携
  * - 統計的ツモ偏りテスト
- * 
+ *
  * 統合元: test-tsumo-luck.js, test-tsumo-luck-integration.js, test-tsumo-luck-0-3-validation.js
  */
 const MahjongLogic = require('../src/logic/MahjongLogic');
@@ -81,7 +81,7 @@ section('ツモ運: GameRoom→MahjongLogicへの引き継ぎ');
 
   const startResult = room.start();
   assert(!!startResult, 'ゲーム開始成功');
-  
+
   const gl = room.gameLogic;
   assert(!!gl, 'GameLogicが初期化されている');
   assertEqual(gl.tsumoLuckSettings['player1'], 2, 'MahjongLogicにplayer1のレベル2が渡る');

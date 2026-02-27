@@ -25,7 +25,7 @@ class CPUBattleTest {
     this.logStream = null;
     this.consoleOverrides = null;
     this.yakuStats = {}; // 役の統計情報
-    
+
     // ログファイルが指定されている場合、UTF-8で書き込み用のストリームを作成
     if (this.logFile) {
       this.logStream = fs.createWriteStream(this.logFile, { encoding: 'utf8', flags: 'w' });
@@ -36,7 +36,7 @@ class CPUBattleTest {
       this.suppressConsoleLogs();
     }
   }
-  
+
   // ログ出力（コンソールとファイルの両方）
   log(...args) {
     const message = args.join(' ');
@@ -78,7 +78,7 @@ class CPUBattleTest {
     console.debug = this.consoleOverrides.originalDebug;
     this.consoleOverrides = null;
   }
-  
+
   // ログストリームを閉じる
   closeLog() {
     if (this.logStream) {
@@ -94,30 +94,30 @@ class CPUBattleTest {
       this.log('  CPU同士の自動対戦テスト開始');
       this.log('========================================\n');
     }
-    
+
     this.room = new GameRoom('cpuBattle', { testMode: true });
     this.turnCount = 0;
     this.errors = [];
     this.warnings = [];
-    
+
     // 2人のCPUプレイヤーを追加
     this.room.addPlayer('cpu1', 'CPU-1', null, true);
     this.room.addPlayer('cpu2', 'CPU-2', null, true);
-    
+
     if (!this.summaryOnly && !this.progress) {
       this.log('✓ CPUプレイヤーを追加しました');
       this.log(`  - CPU-1 (cpu1)`);
       this.log(`  - CPU-2 (cpu2)`);
     }
-    
+
     // ゲーム開始
     this.room.start();
-    
+
     if (!this.summaryOnly && !this.progress) {
       this.log('✓ ゲームを開始しました');
       this.log('');
     }
-    
+
     return true;
   }
 
@@ -128,19 +128,19 @@ class CPUBattleTest {
     }
 
     const playerIds = Array.from(this.room.players.keys());
-    
+
     for (const pid of playerIds) {
       const player = this.room.gameLogic.players[pid];
       if (!player) continue;
-      
+
       const hand = player.hand || [];
       const drawnTileIndex = player.drawnTileIndex;
       const melds = player.melds || [];
       const playerName = this.room.players.get(pid).playerName;
-      
+
       // 手牌の枚数チェック
       const actualHandSize = hand.length;
-      
+
       // ポン・チー後の場合は11枚または12枚の可能性がある
       const meldTiles = melds.reduce((sum, m) => {
         // meldsは配列の配列（各meldは直接タイル配列）
@@ -150,19 +150,19 @@ class CPUBattleTest {
         return sum;
       }, 0);
       const totalTiles = actualHandSize + meldTiles;
-      
+
       // カン（4枚の副露）の数をカウント - カンごとに期待する合計が1増える
       const kanCount = melds.filter(m => m && Array.isArray(m) && m.length === 4).length;
       const expectedMin = 13 + kanCount;
       const expectedMax = 14 + kanCount;
-      
+
       if (this.verbose) {
         this.log(`  [${playerName}] 手牌: ${actualHandSize}枚, 副露: ${meldTiles}枚 (${melds.length}個, カン: ${kanCount}個), 合計: ${totalTiles}枚`);
         if (melds.length > 0) {
           this.log(`    Melds詳細:`, melds.map(m => m ? m.length + '枚' : 'null'));
         }
       }
-      
+
       // 合計が期待値でなければ異常（カンごとに+1）
       if (totalTiles < expectedMin || totalTiles > expectedMax) {
         const error = `異常な手牌枚数: ${playerName} - 手牌${actualHandSize}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (期待: ${expectedMin}~${expectedMax}枚, melds配列: ${melds.length}個, カン: ${kanCount}個, Turn: ${this.turnCount})`;
@@ -172,7 +172,7 @@ class CPUBattleTest {
           console.error(`   Melds詳細:`, JSON.stringify(melds.map(m => m ? m.length : null)));
         }
       }
-      
+
       // drawnTileIndexの整合性チェック
       if (drawnTileIndex >= hand.length) {
         const error = `異常なdrawnTileIndex: ${playerName} - drawnTileIndex=${drawnTileIndex}, hand.length=${hand.length} (Turn: ${this.turnCount})`;
@@ -189,9 +189,9 @@ class CPUBattleTest {
         resolve(false);
         return;
       }
-      
+
       this.turnCount++;
-      
+
       if (this.verbose) {
         const currentTurn = this.room.gameLogic.getCurrentTurn();
         const currentPlayer = this.room.players.get(currentTurn);
@@ -200,10 +200,10 @@ class CPUBattleTest {
         this.log(`  現在のプレイヤー: ${currentPlayer?.playerName}`);
         this.log(`  残り牌: ${wallCount}枚`);
       }
-      
+
       // ゲーム状態をチェック
       this.checkGameState();
-      
+
       // 最大ターン数に達したら強制終了
       if (this.turnCount >= this.maxTurns) {
         const warning = `最大ターン数(${this.maxTurns})に達しました。ゲームを強制終了します。`;
@@ -212,7 +212,7 @@ class CPUBattleTest {
         resolve(false);
         return;
       }
-      
+
       // CPUに行動させる
       this.room.executeCPUTurn(() => {
         // 次のターンまで少し待機
@@ -226,18 +226,18 @@ class CPUBattleTest {
   // ゲーム終了まで実行
   async runUntilFinish() {
     this.startGame();
-    
+
     let canContinue = true;
     while (canContinue && this.room.status === 'playing') {
       canContinue = await this.executeTurn();
-      
+
       // エラーが発生したら中断
       if (this.errors.length > 0) {
         this.log('\n❌ エラーが検出されたため、テストを中断します。');
         break;
       }
     }
-    
+
     // 結果を表示
     this.showResults();
   }
@@ -248,11 +248,11 @@ class CPUBattleTest {
       this.log('\n========================================')
       this.log('  テスト結果');
       this.log('========================================\n');
-      
+
       this.log(`総ターン数: ${this.turnCount}`);
       this.log(`ゲーム状態: ${this.room.status}`);
     }
-    
+
     if (this.room.status === 'finished' || this.room.status === 'gameOver') {
       const winner = this.room.getWinner();
       if (this.summaryOnly) {
@@ -271,14 +271,14 @@ class CPUBattleTest {
         } else {
           this.log(`\n🏁 流局`);
         }
-        
+
         const scores = this.room.getScores();
         this.log('\n最終スコア:');
         Object.entries(scores).forEach(([name, score]) => {
           this.log(`  ${name}: ${score}点`);
         });
       }
-      
+
       if (!this.summaryOnly) {
         // 局の詳細結果を表示
         this.log('\n========================================');
@@ -288,20 +288,20 @@ class CPUBattleTest {
         // summaryOnlyモード：局の結果をコンパクトに表示
         this.log('');
       }
-      
+
       const roundHistory = this.room.getRoundHistory();
       roundHistory.forEach((roundResult, idx) => {
         const roundNum = idx + 1;
         if (this.summaryOnly) {
           // summaryOnlyモード：１行表示
           const resultLine = `【第${roundNum}局】 ${roundResult.roundName} ${roundResult.roundNumber}局 - ${roundResult.winType}`;
-          
+
           if (roundResult.scoreResult && roundResult.scoreResult.valid) {
             const sr = roundResult.scoreResult;
             const yaku = sr.yaku.map(y => y.name).join(',');
             const doraYaku = sr.yaku.filter(y => y.isDora);
-            const doraStr = doraYaku.length > 0 
-              ? ` | 💎 ${doraYaku.map(y => `${y.name}(${y.han}翻)`).join(',')}` 
+            const doraStr = doraYaku.length > 0
+              ? ` | 💎 ${doraYaku.map(y => `${y.name}(${y.han}翻)`).join(',')}`
               : '';
             this.log(`${resultLine} | ${yaku} | ${sr.han}翻 | ${sr.score}点${doraStr}`);
           } else if (roundResult.isDraw) {
@@ -313,23 +313,23 @@ class CPUBattleTest {
           // 通常モード：詳細表示
           this.log(`【第${roundNum}局】 ${roundResult.roundName} ${roundResult.roundNumber}局`);
           this.log(`  結果: ${roundResult.winType}`);
-          
+
           if (roundResult.winner) {
             const winnerName = this.room.players.get(roundResult.winner)?.playerName || roundResult.winner;
             this.log(`  勝者: ${winnerName}`);
           }
-          
+
           // スコア結果の詳細を表示
           if (roundResult.scoreResult && roundResult.scoreResult.valid) {
             const sr = roundResult.scoreResult;
             this.log(`  役: ${sr.yaku.map(y => y.name).join(', ')}`);
-            
+
             // ドラを含むかチェック
             const doraYaku = sr.yaku.filter(y => y.isDora);
             if (doraYaku.length > 0) {
               this.log(`  💎 ドラあり: ${doraYaku.map(y => `${y.name}(${y.han}翻)`).join(', ')}`);
             }
-            
+
             this.log(`  翻数: ${sr.han}翻`);
             if (sr.fu) {
               this.log(`  符: ${sr.fu}符`);
@@ -346,7 +346,7 @@ class CPUBattleTest {
               }
             }
           }
-          
+
           // ドラ表示牌情報をゲーム開始時に取得して表示
           if (idx === 0) {
             const gameState = this.room.getGameState();
@@ -362,12 +362,12 @@ class CPUBattleTest {
               }
             }
           }
-          
+
           this.log('');
         }
       });
     }
-    
+
     // エラーと警告を表示
     if (!this.summaryOnly) {
       if (this.errors.length > 0) {
@@ -378,14 +378,14 @@ class CPUBattleTest {
       } else {
         this.log('\n✅ エラーは検出されませんでした');
       }
-      
+
       if (this.warnings.length > 0) {
         this.log('\n⚠️  警告:');
         this.warnings.forEach((warn, i) => {
           this.log(`  ${i + 1}. ${warn}`);
         });
       }
-      
+
       // 最終判定
       this.log('\n========================================')
       if (this.errors.length === 0 && (this.room.status === 'finished' || this.room.status === 'gameOver')) {
@@ -405,7 +405,7 @@ class CPUBattleTest {
         });
       }
     }
-    
+
     this.closeLog();
   }
 
@@ -442,37 +442,37 @@ class CPUBattleTest {
     if (!this.summaryOnly && !this.progress) {
       this.log(`\n【第${gameIndex + 1}回目】`);
     }
-    
+
     // 各ゲーム実行のための局所的な状態を作成
     const localRoom = new GameRoom(`cpuBattle_${gameIndex}`, { testMode: true });
     const localTurnCount = { value: 0 };
     const localErrors = [];
     const localWarnings = [];
-    
+
     // CPUプレイヤーを追加
     localRoom.addPlayer('cpu1', 'CPU-1', null, true);
     localRoom.addPlayer('cpu2', 'CPU-2', null, true);
-    
+
     // ゲーム開始
     localRoom.start();
-    
+
     // ゲーム実行ループ
     let canContinue = true;
     while (canContinue && localRoom.status === 'playing') {
       localTurnCount.value++;
-      
+
       // 最大ターン数に達したら強制終了
       if (localTurnCount.value >= this.maxTurns) {
         localWarnings.push(`最大ターン数(${this.maxTurns})に達しました。ゲームを強制終了します。`);
         break;
       }
-      
+
       // ゲーム状態チェック（エラー検出）
       const playerIds = Array.from(localRoom.players.keys());
       for (const pid of playerIds) {
         const player = localRoom.gameLogic.players[pid];
         if (!player) continue;
-        
+
         const hand = player.hand || [];
         const melds = player.melds || [];
         const meldTiles = melds.reduce((sum, m) => {
@@ -482,23 +482,23 @@ class CPUBattleTest {
           return sum;
         }, 0);
         const totalTiles = hand.length + meldTiles;
-        
+
         // カン（4枚の副露）の数をカウント - カンごとに期待する合計が1増える
         const kanCount = melds.filter(m => m && Array.isArray(m) && m.length === 4).length;
         const expectedMin = 13 + kanCount;
         const expectedMax = 14 + kanCount;
-        
+
         if (totalTiles < expectedMin || totalTiles > expectedMax) {
           const error = `異常な手牌枚数: ${player.playerName || pid} - 手牌${hand.length}枚 + 副露${meldTiles}枚 = ${totalTiles}枚 (期待: ${expectedMin}~${expectedMax}枚, カン: ${kanCount}個, Turn: ${localTurnCount.value})`;
           localErrors.push(error);
         }
       }
-      
+
       // エラーが発生したら中断
       if (localErrors.length > 0) {
         break;
       }
-      
+
       // CPUターン実行（同期的に待機）
       await new Promise((resolve) => {
         localRoom.executeCPUTurn(() => {
@@ -506,7 +506,7 @@ class CPUBattleTest {
         });
       });
     }
-    
+
     // ゲーム結果を返す
     const gameResult = {
       index: gameIndex,
@@ -515,7 +515,7 @@ class CPUBattleTest {
       warnings: localWarnings,
       room: localRoom,
     };
-    
+
     if (localRoom.status === 'finished' || localRoom.status === 'gameOver') {
       const winner = localRoom.getWinner();
       if (winner) {
@@ -526,7 +526,7 @@ class CPUBattleTest {
         gameResult.isDraw = true;
       }
     }
-    
+
     return gameResult;
   }
 
@@ -537,9 +537,9 @@ class CPUBattleTest {
       this.log(`  ${count}回の自動対戦テストを実行します`);
       this.log(`${'='.repeat(50)}\n`);
     }
-    
+
     this.resetYakuStats();
-    
+
     const results = {
       total: count,
       success: 0,
@@ -552,26 +552,26 @@ class CPUBattleTest {
       errors: [],
       warnings: [],
     };
-    
+
     if (this.parallel) {
       // 並列実行モード
       for (let i = 0; i < count; i += this.concurrency) {
         const end = Math.min(i + this.concurrency, count);
         const gameTasks = [];
-        
+
         for (let j = i; j < end; j++) {
           gameTasks.push(this.runSingleGame(j));
         }
-        
+
         const gameResults = await Promise.all(gameTasks);
-        
+
         for (const gameResult of gameResults) {
           // 進行度バーを表示
           const progressIndex = gameResult.index + 1;
           this.showProgressBar(progressIndex, count);
-          
+
           results.totalTurns += gameResult.turnCount;
-          
+
           if (gameResult.errors.length > 0) {
             results.failed++;
             results.errors.push(...gameResult.errors);
@@ -594,7 +594,7 @@ class CPUBattleTest {
           } else {
             results.incomplete++;
           }
-          
+
           results.warnings.push(...gameResult.warnings);
         }
       }
@@ -604,14 +604,14 @@ class CPUBattleTest {
         if (!this.summaryOnly && !this.progress) {
           this.log(`\n【第${i + 1}回目】`);
         }
-        
+
         // プログレッシブ進行度バーを表示
         this.showProgressBar(i, count);
-        
+
         const gameResult = await this.runSingleGame(i);
-        
+
         results.totalTurns += gameResult.turnCount;
-        
+
         if (gameResult.errors.length > 0) {
           results.failed++;
           results.errors.push(...gameResult.errors);
@@ -642,17 +642,17 @@ class CPUBattleTest {
         } else {
           results.incomplete++;
         }
-        
+
         results.warnings.push(...gameResult.warnings);
       }
     }
-    
+
     // プログレッシブ進行度バーを最後まで進める
     if (this.progress) {
       this.showProgressBar(count, count);
       process.stdout.write('\n'); // 改行
     }
-    
+
     // 総合結果
     this.log('\n' + '='.repeat(50));
     this.log('  総合結果');
@@ -667,24 +667,24 @@ class CPUBattleTest {
     this.log(`流局率: ${drawRate.toFixed(1)}%`);
     const avgWinPoints = results.winCount > 0 ? (results.totalWinPoints / results.winCount) : 0;
     this.log(`平均打点: ${avgWinPoints.toFixed(0)}点`);
-    
+
     // 役の統計情報を表示
     if (Object.keys(this.yakuStats).length > 0) {
       this.log('\n' + '='.repeat(50));
       this.log('  和了した役の統計');
       this.log('='.repeat(50));
-      
+
       // 役を出現回数でソート（降順）
       const sortedYaku = Object.values(this.yakuStats)
         .sort((a, b) => b.count - a.count);
-      
+
       sortedYaku.forEach((y) => {
         const pct = ((y.count / results.success) * 100).toFixed(1);
         const doraStr = y.isDora ? ' 💎' : '';
         this.log(`  ${y.name}${doraStr}: ${y.count}回 (${pct}%)`);
       });
     }
-    
+
     if (results.errors.length > 0) {
       this.log(`\n❌ 検出されたエラー数: ${results.errors.length}`);
       // 重複を除いたエラーを表示
@@ -695,15 +695,15 @@ class CPUBattleTest {
     } else {
       this.log('\n✅ エラーは検出されませんでした');
     }
-    
+
     if (results.warnings.length > 0) {
       this.log(`\n⚠️  警告数: ${results.warnings.length}`);
     }
-    
+
     this.log('='.repeat(50) + '\n');
-    
+
     this.closeLog();
-    
+
     return results;
   }
 }
@@ -759,7 +759,7 @@ if (require.main === module) {
       logFile = arg;
     }
   });
-  
+
   // ヘルプ表示
   if (showHelp) {
     console.log(`
@@ -796,7 +796,7 @@ CPU同士の自動対戦テスト
     `);
     process.exit(0);
   }
-  
+
   const test = new CPUBattleTest({
     maxTurns: 300,
     verbose: verbose, // trueにすると詳細ログを出力
@@ -807,7 +807,7 @@ CPU同士の自動対戦テスト
     concurrency: concurrency, // 並列度を指定（デフォルトはCPUコア数の半分）
     logFile: logFile, // ログファイルのパス（UTF-8で保存される）
   });
-  
+
   if (count > 1) {
     test.runMultiple(count).catch(console.error);
   } else {

@@ -3,7 +3,7 @@
  * - 一発（イッパツ）
  * - 海底撈月（ハイテイロウゲツ）
  * - 嶺上開花（リンシャンカイホウ）
- * 
+ *
  * 統合元: test-accidental-yaku-final.js, test-accidental-yaku-unit.js
  */
 const Tile = require('../src/logic/Tile');

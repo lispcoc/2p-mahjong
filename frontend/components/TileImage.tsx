@@ -16,9 +16,9 @@ interface TileImageProps {
   isRotated?: boolean
 }
 
-export function TileImage({ 
-  tile, 
-  onClick, 
+export function TileImage({
+  tile,
+  onClick,
   isDrawn = false,
   onMouseEnter,
   onMouseLeave,
