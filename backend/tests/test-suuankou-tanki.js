@@ -1,8 +1,9 @@
 /**
  * 四暗刻の単騎待ちロン対応テスト
- * - 単騎待ちロン → 四暗刻成立
+ * - 単騎待ちロン → 四暗刻単騎成立（ダブル役満）
  * - 双碰待ちロン → 四暗刻不成立（三暗刻に降格）
- * - ツモ → 四暗刻成立（従来通り）
+ * - ツモ（双碰） → 四暗刻成立（従来通り）
+ * - ツモ（単騎） → 四暗刻単騎成立（ダブル役満）
  */
 const ScoreCalculator = require('../src/logic/ScoreCalculator');
 const Tile = require('../src/logic/Tile');
@@ -12,7 +13,7 @@ const calc = new ScoreCalculator();
 
 // ========== 四暗刻：単騎待ちロン ==========
 
-section('四暗刻: 単騎待ちロン → 成立');
+section('四暗刻: 単騎待ちロン → 四暗刻単騎（ダブル役満）');
 {
   // 手牌: 1m1m1m 3m3m3m 5p5p5p 9s9s9s 東東
   // 和了牌: 東（単騎待ち＝雀頭を完成）
@@ -38,8 +39,8 @@ section('四暗刻: 単騎待ちロン → 成立');
 
   assert(result.valid, '和了が有効');
   const yakuNames = result.yaku.map(y => y.name);
-  assert(yakuNames.includes('四暗刻'), '四暗刻が検出される（単騎ロン）');
-  assertEqual(result.han, 13, '役満（13翻）');
+  assert(yakuNames.includes('四暗刻単騎'), '四暗刻単騎が検出される（単騎ロン）');
+  assertEqual(result.score, 64000, 'ダブル役満（64,000点）');
   console.log(`    得点: ${result.score}点, 役: ${yakuNames.join(', ')}`);
 }
 
@@ -79,7 +80,7 @@ section('四暗刻: 双碰待ちロン → 不成立');
 
 // ========== 四暗刻：ツモ（従来通り成立） ==========
 
-section('四暗刻: ツモ → 成立（従来通り）');
+section('四暗刻: ツモ（双碰） → 成立（従来通り）');
 {
   // 手牌: 1m1m1m 3m3m3m 5p5p5p 9s9s9s 東東
   const hand = [
@@ -105,13 +106,13 @@ section('四暗刻: ツモ → 成立（従来通り）');
   assert(result.valid, '和了が有効');
   const yakuNames = result.yaku.map(y => y.name);
   assert(yakuNames.includes('四暗刻'), '四暗刻が検出される（ツモ）');
-  assertEqual(result.han, 13, '役満（13翻）');
+  assertEqual(result.score, 32000, 'シングル役満（32,000点）');
   console.log(`    得点: ${result.score}点, 役: ${yakuNames.join(', ')}`);
 }
 
 // ========== 四暗刻：単騎待ちツモ ==========
 
-section('四暗刻: 単騎待ちツモ → 成立');
+section('四暗刻: 単騎待ちツモ → 四暗刻単騎（ダブル役満）');
 {
   const hand = [
     new Tile('man', 1), new Tile('man', 1), new Tile('man', 1),
@@ -135,14 +136,14 @@ section('四暗刻: 単騎待ちツモ → 成立');
 
   assert(result.valid, '和了が有効');
   const yakuNames = result.yaku.map(y => y.name);
-  assert(yakuNames.includes('四暗刻'), '四暗刻が検出される（単騎ツモ）');
-  assertEqual(result.han, 13, '役満（13翻）');
+  assert(yakuNames.includes('四暗刻単騎'), '四暗刻単騎が検出される（単騎ツモ）');
+  assertEqual(result.score, 64000, 'ダブル役満（64,000点）');
   console.log(`    得点: ${result.score}点, 役: ${yakuNames.join(', ')}`);
 }
 
 // ========== 数牌の単騎待ちロン ==========
 
-section('四暗刻: 数牌の単騎待ちロン → 成立');
+section('四暗刻: 数牌の単騎待ちロン → 四暗刻単騎（ダブル役満）');
 {
   // 手牌: 1m1m1m 3m3m3m 5p5p5p 9s9s9s 2p2p
   // 和了牌: 2p（数牌単騎）
@@ -168,8 +169,8 @@ section('四暗刻: 数牌の単騎待ちロン → 成立');
 
   assert(result.valid, '和了が有効');
   const yakuNames = result.yaku.map(y => y.name);
-  assert(yakuNames.includes('四暗刻'), '四暗刻が検出される（数牌単騎ロン）');
-  assertEqual(result.han, 13, '役満（13翻）');
+  assert(yakuNames.includes('四暗刻単騎'), '四暗刻単騎が検出される（数牌単騎ロン）');
+  assertEqual(result.score, 64000, 'ダブル役満（64,000点）');
   console.log(`    得点: ${result.score}点, 役: ${yakuNames.join(', ')}`);
 }
 

@@ -66,6 +66,7 @@ class ScoreCalculator {
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
       const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
+      const yakumanCount = this.getYakumanCount(yaku);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
 
       // ドラのみの場合はスキップ
@@ -73,7 +74,7 @@ class ScoreCalculator {
 
       if (han > 0 && hasNonDoraYaku) {
         const fu = 25; // 七対子は固定25符
-        const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
+        const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon, yakumanCount);
         bestResult = {
           valid: true,
           yaku: yaku,
@@ -81,7 +82,7 @@ class ScoreCalculator {
           fu: fu,
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
-          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType),
+          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType, yakumanCount),
           winningTile: winningTile
         };
         maxScore = scoreResult.score;
@@ -91,6 +92,7 @@ class ScoreCalculator {
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
       const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
+      const yakumanCount = this.getYakumanCount(yaku);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
 
       // ドラのみの場合はスキップ
@@ -98,7 +100,7 @@ class ScoreCalculator {
 
       if (han > 0 && hasNonDoraYaku) {
         const fu = 30; // 国士無双は固定30符（実際には満貫以上）
-        const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
+        const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon, yakumanCount);
         bestResult = {
           valid: true,
           yaku: yaku,
@@ -106,7 +108,7 @@ class ScoreCalculator {
           fu: fu,
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
-          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType),
+          calculation: this.formatCalculation(yaku, han, fu, scoreResult.score, scoreResult.scoreType, yakumanCount),
           winningTile: winningTile
         };
         maxScore = scoreResult.score;
@@ -127,11 +129,14 @@ class ScoreCalculator {
       const hasNonDoraYaku = yaku.some(y => !y.isDora);
       if (!hasNonDoraYaku) continue;
 
+      // 役満カウントを取得
+      const yakumanCount = this.getYakumanCount(yaku);
+
       // 符を計算
       const fu = this.calculateFuWithCombination(hand, melds, concealedMeldIndices, winningTile, isTsumo, combination, roundWind, seatWind);
 
       // 点数を計算
-      const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon);
+      const scoreResult = this.calculateScoreFromHanFu(han, fu, isRon, yakumanCount);
 
       if (scoreResult.score > maxScore) {
         maxScore = scoreResult.score;
@@ -142,7 +147,7 @@ class ScoreCalculator {
           fu: this.roundFu(fu),
           score: scoreResult.score,
           scoreType: scoreResult.scoreType,
-          calculation: this.formatCalculation(yaku, han, this.roundFu(fu), scoreResult.score, scoreResult.scoreType),
+          calculation: this.formatCalculation(yaku, han, this.roundFu(fu), scoreResult.score, scoreResult.scoreType, yakumanCount),
           combination: combination,
           winningTile: winningTile
         };
@@ -166,10 +171,29 @@ class ScoreCalculator {
 
   /**
    * 飜数と符から点数を計算
+   * @param {number} han - 飜数
+   * @param {number} fu - 符
+   * @param {boolean} isRon - ロン和了か
+   * @param {number} yakumanCount - 役満の数（0=通常、1=シングル、2=ダブル等）
    */
-  calculateScoreFromHanFu(han, fu, isRon) {
+  calculateScoreFromHanFu(han, fu, isRon, yakumanCount = 0) {
     let score = 0;
     let scoreType = '';
+
+    // 役満（ダブル・トリプル対応）
+    if (yakumanCount > 0) {
+      score = 32000 * yakumanCount;
+      if (yakumanCount === 1) {
+        scoreType = '役満';
+      } else if (yakumanCount === 2) {
+        scoreType = 'ダブル役満';
+      } else if (yakumanCount === 3) {
+        scoreType = 'トリプル役満';
+      } else {
+        scoreType = `${yakumanCount}倍役満`;
+      }
+      return { score, scoreType };
+    }
 
     // 二人麻雀では満貫以上は固定点数（ロン・ツモ同じ）
     if (han >= 13) {
@@ -238,88 +262,103 @@ class ScoreCalculator {
     console.log(`[detectYaku] riichi=${riichi}, menzen=${menzen}, isTsumo=${isTsumo}, isRon=${isRon}`);
     console.log(`[detectYaku] isTenhou=${isTenhou}, isChiihou=${isChiihou}, isRenhou=${isRenhou}, isDoubleRiichi=${isDoubleRiichi}`);
 
+    // === 役満チェック ===
+    // 複数の役満が重複した場合にダブル・トリプル役満とするため、
+    // 全ての役満を収集してから判定する
+    const yakumanList = [];
+
     // 天和（テンホウ）- 親の配牌が和了形（役満）
     if (isTenhou) {
-      yaku.push({ name: '天和', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '天和', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
     // 地和（チーホウ）- 子の最初のツモで和了（役満）
     if (isChiihou) {
-      yaku.push({ name: '地和', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '地和', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
     // 人和（レンホウ）- 子が最初のツモ前にロンで和了（役満）
     if (isRenhou) {
-      yaku.push({ name: '人和', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '人和', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 役満チェック（和了形に依存しない）
     // 四槓子（スーカンコ）
     if (this.isSukankou(melds)) {
-      yaku.push({ name: '四槓子', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '四槓子', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 三槓子（サンカンコ）- 2翻役
-    if (this.isSankankouWithMelds(melds)) {
-      yaku.push({ name: '三槓子', han: 2 });
-    }
-
-    // 四暗刻（スーアンコー）
+    // 四暗刻（スーアンコー）/ 四暗刻単騎（ダブル役満）
     if (combination && this.isSuuankouWithCombination(combination, isTsumo, winningTile)) {
-      yaku.push({ name: '四暗刻', han: 13 });
-      return yaku; // 役満は単独
+      if (this.isSuuankouTanki(combination, winningTile)) {
+        yakumanList.push({ name: '四暗刻単騎', han: 26, isYakuman: true, yakumanValue: 2 });
+      } else {
+        yakumanList.push({ name: '四暗刻', han: 13, isYakuman: true, yakumanValue: 1 });
+      }
     }
 
     // 大三元（ダイサンゲン）
     if (this.isDaisangen(allTiles)) {
-      yaku.push({ name: '大三元', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '大三元', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 大四喜（ダイスーシー）
+    // 大四喜（ダイスーシー）- ダブル役満
     if (this.isDaishushi(allTiles)) {
-      yaku.push({ name: '大四喜', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '大四喜', han: 26, isYakuman: true, yakumanValue: 2 });
     }
 
     // 字一色（ツーイーソー）
     if (this.isTsuuiisou(allTiles)) {
-      yaku.push({ name: '字一色', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '字一色', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
     // 清老頭（チンロウトウ）
     if (this.isChinroutou(allTiles)) {
-      yaku.push({ name: '清老頭', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '清老頭', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
     // 緑一色（リョクイッショク）
     if (this.isRyokuisshoku(allTiles)) {
-      yaku.push({ name: '緑一色', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '緑一色', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
     // 大車輪（ダイシャリン）
     if (this.isDaisharin(allTiles)) {
-      yaku.push({ name: '大車輪', han: 13 });
-      return yaku;
+      yakumanList.push({ name: '大車輪', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 小四喜（ショウスーシー） - 役満
-    if (this.isShousushi(allTiles)) {
-      yaku.push({ name: '小四喜', han: 13 });
-      return yaku;
+    // 小四喜（ショウスーシー） - 役満（大四喜と排他）
+    if (!this.isDaishushi(allTiles) && this.isShousushi(allTiles)) {
+      yakumanList.push({ name: '小四喜', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 九蓮宝燈（チューレンポウトウ）- 門前のみ、一色の1112345678999+任意1枚
+    // 九蓮宝燈 / 純正九蓮宝燈（ダブル役満）- 門前のみ
     if (menzen && melds.length === 0 && this.isChuurenPoutou(allTiles)) {
-      yaku.push({ name: '九蓮宝燈', han: 13 });
-      return yaku;
+      if (this.isJunseiChuurenPoutou(allTiles, winningTile)) {
+        yakumanList.push({ name: '純正九蓮宝燈', han: 26, isYakuman: true, yakumanValue: 2 });
+      } else {
+        yakumanList.push({ name: '九蓮宝燈', han: 13, isYakuman: true, yakumanValue: 1 });
+      }
+    }
+
+    // 国士無双 / 国士無双十三面待ち（ダブル役満）- 門前のみ・特殊形
+    if (!combination && melds.length === 0 && this.isKokushi(hand)) {
+      if (this.isKokushiJuusanmen(hand, winningTile)) {
+        yakumanList.push({ name: '国士無双十三面', han: 26, isYakuman: true, yakumanValue: 2 });
+      } else {
+        yakumanList.push({ name: '国士無双', han: 13, isYakuman: true, yakumanValue: 1 });
+      }
+    }
+
+    // 役満が1つ以上あれば、役満のみを返す（通常役は不要）
+    if (yakumanList.length > 0) {
+      return yakumanList;
+    }
+
+    // === 通常役チェック ===
+
+    // 三槓子（サンカンコ）- 2翻役（役満チェック後に配置して混入を防ぐ）
+    if (this.isSankankouWithMelds(melds)) {
+      yaku.push({ name: '三槓子', han: 2 });
     }
 
     // 通常役チェック
@@ -369,11 +408,7 @@ class ScoreCalculator {
       // early returnせず、以降のタイルベース判定を続ける
     }
 
-    // 国士無双（こくしむそう） - 門前のみ（特殊形なのでcombinationがnull）
-    if (!combination && melds.length === 0 && this.isKokushi(hand)) {
-      yaku.push({ name: '国士無双', han: 13 });
-      return yaku; // 国士無双は他の役と複合しない
-    }
+    // 国士無双は役満チェック段階で処理済み（ここには到達しない）
 
     // 清一色（チンイツ）- 和了形に依存しない
     const chinItsu = this.isChinitsu(allTiles);
@@ -963,6 +998,128 @@ class ScoreCalculator {
     }
 
     return false;
+  }
+
+  /**
+   * 四暗刻単騎判定
+   * 和了牌が雀頭を完成させた場合（単騎待ち）はダブル役満
+   */
+  isSuuankouTanki(combination, winningTile) {
+    if (!winningTile || !combination || !combination.pair) return false;
+
+    // 全ての面子が暗刻であること
+    let ankouCount = 0;
+    combination.melds.forEach(meld => {
+      if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+        ankouCount++;
+      }
+    });
+    if (ankouCount !== 4) return false;
+
+    // 和了牌が雀頭を完成させた = 単騎待ち
+    return combination.pair.suit === winningTile.suit &&
+           combination.pair.number === winningTile.number;
+  }
+
+  /**
+   * 国士無双十三面待ち判定
+   * 13種全ての么九牌を1枚ずつ持っていて、和了牌が14枚目（どれかの2枚目）
+   * つまり和了牌を除くと13種が全て1枚ずつ = 13面待ち
+   */
+  isKokushiJuusanmen(hand, winningTile) {
+    if (!winningTile || hand.length !== 14) return false;
+
+    const requiredTiles = [
+      { suit: 'man', number: 1 },
+      { suit: 'man', number: 9 },
+      { suit: 'pin', number: 1 },
+      { suit: 'pin', number: 9 },
+      { suit: 'sou', number: 1 },
+      { suit: 'sou', number: 9 },
+      { suit: 'honor', number: 1 },
+      { suit: 'honor', number: 2 },
+      { suit: 'honor', number: 3 },
+      { suit: 'honor', number: 4 },
+      { suit: 'honor', number: 5 },
+      { suit: 'honor', number: 6 },
+      { suit: 'honor', number: 7 },
+    ];
+
+    // 和了牌を除いた13枚を作る
+    const handWithoutWin = [...hand];
+    const winIdx = handWithoutWin.findIndex(t =>
+      t.suit === winningTile.suit && t.number === winningTile.number
+    );
+    if (winIdx === -1) return false;
+    handWithoutWin.splice(winIdx, 1);
+
+    // 残り13枚が全て異なる么九牌かチェック
+    if (handWithoutWin.length !== 13) return false;
+
+    const tileCount = {};
+    for (const tile of handWithoutWin) {
+      const key = `${tile.suit}_${tile.number}`;
+      tileCount[key] = (tileCount[key] || 0) + 1;
+    }
+
+    // 13種全てが1枚ずつ
+    for (const required of requiredTiles) {
+      const key = `${required.suit}_${required.number}`;
+      if ((tileCount[key] || 0) !== 1) return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 純正九蓮宝燈判定
+   * 9面待ちの九蓮宝燈 = 基本形 1112345678999 に和了牌が1-9のどれか
+   * つまり和了牌を除いた13枚が exactly 1112345678999
+   */
+  isJunseiChuurenPoutou(tiles, winningTile) {
+    if (!winningTile || tiles.length !== 14) return false;
+
+    // 全て同じスートであること
+    const suit = tiles[0].suit;
+    if (suit === 'honor') return false;
+    if (!tiles.every(t => t.suit === suit)) return false;
+    if (winningTile.suit !== suit) return false;
+
+    // 和了牌を除いた13枚を作る
+    const tilesWithoutWin = [...tiles];
+    const winIdx = tilesWithoutWin.findIndex(t =>
+      t.suit === winningTile.suit && t.number === winningTile.number
+    );
+    if (winIdx === -1) return false;
+    tilesWithoutWin.splice(winIdx, 1);
+
+    // 残り13枚が基本形 1112345678999 であるかチェック
+    const counts = {};
+    for (let i = 1; i <= 9; i++) counts[i] = 0;
+    tilesWithoutWin.forEach(t => counts[t.number]++);
+
+    // 基本形: 1が3枚、2-8が各1枚、9が3枚
+    if (counts[1] !== 3 || counts[9] !== 3) return false;
+    for (let i = 2; i <= 8; i++) {
+      if (counts[i] !== 1) return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * 役満カウントを取得
+   * @param {Array} yaku - 役リスト
+   * @returns {number} 役満の数（yakumanValueの合計、0=役満なし）
+   */
+  getYakumanCount(yaku) {
+    let count = 0;
+    for (const y of yaku) {
+      if (y.isYakuman) {
+        count += (y.yakumanValue || 1);
+      }
+    }
+    return count;
   }
 
   /**
@@ -1674,18 +1831,26 @@ class ScoreCalculator {
   /**
    * 計算過程をフォーマット
    */
-  formatCalculation(yaku, han, fu, score, scoreType) {
+  formatCalculation(yaku, han, fu, score, scoreType, yakumanCount = 0) {
     let text = '【点数計算】\n\n';
 
     text += '役:\n';
     yaku.forEach(y => {
-      text += `  ${y.name}: ${y.han}飜\n`;
+      if (y.isYakuman) {
+        const label = y.yakumanValue === 2 ? 'ダブル役満' : '役満';
+        text += `  ${y.name}: ${label}\n`;
+      } else {
+        text += `  ${y.name}: ${y.han}飜\n`;
+      }
     });
 
-    text += `\n合計: ${han}飜 ${fu}符\n`;
-
-    if (scoreType) {
+    if (yakumanCount > 0) {
       text += `\n${scoreType}\n`;
+    } else {
+      text += `\n合計: ${han}飜 ${fu}符\n`;
+      if (scoreType) {
+        text += `\n${scoreType}\n`;
+      }
     }
 
     text += `\n得点: ${score}点`;

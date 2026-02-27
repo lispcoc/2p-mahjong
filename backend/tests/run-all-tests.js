@@ -27,6 +27,7 @@ const testFiles = [
   'test-chanta-junchan-chuuren.js',
   'test-pinfu-fix.js',
   'test-suuankou-tanki.js',
+  'test-double-yakuman.js',
   'test-accidental-yaku.js',
 
   // 得点計算

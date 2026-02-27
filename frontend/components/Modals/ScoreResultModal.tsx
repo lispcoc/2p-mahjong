@@ -169,7 +169,9 @@ export function ScoreResultModal({
                   {scoreResult.yaku.map((y: any, idx: number) => (
                     <div key={idx} className={`flex justify-between py-1.5 px-0 ${idx < scoreResult.yaku.length - 1 ? 'border-b border-white' : ''} text-white`}>
                       <span className="font-bold">{y.name}</span>
-                      <span className="text-green-300">{y.han}飜</span>
+                      <span className={`${y.isYakuman ? 'text-yellow-300 font-bold' : 'text-green-300'}`}>
+                        {y.isYakuman ? (y.yakumanValue === 2 ? 'ダブル役満' : '役満') : `${y.han}飜`}
+                      </span>
                     </div>
                   ))}
                 </div>
