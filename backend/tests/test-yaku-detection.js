@@ -17,13 +17,13 @@ const calc = new ScoreCalculator();
 section('緑一色: 正しい緑一色手牌');
 {
   const hand = [
-    new Tile('pin', 2), new Tile('pin', 2),
-    new Tile('pin', 3), new Tile('pin', 3),
-    new Tile('pin', 4), new Tile('pin', 4),
-    new Tile('pin', 6), new Tile('pin', 6),
-    new Tile('pin', 8), new Tile('pin', 8),
+    new Tile('sou', 2), new Tile('sou', 2),
+    new Tile('sou', 3), new Tile('sou', 3),
+    new Tile('sou', 4), new Tile('sou', 4),
+    new Tile('sou', 6), new Tile('sou', 6),
+    new Tile('sou', 8), new Tile('sou', 8),
     new Tile('honor', 6), new Tile('honor', 6),
-    new Tile('pin', 2), new Tile('pin', 3),
+    new Tile('sou', 2), new Tile('sou', 3),
   ];
   assert(calc.isRyokuisshoku(hand), '緑一色が検出される');
 }
@@ -31,13 +31,13 @@ section('緑一色: 正しい緑一色手牌');
 section('緑一色: マンズ含む → 不成立');
 {
   const hand = [
-    new Tile('pin', 2), new Tile('pin', 2),
-    new Tile('pin', 3), new Tile('pin', 3),
-    new Tile('pin', 4), new Tile('pin', 4),
-    new Tile('pin', 6), new Tile('pin', 6),
+    new Tile('sou', 2), new Tile('sou', 2),
+    new Tile('sou', 3), new Tile('sou', 3),
+    new Tile('sou', 4), new Tile('sou', 4),
+    new Tile('sou', 6), new Tile('sou', 6),
     new Tile('man', 8), new Tile('man', 8),
     new Tile('honor', 6), new Tile('honor', 6),
-    new Tile('pin', 2), new Tile('pin', 3),
+    new Tile('sou', 2), new Tile('sou', 3),
   ];
   assert(!calc.isRyokuisshoku(hand), '不正な手牌はfalse');
 }
