@@ -3,6 +3,7 @@ import { Tile } from '../types/GameTypes'
 import { getTileKey, getTileText, getTileTextColorClass } from '../utils/TileUtils'
 import { getTileImageUrl } from '../utils/tileData'
 import { useTextMode } from '../contexts/TextModeContext'
+import { useWhiteMode } from '../contexts/WhiteModeContext'
 
 interface TileImageProps {
   tile: Tile
@@ -26,6 +27,8 @@ export function TileImage({
   isRotated = false,
 }: TileImageProps) {
   const { textMode } = useTextMode()
+  const { whiteMode } = useWhiteMode()
+  const hoverGlow = whiteMode ? '#888888' : '#4CAF50'
 
   if (textMode) {
     // テキストモード: 文字で牌を表示
@@ -48,7 +51,7 @@ export function TileImage({
         <div
           className={`flex items-center justify-center bg-white border border-gray-400 rounded-sm select-none font-bold ${colorClass} ${isRotated ? 'w-[47px] h-[33px] sm:w-[64px] sm:h-[45px] text-[10px] sm:text-xs' : 'w-[33px] h-[47px] sm:w-[45px] sm:h-[64px] text-xs sm:text-sm'}`}
           style={{
-            boxShadow: isDrawn ? '0 0 8px #FFD700' : (isHovered ? '0 0 10px #4CAF50' : '0 2px 4px rgba(0,0,0,0.2)'),
+            boxShadow: isDrawn ? '0 0 8px #FFD700' : (isHovered ? `0 0 10px ${hoverGlow}` : '0 2px 4px rgba(0,0,0,0.2)'),
             transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
             transformOrigin: 'center',
             transition: 'all 200ms',
@@ -86,7 +89,7 @@ export function TileImage({
         }}
         className={`w-[33px] h-[47px] sm:w-[45px] sm:h-[64px] transition-all duration-200 ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         style={{
-          filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? 'drop-shadow(0 0 10px #4CAF50)' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
+          filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? `drop-shadow(0 0 10px ${hoverGlow})` : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
           transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : (isHovered ? 'scale(1.15)' : 'scale(1)')),
           borderRadius: '0px',
           transformOrigin: 'center',

@@ -1,5 +1,110 @@
 @import "tailwindcss";
 
+/* ===== 麻雀テーマ カラー変数 ===== */
+:root {
+  --mj-primary: #2d5016;
+  --mj-secondary: #3d6b20;
+  --mj-tertiary: #1a2e0a;
+  --mj-hover: #0f1a06;
+  --mj-accent: #4CAF50;
+  --mj-message: #90ee90;
+  --mj-text: #ffffff;
+  --mj-text-sub: #e0e0e0;
+  --mj-border: #ffffff;
+  --mj-body-text: #1f2937;
+  --mj-input-focus-shadow: rgba(29, 80, 22, 0.3);
+  --mj-error-bg: #2d1a1a;
+}
+
+/* ホワイトモード */
+[data-theme="white"] {
+  --mj-primary: #ffffff;
+  --mj-secondary: #f0f0f0;
+  --mj-tertiary: #e0e0e0;
+  --mj-hover: #d0d0d0;
+  --mj-accent: #888888;
+  --mj-message: #333333;
+  --mj-text: #333333;
+  --mj-text-sub: #555555;
+  --mj-border: #cccccc;
+  --mj-body-text: #1f2937;
+  --mj-input-focus-shadow: rgba(0, 0, 0, 0.15);
+  --mj-error-bg: #fff0f0;
+}
+
+/* ホワイトモード: Tailwind green ユーティリティの上書き */
+[data-theme="white"] .text-green-300 { color: #555555 !important; }
+[data-theme="white"] .text-green-500 { color: #555555 !important; }
+[data-theme="white"] .text-green-600 { color: #444444 !important; }
+[data-theme="white"] .text-green-700 { color: #444444 !important; }
+[data-theme="white"] .text-green-900 { color: #333333 !important; }
+[data-theme="white"] .bg-green-300 { background-color: #d0d0d0 !important; }
+[data-theme="white"] .bg-green-500 { background-color: #888888 !important; }
+[data-theme="white"] .bg-green-600 { background-color: #999999 !important; }
+[data-theme="white"] .bg-green-700 { background-color: #777777 !important; }
+[data-theme="white"] .hover\:bg-green-600:hover { background-color: #777777 !important; }
+[data-theme="white"] .hover\:bg-green-700:hover { background-color: #666666 !important; }
+[data-theme="white"] .hover\:bg-green-800:hover { background-color: #555555 !important; }
+[data-theme="white"] .hover\:bg-green-900:hover { background-color: #444444 !important; }
+[data-theme="white"] .border-green-700 { border-color: #999999 !important; }
+[data-theme="white"] .border-green-800 { border-color: #888888 !important; }
+[data-theme="white"] .bg-green-600\/95 { background-color: rgba(153, 153, 153, 0.95) !important; }
+
+/* ホワイトモード: Tailwind mahjong-dark ユーティリティの上書き */
+[data-theme="white"] .bg-mahjong-dark-primary { background-color: var(--mj-primary) !important; }
+[data-theme="white"] .bg-mahjong-dark-secondary { background-color: var(--mj-secondary) !important; }
+[data-theme="white"] .bg-mahjong-dark-tertiary { background-color: var(--mj-tertiary) !important; }
+[data-theme="white"] .hover\:bg-mahjong-dark-secondary:hover { background-color: var(--mj-hover) !important; }
+
+/* ホワイトモード: 任意値 Tailwind クラスの上書き */
+[data-theme="white"] .from-\[\#2d5016\] { --tw-gradient-from: var(--mj-primary) !important; }
+[data-theme="white"] .to-\[\#1a2e0a\] { --tw-gradient-to: var(--mj-tertiary) !important; }
+[data-theme="white"] .bg-\[\#2d5016\] { background-color: var(--mj-primary) !important; }
+[data-theme="white"] .bg-\[\#1a2e0a\] { background-color: var(--mj-tertiary) !important; }
+[data-theme="white"] .bg-\[\#3d6b20\] { background-color: var(--mj-secondary) !important; }
+[data-theme="white"] .bg-\[\#0f1a06\] { background-color: var(--mj-hover) !important; }
+[data-theme="white"] .bg-\[\#1a2e0a\]\/80 { background-color: rgba(224, 224, 224, 0.8) !important; }
+[data-theme="white"] .hover\:bg-\[\#0f1a06\]:hover { background-color: var(--mj-hover) !important; }
+[data-theme="white"] .hover\:bg-\[\#2d5016\]:hover { background-color: var(--mj-primary) !important; }
+[data-theme="white"] .hover\:bg-\[\#1a2e0a\]:hover { background-color: var(--mj-tertiary) !important; }
+[data-theme="white"] .border-\[\#1a2e0a\] { border-color: var(--mj-tertiary) !important; }
+[data-theme="white"] .text-\[\#1a2e0a\] { color: var(--mj-tertiary) !important; }
+[data-theme="white"] .focus\:border-\[\#1a2e0a\]:focus { border-color: var(--mj-tertiary) !important; }
+[data-theme="white"] .accent-\[\#3d6b20\] { accent-color: var(--mj-secondary) !important; }
+
+/* ホワイトモード: テキスト・ボーダー色の調整 */
+[data-theme="white"] .border-white {
+  border-color: var(--mj-border) !important;
+}
+[data-theme="white"] .text-white {
+  color: var(--mj-text) !important;
+}
+[data-theme="white"] .text-\[\#ffffff\] {
+  color: var(--mj-text) !important;
+}
+
+/* ホワイトモード: 明るいグレー・白テキストを暗い色に */
+[data-theme="white"] .text-gray-200 { color: #555555 !important; }
+[data-theme="white"] .text-gray-300 { color: #555555 !important; }
+[data-theme="white"] .text-gray-400 { color: #777777 !important; }
+[data-theme="white"] .text-yellow-300 { color: #b8860b !important; }
+[data-theme="white"] .text-yellow-400 { color: #b8860b !important; }
+[data-theme="white"] .border-gray-300 { border-color: #cccccc !important; }
+[data-theme="white"] .border-gray-500 { border-color: #cccccc !important; }
+[data-theme="white"] .border-gray-600 { border-color: #cccccc !important; }
+[data-theme="white"] .bg-gray-100 { background-color: #f5f5f5 !important; }
+[data-theme="white"] .bg-gray-400 { background-color: #cccccc !important; }
+[data-theme="white"] .bg-black\/60 { background-color: rgba(0, 0, 0, 0.5) !important; }
+[data-theme="white"] .bg-\[\#2d1a1a\] { background-color: #fff0f0 !important; }
+
+/* ホワイトモード: hover時の text-white も調整 */
+[data-theme="white"] .hover\:text-white:hover { color: var(--mj-text) !important; }
+
+/* ホワイトモード: ボーダー・区切り線の色調整 */
+[data-theme="white"] .border-b-2.border-gray-300 { border-color: #cccccc !important; }
+[data-theme="white"] .bg-white .text-gray-300 { color: #999999 !important; }
+[data-theme="white"] .bg-white .text-gray-400 { color: #999999 !important; }
+
 /* Mobile viewport height fix */
 html, body {
   height: 100%;
@@ -9,8 +114,8 @@ html, body {
 }
 
 body {
-  @apply bg-[#2d5016];
-  color: #1f2937;
+  background-color: var(--mj-primary);
+  color: var(--mj-body-text);
 }
 
 code {

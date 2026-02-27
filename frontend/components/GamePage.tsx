@@ -10,6 +10,7 @@ import { TileImage } from './TileImage'
 import { TileInline } from './TileInline'
 import { FuroDisplay } from './FuroDisplay'
 import { useTextMode } from '../contexts/TextModeContext'
+import { useWhiteMode } from '../contexts/WhiteModeContext'
 import { DebugPanel } from './GameBoard/DebugPanel'
 import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
@@ -57,6 +58,7 @@ export default function GamePage({
   // Toast notifications via react-hot-toast (no local state needed)
   const [userId, setUserId] = useState('')
   const { textMode, toggleTextMode } = useTextMode()
+  const { whiteMode, toggleWhiteMode } = useWhiteMode()
   const [isGrayscale, setIsGrayscale] = useState(false)
   const [autoDrawMode, setAutoDrawMode] = useState(false)
   const [noMeldMode, setNoMeldMode] = useState(false)
@@ -1619,8 +1621,9 @@ export default function GamePage({
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl flex-1 min-h-0 overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div className="pl-2 text-white font-bold">
-            ルームID: {roomId} / ステータス: {gameState.status}
+          <div className="pl-2 text-xs text-white font-bold">
+            ルームID: {roomId}<br/>
+            ステータス: {gameState.status}
           </div>
           <div className="flex gap-2 items-center">
             {/* CPU追加ボタン（待機中のみ表示） */}
@@ -1628,18 +1631,18 @@ export default function GamePage({
               <button
                 onClick={handleAddCPU}
                 disabled={isAddingCPU}
-                className={`mr-2 px-4 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
+                className={`px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
               >
-                {isAddingCPU ? 'CPU追加中...' : '🤖 CPU追加'}
+                {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
               </button>
             )}
             <button
               onClick={() => setSoundEnabled(prev => !prev)}
               className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${soundEnabled ? 'bg-blue-600 text-[#ffffff] border-blue-700' : 'bg-white text-blue-600 border-blue-600'}`}
             >
-              🔊 効果音: {soundEnabled ? 'ON' : 'OFF'}
+              効果音: {soundEnabled ? 'ON' : 'OFF'}
             </button>
-            <button onClick={onBack} className="px-3 py-2 bg-[#1a2e0a] border-2 border-white text-sm text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
+            <button onClick={onBack} className="px-4 py-2 bg-[#1a2e0a] border-2 rounded border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
               戻る
             </button>
           </div>

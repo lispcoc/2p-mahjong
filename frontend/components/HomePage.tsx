@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useWhiteMode } from '../contexts/WhiteModeContext'
 
 interface HomePageProps {
   playerName: string
@@ -27,6 +28,7 @@ export default function HomePage({
   shouldRefresh = false,
   onRefreshed,
 }: HomePageProps) {
+  const { whiteMode, toggleWhiteMode } = useWhiteMode()
   const defaultInitialScore = 25000
   // wallTiles: 配牌27枚が配られた後、壁に残す牌の枚数
   // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 最大87枚がツモ可能
@@ -272,6 +274,12 @@ export default function HomePage({
 
   return (
     <div className="sm:p-2 flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
+      <button
+        onClick={toggleWhiteMode}
+        className="fixed top-3 right-3 z-50 px-3 py-1.5 text-xs font-bold border-2 border-white rounded cursor-pointer transition-colors bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06]"
+      >
+        {whiteMode ? '🟢 緑' : '⬜ 白'}
+      </button>
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-[500px]">
         <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>

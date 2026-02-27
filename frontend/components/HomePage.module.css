@@ -5,13 +5,13 @@
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: linear-gradient(135deg, #2d5016 0%, #1a2e0a 100%);
+  background: linear-gradient(135deg, var(--mj-primary) 0%, var(--mj-tertiary) 100%);
   padding: 20px;
 }
 
 .card {
-  background: #2d5016;
-  border: 3px solid #ffffff;
+  background: var(--mj-primary);
+  border: 3px solid var(--mj-border);
   border-radius: 2px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   padding: 40px;
@@ -25,12 +25,12 @@
   align-items: center;
   margin-bottom: 30px;
   padding-bottom: 20px;
-  border-bottom: 2px solid #eee;
+  border-bottom: 2px solid var(--mj-border);
 }
 
 .title {
   font-size: 32px;
-  color: #ffffff;
+  color: var(--mj-text);
   font-weight: bold;
   margin: 0;
 }
@@ -41,27 +41,27 @@
   align-items: flex-end;
   gap: 10px;
   font-size: 14px;
-  color: #ffffff;
+  color: var(--mj-text);
 }
 
 .playerInfo strong {
-  color: #ffffff;
+  color: var(--mj-text);
   font-size: 16px;
 }
 
 .logoutBtn {
   padding: 6px 12px;
-  background-color: #1a2e0a;
-  border: 2px solid #ffffff;
+  background-color: var(--mj-tertiary);
+  border: 2px solid var(--mj-border);
   border-radius: 0px;
   cursor: pointer;
   font-size: 12px;
-  color: #ffffff;
+  color: var(--mj-text);
   transition: all 0.3s;
 }
 
 .logoutBtn:hover {
-  background-color: #0f1a06;
+  background-color: var(--mj-hover);
 }
 
 .content {
@@ -78,7 +78,7 @@
 
 .sectionTitle {
   font-size: 18px;
-  color: #ffffff;
+  color: var(--mj-text);
   margin: 0;
   font-weight: 600;
 }
@@ -91,7 +91,7 @@
 }
 
 .description {
-  color: #e0e0e0;
+  color: var(--mj-text-sub);
   font-size: 14px;
   margin: 0;
 }
@@ -112,7 +112,7 @@
   right: 0;
   top: 50%;
   height: 1px;
-  background-color: #ffffff;
+  background-color: var(--mj-border);
 }
 
 .divider::before {
@@ -144,7 +144,7 @@
 .input {
   flex: 1;
   padding: 12px 16px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--mj-border);
   border-radius: 0px;
   font-size: 16px;
   background-color: #ffffff;
@@ -154,14 +154,14 @@
 
 .input:focus {
   outline: none;
-  border-color: #1a2e0a;
-  box-shadow: 0 0 0 2px rgba(29, 80, 22, 0.3);
+  border-color: var(--mj-tertiary);
+  box-shadow: 0 0 0 2px var(--mj-input-focus-shadow);
 }
 
 .primaryButton,
 .secondaryButton {
   padding: 12px 24px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--mj-border);
   border-radius: 0px;
   font-size: 16px;
   font-weight: 600;
@@ -170,13 +170,13 @@
 }
 
 .primaryButton {
-  background-color: #1a2e0a;
-  color: white;
+  background-color: var(--mj-tertiary);
+  color: var(--mj-text);
   width: 100%;
 }
 
 .primaryButton:hover:not(:disabled) {
-  background-color: #0f1a06;
+  background-color: var(--mj-hover);
 }
 
 .primaryButton:disabled {
@@ -185,29 +185,29 @@
 }
 
 .secondaryButton {
-  background-color: #3d6b20;
-  color: #ffffff;
-  border: 2px solid #ffffff;
+  background-color: var(--mj-secondary);
+  color: var(--mj-text);
+  border: 2px solid var(--mj-border);
   flex: 1;
 }
 
 .secondaryButton:hover {
-  background-color: #2d5016;
+  background-color: var(--mj-primary);
 }
 
 .refreshButton {
   padding: 6px 12px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--mj-border);
   border-radius: 0px;
-  background: #1a2e0a;
-  color: #ffffff;
+  background: var(--mj-tertiary);
+  color: var(--mj-text);
   cursor: pointer;
   font-size: 12px;
   transition: all 0.2s;
 }
 
 .refreshButton:hover:not(:disabled) {
-  background: #0f1a06;
+  background: var(--mj-hover);
 }
 
 .refreshButton:disabled {
@@ -227,9 +227,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--mj-border);
   border-radius: 0px;
-  background: #3d6b20;
+  background: var(--mj-secondary);
 }
 
 .roomMeta {
@@ -240,21 +240,21 @@
 
 .roomId {
   font-weight: 700;
-  color: #ffffff;
+  color: var(--mj-text);
   font-size: 14px;
 }
 
 .roomStatus {
   font-size: 12px;
-  color: #e0e0e0;
+  color: var(--mj-text-sub);
 }
 
 .joinButton {
   padding: 6px 12px;
   border-radius: 0px;
-  border: 2px solid #ffffff;
-  background: #1a2e0a;
-  color: white;
+  border: 2px solid var(--mj-border);
+  background: var(--mj-tertiary);
+  color: var(--mj-text);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -262,7 +262,7 @@
 }
 
 .joinButton:hover:not(:disabled) {
-  background: #0f1a06;
+  background: var(--mj-hover);
 }
 
 .joinButton:disabled {
@@ -275,7 +275,7 @@
   font-size: 14px;
   text-align: center;
   padding: 12px;
-  background-color: #2d1a1a;
+  background-color: var(--mj-error-bg);
   border: 2px solid #ff6b6b;
   border-radius: 0px;
   margin-top: 20px;
