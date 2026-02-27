@@ -337,6 +337,31 @@ class GameRoom {
       return { success: true, message: `Auto-play mode ${action.enabled ? 'enabled' : 'disabled'}`, autoPlayChanged: true };
     }
 
+    // Handle dev hand editing (development mode only)
+    if (action.type === 'devEditHand') {
+      if (!action.tiles || !Array.isArray(action.tiles)) {
+        return { success: false, message: 'Invalid tiles data' };
+      }
+      const Tile = require('./Tile');
+      const newHand = action.tiles.map(t => new Tile(t.suit, t.number, t.isRed || false));
+      const playerData = this.gameLogic.players[userId];
+      if (!playerData) {
+        return { success: false, message: 'Player not found in game logic' };
+      }
+      // 手牌を差し替え
+      playerData.hand = newHand;
+      // drawnTileIndex を最後の牌に設定（ツモ直後の状態を模倣）
+      if (newHand.length > 0) {
+        playerData.drawnTileIndex = newHand.length - 1;
+        playerData.drawnTile = newHand[newHand.length - 1];
+      } else {
+        playerData.drawnTileIndex = -1;
+        playerData.drawnTile = null;
+      }
+      console.log(`[DEV] Hand edited for player ${userId}: ${newHand.length} tiles`);
+      return { success: true, message: 'Hand edited (dev mode)' };
+    }
+
     // Handle riichi declaration
     if (action.type === 'riichi') {
       const result = this.gameLogic.declareRiichi(userId, action.tileId);

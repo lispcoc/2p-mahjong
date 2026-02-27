@@ -14,6 +14,7 @@ import { useWhiteMode } from '../contexts/WhiteModeContext'
 import { DebugPanel } from './GameBoard/DebugPanel'
 import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
+import { HandEditorModal } from './Modals/HandEditorModal'
 
 // Types are now imported from '../types/GameTypes'
 
@@ -87,6 +88,7 @@ export default function GamePage({
   const pausedPendingPungTimeLeft = useRef<number | null>(null)
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
+  const [showHandEditor, setShowHandEditor] = useState(false) // 手牌エディタ表示フラグ
   const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
@@ -2417,6 +2419,13 @@ export default function GamePage({
               >
                 文字牌: {textMode ? 'ON' : 'OFF'}
               </button>
+              <button
+                onClick={() => setShowHandEditor(true)}
+                disabled={gameState?.status !== 'playing'}
+                className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${gameState?.status !== 'playing' ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : 'bg-white text-orange-600 border-orange-600 hover:bg-orange-50'}`}
+              >
+                ✏️ 手牌編集
+              </button>
             </>
           )}
           <button
@@ -2517,6 +2526,26 @@ export default function GamePage({
           )}
         </>
       ) : null}
+
+      {/* Hand Editor Modal (DEV only) */}
+      {DEVELOPMENT_MODE && showHandEditor && gameState?.tiles?.[userId] && (
+        <HandEditorModal
+          currentHand={(gameState.tiles[userId].hand || []).map((t: any) => normalizeTile(t))}
+          currentMelds={((gameState.tiles[userId].melds || []) as Array<Array<Tile | string>>).map((m) => m.map((t) => normalizeTile(t)))}
+          onApply={(tiles) => {
+            sendAction({
+              type: 'devEditHand',
+              tiles: tiles.map(t => ({
+                suit: t.suit,
+                number: t.number,
+                isRed: t.isRed || false,
+              })),
+            })
+            toast.success('手牌を変更しました', { duration: 2000 })
+          }}
+          onClose={() => setShowHandEditor(false)}
+        />
+      )}
     </div>
   )
 }
