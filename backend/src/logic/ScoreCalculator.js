@@ -1913,18 +1913,18 @@ class ScoreCalculator {
 
   /**
    * 緑一色（リョクイッショク）判定
-   * 發（pin 6）と2、3、4、6、8の筒子のみで構成
+   * 發（honor 6）と2、3、4、6、8の索子のみで構成
    * @param {Array} tiles - 全牌（手牌+メルド）
    * @returns {boolean}
    */
   isRyokuisshoku(tiles) {
-    // 許可されている牌：發（pin 6）と 2、3、4、6、8の筒子
+    // 許可されている牌：發（honor 6）と 2、3、4、6、8の索子
     const allowedTiles = [
-      { suit: 'pin', number: 2 },
-      { suit: 'pin', number: 3 },
-      { suit: 'pin', number: 4 },
-      { suit: 'pin', number: 6 },
-      { suit: 'pin', number: 8 },
+      { suit: 'sou', number: 2 },
+      { suit: 'sou', number: 3 },
+      { suit: 'sou', number: 4 },
+      { suit: 'sou', number: 6 },
+      { suit: 'sou', number: 8 },
       { suit: 'honor', number: 6 }, // 發
     ];
     
