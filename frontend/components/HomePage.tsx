@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useWhiteMode } from '../contexts/WhiteModeContext'
+import { YakuListModal } from './Modals/YakuListModal'
 
 interface HomePageProps {
   playerName: string
@@ -66,6 +67,7 @@ export default function HomePage({
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
   const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
+  const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
 
   const fetchRooms = async () => {
     setRoomsLoading(true)
@@ -379,8 +381,21 @@ export default function HomePage({
           </div>
         </div>
 
+        <div className="mt-4 text-center">
+          <button
+            onClick={() => setIsYakuModalOpen(true)}
+            className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] w-full"
+          >
+            役一覧を見る
+          </button>
+        </div>
+
         {error && <p className="text-red-400 text-sm text-center p-3 bg-[#2d1a1a] border-2 border-red-400 mt-5">{error}</p>}
       </div>
+
+      {isYakuModalOpen && (
+        <YakuListModal onClose={() => setIsYakuModalOpen(false)} />
+      )}
 
       {isRuleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
