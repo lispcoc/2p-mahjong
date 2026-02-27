@@ -1251,6 +1251,17 @@ class MahjongLogic {
       
       console.log(`[addNewDora] New dora indicator: ${newDoraIndicator.toString()}, dora tile: ${newDoraTile.toString()}`);
     }
+    
+    // カン裏ドラ: 対応する裏ドラ表示牌も追加
+    if (this.candidateUraDoraIndicators.length > this.uraDoraIndicators.length) {
+      const newUraDoraIndicator = this.candidateUraDoraIndicators[this.uraDoraIndicators.length];
+      this.uraDoraIndicators.push(newUraDoraIndicator);
+      
+      const newUraDoraTile = this.getNextTile(newUraDoraIndicator);
+      this.uraDoraTiles.push(newUraDoraTile);
+      
+      console.log(`[addNewDora] New ura-dora indicator: ${newUraDoraIndicator.toString()}, ura-dora tile: ${newUraDoraTile.toString()}`);
+    }
   }
   
   handleWin(userId) {
