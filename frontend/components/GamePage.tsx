@@ -2405,7 +2405,7 @@ export default function GamePage({
         )}
 
         <div className="mt-1 flex grid grid-cols-4 gap-1 items-center justify-center flex-wrap">
-          {DEVELOPMENT_MODE && (
+          {(DEVELOPMENT_MODE || otherPlayer?.isCPU) && (
             <>
               <button
                 onClick={() => toggleAutoPlayMode(!autoPlayMode)}
@@ -2528,7 +2528,7 @@ export default function GamePage({
       ) : null}
 
       {/* Hand Editor Modal (DEV only) */}
-      {DEVELOPMENT_MODE && showHandEditor && gameState?.tiles?.[userId] && (
+      {(DEVELOPMENT_MODE || otherPlayer?.isCPU) && showHandEditor && gameState?.tiles?.[userId] && (
         <HandEditorModal
           currentHand={(gameState.tiles[userId].hand || []).map((t: any) => normalizeTile(t))}
           currentMelds={((gameState.tiles[userId].melds || []) as Array<Array<Tile | string>>).map((m) => m.map((t) => normalizeTile(t)))}
