@@ -182,26 +182,32 @@ npm run task:generate  # タスク生成
 
 ## 麻雀ドメイン用語マッピング
 
-コードで使われる英語 ↔ 麻雀用語の対応。新規コード追加時もこの命名に従うこと。
+> **完全版は [`TERMINOLOGY.md`](TERMINOLOGY.md) を参照。**  
+> 牌の種類・手牌構造・役一覧・アクション名・WebSocketプロトコルなど全用語を網羅しています。
+
+コードで使われる英語 ↔ 麻雀用語の主要対応（クイックリファレンス）。  
+新規コード追加時もこの命名に従うこと。
 
 | コード用語 | 日本語 | 説明 |
 |-----------|--------|------|
 | `man` / `pin` / `sou` / `honor` | 萬子/筒子/索子/字牌 | `tile.suit` の値 |
 | `tsumo` / `ron` | ツモ/ロン | 自摸和了/放銃和了 |
 | `riichi` / `doubleRiichi` | リーチ/ダブルリーチ | 立直宣言 |
-| `meld` / `furo` | 副露 | 鳴き面子 |
-| `kan` | 槓 | 暗槓/加槓/大明槓 |
+| `meld` | 副露 | 鳴き面子（`melds` 配列） |
 | `pung` | ポン | 刻子鳴き |
+| `kan` / `daiminkan` / `ankan` / `kakan` | 槓/大明槓/暗槓/加槓 | カンの種別 |
 | `tenpai` | 聴牌 | アガリ1枚前 |
-| `shanten` | 向聴数 | アガリまでの距離 |
+| `shanten` | 向聴数 | アガリまでの距離（-1=和了形） |
 | `dora` / `uraDora` / `redDora` | ドラ/裏ドラ/赤ドラ | ボーナス牌 |
-| `furiten` | フリテン | ロン不可状態 |
+| `furiten` / `tempFuriten` / `riichiPassFuriten` | フリテン/同巡/リーチ後永続 | ロン不可状態の種別 |
 | `han` / `fu` | 翻/符 | 得点計算単位 |
-| `dealer` / `oya` | 親 | ラウンドディーラー |
-| `roundWind` / `seatWind` | 場風/自風 | 風の割り当て |
-| `haitei` / `houtei` / `rinshan` / `ippatsu` | 海底/河底/嶺上/一発 | 特殊和了条件 |
+| `dealer` / `dealerIndex` | 親 | ラウンドディーラー |
+| `roundWind` / `seatWind` | 場風/自風 | 風の割り当て（番号: 1=東 2=南 3=西 4=北） |
+| `isHaitei` / `isHoutei` / `isRinshan` / `isIppatsumari` | 海底/河底/嶺上/一発 | 特殊和了条件フラグ |
 | `chiitoitsu` / `kokushi` | 七対子/国士無双 | 特殊手形 |
-| `tsumoKiri` / `tedashi` | ツモ切り/手出し | 打牌の種類 |
+| `isTsumogiri` / `tedashi` | ツモ切り/手出し | `discardFlags` の打牌種別 |
+| `combination.pair` | 雀頭 | 和了形の対子部分 |
+| `combination.melds` | 面子 | 和了形の面子配列（順子/刻子/槓子） |
 
 ---
 
