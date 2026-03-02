@@ -37,8 +37,8 @@ module.exports = {
       defaultSeconds: 10,  // 自動アクションタイマーデフォルト値（秒）
     },
     autoReadyTimeoutMs: 10000,          // 自動準備完了タイマー（ミリ秒）
-    gameOverDeletionMs: 5 * 60 * 1000,  // ゲーム終了後ルーム削除タイマー（5分）
-    inactivityDeletionMs: 5 * 60 * 1000, // 非アクティブルーム削除タイマー（5分）
+    gameOverDeletionMs: 15 * 60 * 1000,  // ゲーム終了後ルーム削除タイマー
+    inactivityDeletionMs: 10 * 60 * 1000, // 非アクティブルーム削除タイマー
     disconnectGracePeriodMs: 10 * 60 * 1000, // 切断猶予期間（10分）
   },
 

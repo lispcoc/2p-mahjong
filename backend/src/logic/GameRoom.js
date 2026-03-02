@@ -13,7 +13,7 @@ class GameRoom {
     this.currentRound = 0; // 現在の局数
     this.roundWindIndex = 0; // 0=東, 1=南
     this.roundNumber = 1; // 東1局から開始
-    this.dealerIndex = 0; // 0=最初の参加者が親
+    this.dealerIndex = Math.floor(Math.random() * 2); // ランダムに親を決定
     this.nextRoundState = null; // 次局の状態（親・場風・局数）
     this.playerOrder = []; // 局開始時のプレイヤー順
     this.aiPlayers = new Map(); // userId -> AIPlayer instance
@@ -75,7 +75,7 @@ class GameRoom {
     this.currentRound = 0;
     this.roundWindIndex = 0;
     this.roundNumber = 1;
-    this.dealerIndex = 0;
+    this.dealerIndex = Math.floor(Math.random() * 2);
     this.nextRoundState = null;
     this.playerOrder = [];
     this.lastResult = null;
