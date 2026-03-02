@@ -65,7 +65,7 @@ export default function HomePage({
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(savedSettings?.opponentTsumoLuck ?? 0)
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(savedSettings?.autoActionTimerSeconds ?? defaultAutoActionTimerSeconds)
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
-  const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? false)
+  const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? true)
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
@@ -287,14 +287,8 @@ export default function HomePage({
         {whiteMode ? '🟢 緑' : '⬜ 白'}
       </button>
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-xl overflow-y-auto max-h-[90dvh] rounded">
-        <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-gray-300">
+        <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
-          <button
-            onClick={() => setIsYakuModalOpen(true)}
-            className="px-2 py-1 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
-          >
-            役一覧を見る
-          </button>
           <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
             <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
 
@@ -306,7 +300,14 @@ export default function HomePage({
             </button>
           </div>
         </div>
-
+        <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
+          <button
+            onClick={() => setIsYakuModalOpen(true)}
+            className="w-full px-2 py-3 border-2 border-white font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
+          >
+            役一覧を見る
+          </button>
+          </div>
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <h2 className="text-lg text-[#ffffff] m-0 font-bold">新しい部屋を作成</h2>
