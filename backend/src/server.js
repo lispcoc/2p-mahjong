@@ -791,6 +791,14 @@ function handleDisconnect(ws) {
     connections.delete(ws);
 
     if (player && !player.isCPU) {
+      // プレイヤーが切断されたらタイマーを切断時点からリセット。
+      // こうすることで「非アクティブ削除タイマー」が切断猶予期間より先に
+      // 発火してルームを消してしまう競合状態を防ぐ。
+      // gameOver 状態では gameOverTimer が後始末を担うのでリセットしない。
+      if (room.status !== 'gameOver') {
+        room.startInactivityTimer(createInactivityCallback(roomId));
+      }
+
       const gracePeriodMs = settings.timers.disconnectGracePeriodMs;
       if (player.disconnectTimerId) {
         clearTimeout(player.disconnectTimerId);
