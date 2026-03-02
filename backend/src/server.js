@@ -100,14 +100,15 @@ app.post('/api/rooms', (req, res) => {
   }
 
   // Extract and validate tsumo luck for both players
+  const maxTsumoLuckLevel = settings.tsumoLuck.maxLevel;
   const rawMyTsumoLuck = Number(req.body?.myTsumoLuck);
   const myTsumoLuck = Number.isFinite(rawMyTsumoLuck)
-    ? Math.max(0, Math.min(3, Math.floor(rawMyTsumoLuck)))
+    ? Math.max(0, Math.min(maxTsumoLuckLevel, Math.floor(rawMyTsumoLuck)))
     : 1;
 
   const rawOpponentTsumoLuck = Number(req.body?.opponentTsumoLuck);
   const opponentTsumoLuck = Number.isFinite(rawOpponentTsumoLuck)
-    ? Math.max(0, Math.min(3, Math.floor(rawOpponentTsumoLuck)))
+    ? Math.max(0, Math.min(maxTsumoLuckLevel, Math.floor(rawOpponentTsumoLuck)))
     : 1;
 
   // Extract and validate auto-action timer

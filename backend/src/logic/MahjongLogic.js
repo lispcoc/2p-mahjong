@@ -2040,18 +2040,30 @@ class MahjongLogic {
       return this.wall.splice(selectedTile.index, 1)[0];
     }
 
-    // 運あり：スコアに基づいて確率的に選択（手牌分析を考慮）
-    const probabilities = settings.tsumoLuck.selectionProbabilities;
-    const selectionProbability = probabilities[luckLevel] || 0;
+    // 運あり：シャンテン数に応じた発動率で確率的に選択（手牌分析を考慮）
+    const currentHand = this.players[userId].hand;
+    const currentMelds = this.players[userId].melds || [];
+
+    // シャンテン改善分析を事前計算（発動率決定＋ボーナス計算に共通利用）
+    const shantenAnalysis = this.analyzeShantenImprovement(currentHand, currentMelds);
+
+    // シャンテン数グループを判定: 0=テンパイ, 1=1シャンテン, 2=2シャンテン以上
+    const shantenGroup = shantenAnalysis.winningTileKeys.size > 0 ? 0
+      : shantenAnalysis.tenpaiAdvancingKeys.size > 0 ? 1
+        : 2;
+
+    // シャンテン数に応じた発動率を取得（shantenProbabilities が優先、未設定時は selectionProbabilities にフォールバック）
+    const shantenProbs = settings.tsumoLuck.shantenProbabilities;
+    const levelShantenProbs = shantenProbs && shantenProbs[luckLevel];
+    const selectionProbability = (levelShantenProbs && levelShantenProbs[shantenGroup] !== undefined)
+      ? levelShantenProbs[shantenGroup]
+      : (settings.tsumoLuck.selectionProbabilities[luckLevel] || 0);
+
+    console.log(`[drawTileWithLuckAdaptive] Player ${userId} luckLevel=${luckLevel} shantenGroup=${shantenGroup} selectionProbability=${selectionProbability}`);
+
     const useQualitySelection = Math.random() < selectionProbability;
 
     if (useQualitySelection) {
-      const currentHand = this.players[userId].hand;
-      const currentMelds = this.players[userId].melds || [];
-
-      // シャンテン改善分析を事前計算（全候補牌に対して1回だけ実行）
-      const shantenAnalysis = this.analyzeShantenImprovement(currentHand, currentMelds);
-
       // スコアに基づいてソート（手牌分析＋シャンテン改善を含める）
       const tilesWithScores = playableTiles.map(item => {
         let score = this.getTileScoreWithHandAnalysis(item.tile, currentHand);

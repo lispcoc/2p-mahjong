@@ -66,9 +66,10 @@ class GameRoom {
   }
 
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
+    const maxLevel = settings.tsumoLuck.maxLevel;
     this.pendingTsumoLuckSettings = {
-      my: Math.max(0, Math.min(3, Math.floor(myTsumoLuck))),
-      opponent: Math.max(0, Math.min(3, Math.floor(opponentTsumoLuck))),
+      my: Math.max(0, Math.min(maxLevel, Math.floor(myTsumoLuck))),
+      opponent: Math.max(0, Math.min(maxLevel, Math.floor(opponentTsumoLuck))),
     };
   }
 
@@ -108,8 +109,9 @@ class GameRoom {
   }
 
   setTsumoLuck(userId, luckLevel) {
-    // luckLevel: 0=no luck, 1=light (30%), 2=medium (50%), 3=heavy (70%)
-    const level = Number.isFinite(luckLevel) ? Math.max(0, Math.min(3, Math.floor(luckLevel))) : 0;
+    // luckLevel: 0=no luck, 1=light, 2=medium, 3=heavy (up to settings.tsumoLuck.maxLevel)
+    const maxLevel = settings.tsumoLuck.maxLevel;
+    const level = Number.isFinite(luckLevel) ? Math.max(0, Math.min(maxLevel, Math.floor(luckLevel))) : 0;
     this.tsumoLuckSettings.set(userId, level);
   }
 
