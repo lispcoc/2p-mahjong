@@ -69,6 +69,7 @@ export default function HomePage({
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
+  const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
 
   const fetchRooms = async () => {
@@ -107,7 +108,46 @@ export default function HomePage({
 
   const handleOpenCreateRoomModal = () => {
     setError('')
+    setIsCreateMenuOpen(true)
+  }
+
+  const handleOpenCustomCreate = () => {
+    setIsCreateMenuOpen(false)
     setIsRuleModalOpen(true)
+  }
+
+  const handleCreateWithDefaults = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: defaultWallTiles,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: defaultAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: true,
+          aotenjou: false,
+          dealerSelection: 'random',
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const clampWallTiles = (value: number) => {
@@ -402,6 +442,35 @@ export default function HomePage({
 
       {isYakuModalOpen && (
         <YakuListModal onClose={() => setIsYakuModalOpen(false)} />
+      )}
+
+      {isCreateMenuOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
+          <div className="w-full max-w-xs border-2 border-white bg-[#2d5016] p-6 shadow-2xl flex flex-col gap-3">
+            <h3 className="text-xl font-bold text-white m-0 mb-2">部屋の作成方法</h3>
+            <button
+              onClick={handleCreateWithDefaults}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+            >
+              デフォルトルールで作成
+            </button>
+            <button
+              onClick={handleOpenCustomCreate}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70"
+            >
+              カスタムルールで作成
+            </button>
+            <button
+              onClick={() => setIsCreateMenuOpen(false)}
+              disabled={isCreating}
+              className="px-6 py-2 border-2 border-gray-400 text-sm font-bold cursor-pointer transition-all bg-transparent text-gray-300 hover:bg-[#1a2e0a] hover:text-white disabled:opacity-70"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
       )}
 
       {isRuleModalOpen && (
