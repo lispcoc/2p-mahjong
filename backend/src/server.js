@@ -610,6 +610,45 @@ async function handleAction(ws, payload) {
     }));
   }
 
+  // 相手がリーチ中のため、相手のツモ切りが保留中の場合
+  // 現在の打牌状態を先にブロードキャストし、一定時間後に相手のツモ切りを処理する
+  if (result.riichiAutoDiscardPending) {
+    const pendingUserId = room.gameLogic.getCurrentTurn();
+    const pendingPlayer = room.players.get(pendingUserId);
+
+    // まず自分の打牌（相手のツモ前）の状態をブロードキャスト
+    broadcastToRoom(roomId, {
+      type: 'gameStateUpdate',
+      payload: room.getGameState(),
+    });
+
+    if (pendingPlayer?.isCPU || pendingPlayer?.autoPlay) {
+      // CPU の場合は通常のターン処理に委ねる（CPU ターンの遅延が適用される）
+      console.log(`[🔵 ${requestId}] 🔴 Riichi auto-discard pending for CPU ${pendingPlayer.playerName} - delegating to executeCPUTurnIfNeeded`);
+      executeCPUTurnIfNeeded(room);
+    } else {
+      // 人間プレイヤーがリーチ中: 0.5 秒後にツモ切りを処理
+      console.log(`[🔵 ${requestId}] 🔴 Riichi auto-discard pending for human ${pendingPlayer?.playerName} - delaying ${settings.cpuDelays.riichiAutoDiscardDelayMs}ms`);
+      setTimeout(() => {
+        console.log(`[🔵 ${requestId}] 🔴 Executing delayed riichi auto-discard for ${pendingUserId}`);
+        const autoDiscardResult = room.handlePlayerAction(pendingUserId, { type: 'discard' });
+        console.log(`[🔵 ${requestId}] 🔴 Riichi auto-discard result:`, { success: autoDiscardResult?.success, finished: autoDiscardResult?.finished });
+
+        broadcastToRoom(roomId, {
+          type: 'gameStateUpdate',
+          payload: room.getGameState(),
+        });
+
+        if (room.isFinished()) {
+          handleAutoPlayGameFinished(room, 'RIICHI_AUTO_DISCARD');
+        } else {
+          executeCPUTurnIfNeeded(room);
+        }
+      }, settings.cpuDelays.riichiAutoDiscardDelayMs);
+    }
+    return;
+  }
+
   // Broadcast game state to all players
   broadcastToRoom(roomId, {
     type: 'gameStateUpdate',

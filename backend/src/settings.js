@@ -51,6 +51,7 @@ module.exports = {
     daiminkanDelayMs: 300,        // CPU大明槓後遅延（ミリ秒）
     kanDelayMs: 100,              // CPUカン後遅延（ミリ秒）
     bothRiichiAutoPlayDelayMs: 500, // 両リーチ自動進行遅延（ミリ秒）
+    riichiAutoDiscardDelayMs: 1000, // リーチ中プレイヤーの自動ツモ切り遅延（ミリ秒）
     cpuTurnRecheckDelayMs: 100,   // CPU次ターン再チェック遅延（ミリ秒）
   },
 

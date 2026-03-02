@@ -794,7 +794,12 @@ class MahjongLogic {
 
     // Auto-draw if no pung is possible
     if (!this.pendingPungFor && otherPlayerId) {
-      const drawResult = this.drawForTurn(otherPlayerId);
+      // 相手がリーチ中の場合は自動ツモ切りを呼び出し側に委譲（0.5秒の間を置くため）
+      const otherIsRiichi = this.players[otherPlayerId]?.riichi || false;
+      const drawResult = this.drawForTurn(otherPlayerId, otherIsRiichi);
+      if (drawResult?.riichiAutoDiscardPending) {
+        return { success: true, riichiAutoDiscardPending: true };
+      }
       if (drawResult?.finished) {
         return {
           success: true,
@@ -1683,7 +1688,7 @@ class MahjongLogic {
     }
   }
 
-  drawForTurn(userId) {
+  drawForTurn(userId, deferRiichiAutoDiscard = false) {
     const hand = this.players[userId].hand;
 
     // Avoid double draw if player already has a drawn tile
@@ -1740,6 +1745,11 @@ class MahjongLogic {
         if (this.areBothPlayersInRiichi()) {
           console.log(`[drawForTurn] Both players in riichi - deferring auto-discard for ${userId} to caller`);
           return { success: true, bothRiichiAutoPlay: true };
+        }
+        // 呼び出し側が遅延処理を要求している場合は自動ツモ切りを委譲（間を置くため）
+        if (deferRiichiAutoDiscard) {
+          console.log(`[drawForTurn] Riichi auto-discard deferred for ${userId} (caller requested delay)`);
+          return { success: true, riichiAutoDiscardPending: true };
         }
         // 和了できない場合は自動的にツモ切り
         console.log(`[drawForTurn] Player ${userId} is in riichi but cannot win, auto-discarding drawn tile`);
