@@ -63,8 +63,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
           </div>
           {error && <p className="text-[#ff6b6b] text-sm mt-0">{error}</p>}
           <button type="submit" className="px-3 py-3 bg-[#1a2e0a] text-[#ffffff] border-2 border-white text-base font-bold cursor-pointer transition-colors hover:bg-[#0f1a06] active:scale-95">
-            ログイン
+            開始
           </button>
+          <div className="text-xs text-[#ffffff] text-center">
+            アカウントは不要です。
+          </div>
         </form>
       </div>
     </div>

@@ -286,11 +286,18 @@ export default function HomePage({
       >
         {whiteMode ? '🟢 緑' : '⬜ 白'}
       </button>
-      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-[500px]">
+      <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-xl overflow-y-auto max-h-[90dvh] rounded">
         <div className="flex justify-between items-center mb-8 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
+          <button
+            onClick={() => setIsYakuModalOpen(true)}
+            className="px-2 py-1 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
+          >
+            役一覧を見る
+          </button>
           <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
             <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
+
             <button
               onClick={onLogout}
               className="px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
@@ -385,15 +392,6 @@ export default function HomePage({
           </div>
         </div>
 
-        <div className="mt-4 text-center">
-          <button
-            onClick={() => setIsYakuModalOpen(true)}
-            className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] w-full"
-          >
-            役一覧を見る
-          </button>
-        </div>
-
         {error && <p className="text-red-400 text-sm text-center p-3 bg-[#2d1a1a] border-2 border-red-400 mt-5">{error}</p>}
       </div>
 
@@ -403,7 +401,7 @@ export default function HomePage({
 
       {isRuleModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
-          <div className="w-full max-w-[520px] border-2 border-white bg-[#2d5016] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
+          <div className="w-full max-w-xl border-2 border-white bg-[#2d5016] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="mb-5 border-b-2 border-gray-300 pb-3">
               <h3 className="text-xl font-bold text-white m-0">ルール設定</h3>
             </div>
