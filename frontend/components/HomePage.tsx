@@ -67,6 +67,7 @@ export default function HomePage({
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
   const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? true)
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
+  const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
 
@@ -149,6 +150,7 @@ export default function HomePage({
           useRedDora: useRedDora,
           notenPenalty: notenPenalty,
           aotenjou: aotenjou,
+          dealerSelection: dealerSelection,
         }),
       })
 
@@ -172,6 +174,7 @@ export default function HomePage({
           useRedDora,
           notenPenalty,
           aotenjou,
+          dealerSelection,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -199,6 +202,7 @@ export default function HomePage({
     setUseRedDora(true)
     setNotenPenalty(false)
     setAotenjou(false)
+    setDealerSelection('random')
   }
 
   const handleCancelCreateRoom = () => {
@@ -606,6 +610,53 @@ export default function HomePage({
                     />
                     <span className="text-gray-300 text-xs">青天井（点数上限なし・満貫以上の丸めなし）</span>
                   </label>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">親の開始</label>
+                <div className="flex flex-col gap-2 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="dealer-random"
+                      type="radio"
+                      name="dealerSelection"
+                      value="random"
+                      checked={dealerSelection === 'random'}
+                      onChange={(e) => setDealerSelection(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="dealer-random">
+                      ランダム
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="dealer-self"
+                      type="radio"
+                      name="dealerSelection"
+                      value="self"
+                      checked={dealerSelection === 'self'}
+                      onChange={(e) => setDealerSelection(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="dealer-self">
+                      自分の親から開始
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="dealer-opponent"
+                      type="radio"
+                      name="dealerSelection"
+                      value="opponent"
+                      checked={dealerSelection === 'opponent'}
+                      onChange={(e) => setDealerSelection(e.target.value)}
+                      className="w-4 h-4 cursor-pointer"
+                    />
+                    <label className="text-gray-300 text-xs cursor-pointer" htmlFor="dealer-opponent">
+                      相手の親から開始
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>

@@ -13,7 +13,10 @@ class GameRoom {
     this.currentRound = 0; // 現在の局数
     this.roundWindIndex = 0; // 0=東, 1=南
     this.roundNumber = 1; // 東1局から開始
-    this.dealerIndex = Math.floor(Math.random() * 2); // ランダムに親を決定
+    // dealerSelection: 'random' | 'self' | 'opponent'
+    const supportedDealerSelections = ['random', 'self', 'opponent'];
+    this.dealerSelection = supportedDealerSelections.includes(options.dealerSelection) ? options.dealerSelection : 'random';
+    this.dealerIndex = this.resolveDealerIndex(); // 親を決定
     this.nextRoundState = null; // 次局の状態（親・場風・局数）
     this.playerOrder = []; // 局開始時のプレイヤー順
     this.aiPlayers = new Map(); // userId -> AIPlayer instance
@@ -54,6 +57,14 @@ class GameRoom {
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
   }
 
+  // dealerSelection に基づいて dealerIndex を決定
+  // 'random': ランダム, 'self': playerOrder[0]（部屋作成者）が親, 'opponent': playerOrder[1]が親
+  resolveDealerIndex() {
+    if (this.dealerSelection === 'self') return 0;
+    if (this.dealerSelection === 'opponent') return 1;
+    return Math.floor(Math.random() * 2);
+  }
+
   setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck) {
     this.pendingTsumoLuckSettings = {
       my: Math.max(0, Math.min(3, Math.floor(myTsumoLuck))),
@@ -75,7 +86,7 @@ class GameRoom {
     this.currentRound = 0;
     this.roundWindIndex = 0;
     this.roundNumber = 1;
-    this.dealerIndex = Math.floor(Math.random() * 2);
+    this.dealerIndex = this.resolveDealerIndex();
     this.nextRoundState = null;
     this.playerOrder = [];
     this.lastResult = null;
