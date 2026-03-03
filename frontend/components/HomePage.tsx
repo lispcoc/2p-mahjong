@@ -8,6 +8,7 @@ interface HomePageProps {
   playerName: string
   onCreateRoom: (roomId: string) => void
   onJoinRoom: (roomId: string) => void
+  onSpectateRoom?: (roomId: string) => void
   onLogout: () => void
   shouldRefresh?: boolean
   onRefreshed?: () => void
@@ -19,12 +20,14 @@ interface RoomInfo {
   playersCount: number
   playerNames: string[]
   createdAt: number
+  spectatorCount?: number
 }
 
 export default function HomePage({
   playerName,
   onCreateRoom,
   onJoinRoom,
+  onSpectateRoom,
   onLogout,
   shouldRefresh = false,
   onRefreshed,
@@ -423,13 +426,23 @@ export default function HomePage({
                         )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleJoinFromList(room.roomId)}
-                      className="px-6 py-3 border-2 border-white bg-[#1a2e0a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f1a06] disabled:opacity-60"
-                      disabled={!canJoinRoom(room)}
-                    >
-                      {getButtonText(room)}
-                    </button>
+                    <div className="flex gap-2">
+                      {room.status === 'playing' && onSpectateRoom && (
+                        <button
+                          onClick={() => onSpectateRoom(room.roomId)}
+                          className="px-4 py-3 border-2 border-white bg-[#1a4a5a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f3040]"
+                        >
+                          観戦
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleJoinFromList(room.roomId)}
+                        className="px-6 py-3 border-2 border-white bg-[#1a2e0a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f1a06] disabled:opacity-60"
+                        disabled={!canJoinRoom(room)}
+                      >
+                        {getButtonText(room)}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

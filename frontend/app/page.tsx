@@ -5,7 +5,7 @@ import LoginPage from '../components/LoginPage'
 import HomePage from '../components/HomePage'
 import GamePage from '../components/GamePage'
 
-type PageState = 'loading' | 'login' | 'home' | 'game'
+type PageState = 'loading' | 'login' | 'home' | 'game' | 'spectate'
 
 export default function Page() {
   const [pageState, setPageState] = useState<PageState>('loading')
@@ -167,6 +167,13 @@ export default function Page() {
     setShouldRefreshRooms(true)
   }
 
+  const handleSpectateRoom = (targetRoomId: string) => {
+    console.log('👁️ handleSpectateRoom called with roomId:', targetRoomId)
+    // 見学者の場合はセッションをクリアしない
+    setRoomId(targetRoomId)
+    setPageState('spectate')
+  }
+
   const handleLogout = () => {
     // Clear session and saved player name on logout
     localStorage.removeItem('mahjong-session')
@@ -195,6 +202,7 @@ export default function Page() {
           playerName={playerName}
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
+          onSpectateRoom={handleSpectateRoom}
           onLogout={handleLogout}
           shouldRefresh={shouldRefreshRooms}
           onRefreshed={() => setShouldRefreshRooms(false)}
@@ -205,6 +213,14 @@ export default function Page() {
           playerName={playerName}
           roomId={roomId}
           onBack={handleBackToHome}
+        />
+      )}
+      {pageState === 'spectate' && (
+        <GamePage
+          playerName={playerName}
+          roomId={roomId}
+          onBack={handleBackToHome}
+          isSpectator={true}
         />
       )}
     </div>

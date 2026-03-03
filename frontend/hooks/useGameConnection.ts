@@ -8,6 +8,7 @@ interface UseGameConnectionProps {
   onScoreResult: (result: any) => void
   onFinalResults: (results: any[] | null) => void
   setAutoNextTimer: (timerId: number | null) => void
+  isSpectator?: boolean
 }
 
 export function useGameConnection({
@@ -16,6 +17,7 @@ export function useGameConnection({
   onScoreResult,
   onFinalResults,
   setAutoNextTimer,
+  isSpectator = false,
 }: UseGameConnectionProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [error, setError] = useState('')
@@ -30,6 +32,35 @@ export function useGameConnection({
     console.log('📨 Received message:', { type, payload })
 
     switch (type) {
+      case 'spectatorJoined':
+        debugLog(`👀 Successfully joined as spectator with userId=${payload.userId}`)
+        console.log('👀 Spectator joined - setting states now')
+        setUserId(payload.userId)
+        {
+          const spectatorSession = {
+            userId: payload.userId,
+            roomId: payload.roomId,
+            playerName: payload.spectatorName,
+            isSpectator: true,
+            timestamp: Date.now(),
+          }
+          try { localStorage.setItem('mahjong-session', JSON.stringify(spectatorSession)) } catch {}
+        }
+        setGameState(payload.gameState ? { ...payload.gameState, isSpectatorView: true } : {
+          status: 'waiting',
+          players: payload.players || [],
+          isSpectatorView: true,
+        })
+        setMessage(`観戦モードで参加しました（見学者 ${payload.spectators?.length ?? 1}人）`)
+        break
+      case 'spectatorJoinedNotify':
+        debugLog(`👀 A spectator joined`)
+        setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
+        break
+      case 'spectatorLeft':
+        debugLog(`👀 A spectator left`)
+        setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
+        break
       case 'joined':
         debugLog(`✅ Successfully joined room with userId=${payload.userId}`)
         console.log('✅ Successfully joined room - setting states now')
@@ -285,6 +316,11 @@ export function useGameConnection({
       const joinPayload: any = {
         roomId,
         playerName,
+      }
+
+      // 見学者モードの場合はフラグを追加
+      if (isSpectator) {
+        joinPayload.spectator = true
       }
 
       // If we have a saved session, include the userId for reconnection

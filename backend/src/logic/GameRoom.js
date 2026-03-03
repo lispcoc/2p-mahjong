@@ -55,6 +55,7 @@ class GameRoom {
     this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
     this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
+    this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
   }
 
   // dealerSelection に基づいて dealerIndex を決定
@@ -161,6 +162,44 @@ class GameRoom {
 
     return { success: true, player };
   }
+
+  // ---- 見学者管理 ------------------------------------------------------------
+
+  addSpectator(userId, spectatorName, ws) {
+    if (this.spectators.has(userId)) {
+      // 再接続: WebSocket を更新するだけ
+      const s = this.spectators.get(userId);
+      s.ws = ws;
+      return { success: true, spectator: s, isReconnecting: true };
+    }
+    const spectator = { userId, spectatorName, ws };
+    this.spectators.set(userId, spectator);
+    return { success: true, spectator, isReconnecting: false };
+  }
+
+  removeSpectator(userId) {
+    this.spectators.delete(userId);
+  }
+
+  markSpectatorDisconnected(userId) {
+    const s = this.spectators.get(userId);
+    if (!s) return null;
+    s.ws = null;
+    return s;
+  }
+
+  getSpectators() {
+    return Array.from(this.spectators.values()).map((s) => ({
+      userId: s.userId,
+      spectatorName: s.spectatorName,
+    }));
+  }
+
+  getSpectatorCount() {
+    return this.spectators.size;
+  }
+
+  // ---- 見学者管理ここまで ----------------------------------------------------
 
   removePlayer(userId) {
     const player = this.players.get(userId);
@@ -542,6 +581,7 @@ class GameRoom {
         nextRoundReadyCount: this.nextRoundReady.size,
         totalPlayers: this.players.size,
         initialScore: this.initialScore,
+        spectatorCount: this.spectators.size,
       };
       // ゲームオーバー時は最終結果も含める
       if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
@@ -578,6 +618,7 @@ class GameRoom {
       totalPlayers: this.players.size, // 総プレイヤー数
       autoActionTimerSeconds: this.autoActionTimerSeconds, // ツモ切り・ポン見逃しのタイマー秒数
       initialScore: this.initialScore, // 初期持ち点
+      spectatorCount: this.spectators.size, // 見学者数
     };
 
     // Send each player their own hand and public information

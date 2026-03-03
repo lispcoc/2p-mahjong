@@ -10,6 +10,7 @@ export interface GamePageProps {
   playerName: string
   roomId: string
   onBack: () => void
+  isSpectator?: boolean
 }
 
 export interface GameState {
@@ -52,4 +53,6 @@ export interface GameState {
   totalPlayers?: number
   autoActionTimerSeconds?: number
   initialScore?: number
+  spectatorCount?: number
+  isSpectatorView?: boolean
 }

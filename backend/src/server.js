@@ -159,6 +159,7 @@ app.get('/api/rooms', (req, res) => {
         playersCount: connectedCount,
         playerNames: players.map(p => p.playerName),
         createdAt: room.createdAt,
+        spectatorCount: room.getSpectatorCount(),
       });
     }
   });
@@ -340,7 +341,7 @@ function handleJoin(ws, payload) {
     return;
   }
 
-  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck } = payload;
+  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck, spectator: wantSpectator } = payload;
 
   if (!roomId || !playerName) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
@@ -353,6 +354,12 @@ function handleJoin(ws, payload) {
     ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
     return;
   }
+
+  // ---- 見学者として参加 -------------------------------------------------------
+  if (wantSpectator) {
+    return handleSpectatorJoin(ws, room, roomId, playerName, existingUserId);
+  }
+  // ---- ここまで ---------------------------------------------------------------
 
   let userId = existingUserId;
   let isReconnecting = false;
@@ -501,6 +508,59 @@ function handleJoin(ws, payload) {
     // アクティビティを記録してタイマーをリセット（ゲームが開始されない場合）
     room.recordActivity(createInactivityCallback(roomId));
   }
+}
+
+// 見学者用参加処理
+function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
+  let userId = existingUserId;
+  let isReconnecting = false;
+
+  if (existingUserId && room.spectators.has(existingUserId)) {
+    // 再接続
+    const result = room.addSpectator(existingUserId, spectatorName, ws);
+    isReconnecting = result.isReconnecting && result.spectator?.spectatorName === spectatorName;
+    if (isReconnecting) {
+      userId = existingUserId;
+      console.log(`🔄 Spectator reconnecting: ${spectatorName} (${existingUserId}) to room ${roomId}`);
+    }
+  }
+
+  if (!isReconnecting) {
+    userId = uuidv4();
+    room.addSpectator(userId, spectatorName, ws);
+    console.log(`👀 Spectator joined: ${spectatorName} (${userId}) to room ${roomId}`);
+  }
+
+  connections.set(ws, { userId, roomId, playerName: spectatorName, isSpectator: true });
+
+  // 現在のゲーム状態（全牌公開）を送信
+  const gameState = room.getGameState();
+  const joinedPayload = {
+    userId,
+    spectatorName,
+    roomId,
+    players: room.getPlayers(),
+    spectators: room.getSpectators(),
+    gameState: { ...gameState, isSpectatorView: true },
+    isSpectator: true,
+    isReconnecting,
+  };
+
+  try {
+    ws.send(JSON.stringify({ type: 'spectatorJoined', payload: joinedPayload }));
+    console.log(`✅ spectatorJoined sent to ${spectatorName}`);
+  } catch (err) {
+    console.error('❌ Error sending spectatorJoined:', err);
+  }
+
+  // 他の全員に見学者参加を通知
+  broadcastToRoom(roomId, {
+    type: 'spectatorJoinedNotify',
+    payload: { spectatorName, spectators: room.getSpectators(), spectatorCount: room.getSpectatorCount() },
+  }, ws);
+
+  // アクティビティを記録
+  room.recordActivity(createInactivityCallback(roomId));
 }
 
 async function handleAction(ws, payload) {
@@ -823,12 +883,24 @@ function handleDisconnect(ws) {
   const connection = connections.get(ws);
   if (!connection) return;
 
-  const { roomId, userId, playerName } = connection;
+  const { roomId, userId, playerName, isSpectator } = connection;
   const room = rooms.get(roomId);
 
   if (room) {
-    const player = room.markDisconnected(userId);
     connections.delete(ws);
+
+    // 見学者が切断した場合はすぐに削除
+    if (isSpectator) {
+      room.removeSpectator(userId);
+      console.log(`👀❌ Spectator disconnected: ${playerName} (${userId}) from room ${roomId}`);
+      broadcastToRoom(roomId, {
+        type: 'spectatorLeft',
+        payload: { spectatorName: playerName, spectators: room.getSpectators(), spectatorCount: room.getSpectatorCount() },
+      });
+      return;
+    }
+
+    const player = room.markDisconnected(userId);
 
     if (player && !player.isCPU) {
       // プレイヤーが切断されたらタイマーを切断時点からリセット。
@@ -953,7 +1025,7 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
   }
 
   // Access players directly from the room's internal players map to get WebSocket references
-  console.log(`📡 Broadcasting ${message.type} to room ${roomId} with ${room.players.size} players`);
+  console.log(`📡 Broadcasting ${message.type} to room ${roomId} with ${room.players.size} players, ${room.spectators.size} spectators`);
   let broadcastCount = 0;
 
   room.players.forEach((player) => {
@@ -972,7 +1044,37 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
     }
   });
 
-  console.log(`📡 Broadcast complete: sent to ${broadcastCount}/${room.players.size} players`);
+  // 見学者にも送信
+  room.spectators.forEach((spectator) => {
+    if (spectator.ws && spectator.ws !== excludeWs && spectator.ws.readyState === 1) {
+      // 見学者向けにもゲーム状態を送信（手牌は全員分公開）
+      const spectatorMessage = buildSpectatorMessage(message);
+      spectator.ws.send(JSON.stringify(spectatorMessage));
+      broadcastCount++;
+    }
+  });
+
+  console.log(`📡 Broadcast complete: sent to ${broadcastCount}/${room.players.size + room.spectators.size} players+spectators`);
+}
+
+// 見学者向けメッセージ生成（gameState 内の tiles を全公開フラグ付きで送信）
+function buildSpectatorMessage(message) {
+  if (
+    (message.type === 'gameStateUpdate' || message.type === 'gameStarted' || message.type === 'rematchStart') &&
+    message.payload
+  ) {
+    return {
+      ...message,
+      payload: { ...message.payload, isSpectatorView: true },
+    };
+  }
+  if (message.type === 'gameFinished' && message.payload) {
+    return {
+      ...message,
+      payload: { ...message.payload, isSpectatorView: true },
+    };
+  }
+  return message;
 }
 
 // CPU/自動プレイ後のゲーム終了処理を共通化

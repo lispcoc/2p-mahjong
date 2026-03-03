@@ -54,6 +54,7 @@ export default function GamePage({
   playerName,
   roomId,
   onBack,
+  isSpectator = false,
 }: GamePageProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   // Toast notifications via react-hot-toast (no local state needed)
@@ -383,6 +384,43 @@ export default function GamePage({
             { duration: 3000 }
           )
         }
+        break
+      case 'spectatorJoined':
+        debugLog(`👀 Joined as spectator userId=${payload.userId}`)
+        console.log('👀 Spectator joined:', payload)
+        setUserId(payload.userId)
+        {
+          const spectatorSession = {
+            userId: payload.userId,
+            roomId: payload.roomId,
+            playerName: payload.spectatorName,
+            isSpectator: true,
+            timestamp: Date.now(),
+          }
+          try { localStorage.setItem('mahjong-session', JSON.stringify(spectatorSession)) } catch {}
+        }
+        if (payload.gameState) {
+          setGameState({ ...payload.gameState, isSpectatorView: true })
+          if (payload.gameState.autoActionTimerSeconds) {
+            setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
+          }
+        } else {
+          setGameState({
+            status: 'waiting',
+            players: payload.players || [],
+            isSpectatorView: true,
+          })
+        }
+        toast.success(`観戦モードで参加しました`, { duration: 3000 })
+        break
+      case 'spectatorJoinedNotify':
+        debugLog(`👀 A spectator joined: ${payload.spectatorName}`)
+        setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
+        toast(`👀 ${payload.spectatorName}が観戦中`, { duration: 2000 })
+        break
+      case 'spectatorLeft':
+        debugLog(`👀 A spectator left: ${payload.spectatorName}`)
+        setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
         break
       case 'playerJoined':
         debugLog(`✅ Another player joined`)
@@ -983,7 +1021,12 @@ export default function GamePage({
         setOpponentTsumoLuck(opponentTsumoLuckValue)
       }
 
-      debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
+      // 見学者モードのときはフラグを追加
+      if (isSpectator) {
+        joinPayload.spectator = true
+      }
+
+      debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}, spectator=${isSpectator}`)
       console.log('📤 Sending join message:', joinPayload)
       // Send join message
       ws.send(
@@ -1485,17 +1528,26 @@ export default function GamePage({
     )
   }
 
-  const isYourTurn = gameState.currentTurn === userId
+  // 見学者の場合は最初のプレイヤーの視点で表示
+  const effectiveUserId = isSpectator ? (gameState.players?.[0]?.userId ?? '') : userId
+  // 見学者の場合の「相手プレイヤー」 = 2番目のプレイヤー
+  const displayOtherPlayer = isSpectator
+    ? gameState.players?.find(p => p.userId !== effectiveUserId)
+    : otherPlayer
+
+  const isYourTurn = gameState.currentTurn === (isSpectator ? '' : userId)
   const drawnTileIndex = isYourTurn
-    ? (gameState.tiles?.[userId]?.drawnTileIndex ?? -1)
+    ? (gameState.tiles?.[effectiveUserId]?.drawnTileIndex ?? -1)
     : -1
-  const fullHand = (gameState.tiles?.[userId]?.hand as Tile[]) || []
+  const fullHand = (gameState.tiles?.[effectiveUserId]?.hand as Tile[]) || []
   const displayHandIndices = fullHand
     .map((_, idx) => idx)
     .filter((idx) => !(isYourTurn && drawnTileIndex >= 0 && idx === drawnTileIndex))
 
-  const yourDiscards = ((gameState.discards?.[userId] as Array<Tile | string>) || []).map(normalizeTile)
-  const otherUserId = otherPlayer?.userId
+  const yourDiscards = ((gameState.discards?.[effectiveUserId] as Array<Tile | string>) || []).map(normalizeTile)
+  const otherUserId = isSpectator
+    ? (gameState.players?.find(p => p.userId !== effectiveUserId)?.userId)
+    : otherPlayer?.userId
   const otherDiscards = otherUserId
     ? (((gameState.discards?.[otherUserId] as Array<Tile | string>) || []).map(normalizeTile))
     : []
@@ -1506,7 +1558,7 @@ export default function GamePage({
     ? (((gameState.tiles?.[otherUserId]?.melds as Array<Array<Tile | string>>) || [])
       .map((meld) => meld.map(normalizeTile)))
     : []
-  const melds = ((gameState.tiles?.[userId]?.melds as Array<Array<Tile | string>>) || [])
+  const melds = ((gameState.tiles?.[effectiveUserId]?.melds as Array<Array<Tile | string>>) || [])
     .map((meld) => meld.map(normalizeTile))
 
   // カン(4枚)は構造上3枚分として数える（嶺上牌で1枚補充するため）
@@ -1517,8 +1569,8 @@ export default function GamePage({
   const pendingPungFor = gameState.pendingPungFor
   const ronPossibleFor = gameState.ronPossibleFor
   const lastOpponentDiscard = otherDiscards.length > 0 ? otherDiscards[otherDiscards.length - 1] : null
-  const isRiichi = gameState.riichi?.[userId] === true
-  const isNoMeldMode = gameState.noMeldMode?.[userId] === true
+  const isRiichi = gameState.riichi?.[effectiveUserId] === true
+  const isNoMeldMode = gameState.noMeldMode?.[effectiveUserId] === true
   const canPung = isYourTurn && pendingPungFor === userId && !!lastOpponentDiscard && !isRiichi && !isNoMeldMode && fullHand.filter(
     (tile) => tile.suit === lastOpponentDiscard.suit && tile.number === lastOpponentDiscard.number
   ).length >= 2
@@ -1574,9 +1626,9 @@ export default function GamePage({
   const allTenpaiChecked = fullHand.length > 0 && Object.keys(tenpaiInfoMap).length === fullHand.length
   const tenpaiCount = Object.values(tenpaiInfoMap).filter(info => info?.isTenpai).length
   // 門前判定: 暗槓は門前扱いなので、全ての副露が暗槓であればリーチ可能
-  const concealedMeldIndicesForRiichi = new Set(gameState.tiles?.[userId]?.concealedMeldIndices ?? [])
+  const concealedMeldIndicesForRiichi = new Set(gameState.tiles?.[effectiveUserId]?.concealedMeldIndices ?? [])
   const isMenzenForRiichi = melds.every((_: Tile[], idx: number) => concealedMeldIndicesForRiichi.has(idx))
-  const canDeclareRiichi = allTenpaiChecked && !isRiichi && isMenzenForRiichi && ((gameState?.scores?.[userId] ?? 0) >= 1000) &&
+  const canDeclareRiichi = !isSpectator && allTenpaiChecked && !isRiichi && isMenzenForRiichi && ((gameState?.scores?.[effectiveUserId] ?? 0) >= 1000) &&
     tenpaiCount > 0
 
   // デバッグログ
@@ -1626,6 +1678,10 @@ export default function GamePage({
           <div className="pl-2 text-xs text-white font-bold">
             ルームID: {roomId}<br/>
             ステータス: {gameState.status}
+            {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">👁️ 観戦中</span>}
+            {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
+              <span className="ml-2 text-yellow-300">👁️ 見学中: {gameState.spectatorCount}人</span>
+            )}
           </div>
           <div className="flex gap-2 items-center">
             {/* CPU追加ボタン（待機中のみ表示） */}
@@ -1658,7 +1714,12 @@ export default function GamePage({
             <p className={`max-sm:hidden text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
               {gameState.status === 'finished'
                 ? 'ゲーム終了'
-                : (isYourTurn ? 'あなたの番です' : '相手の番です')
+                : isSpectator
+                  ? (() => {
+                      const currentPlayer = gameState.players?.find(p => p.userId === gameState.currentTurn)
+                      return currentPlayer ? `${currentPlayer.playerName}の番` : '観戦中'
+                    })()
+                  : (isYourTurn ? 'あなたの番です' : '相手の番です')
               }
             </p>
 
@@ -1667,15 +1728,15 @@ export default function GamePage({
             <div className="sm:hidden w-full text-center p-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
               <div className="text-xs font-bold text-green-900">
                 {getRoundLabel(gameState)} /
-                自風 {getSeatWindLabel(gameState, userId)} /
+                自風 {getSeatWindLabel(gameState, effectiveUserId)} /
                 残り {gameState.wall || 0}枚
                 <div>
-                  <span className="text-xs text-gray-600">あなた ({playerName}) : </span>
+                  <span className="text-xs text-gray-600">{isSpectator ? (gameState.players?.find(p => p.userId === effectiveUserId)?.playerName ?? 'P1') : `あなた (${playerName})`} : </span>
                   <span className="text-green-600">
-                    {((gameState?.scores?.[userId]) ?? 25000)?.toLocaleString()}
+                    {((gameState?.scores?.[effectiveUserId]) ?? 25000)?.toLocaleString()}
                   </span>
                   /
-                  <span className="text-xs text-gray-600">相手 ({otherPlayer?.playerName || '---'}) : </span>
+                  <span className="text-xs text-gray-600">相手 ({displayOtherPlayer?.playerName || '---'}) : </span>
                   <span className="text-red-500">
                     {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                   </span>
@@ -1687,7 +1748,7 @@ export default function GamePage({
             <div className="w-full mb-3 rounded-lg p-3 border-0">
               <div className="flex justify-between items-center mb-2">
                 {/* CPUの手牌を見るボタン */}
-                {otherPlayer?.isCPU && (
+                {displayOtherPlayer?.isCPU && (
                   <button
                     onClick={() => setShowOpponentHand(!showOpponentHand)}
                     className={`px-3 py-1 text-[#ffffff] border-none rounded text-xs font-bold transition-colors ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
@@ -1700,7 +1761,7 @@ export default function GamePage({
                 {/* 副露（オープンの牌） */}
                 <FuroDisplay
                   melds={otherMelds}
-                  seatWindYou={gameState.seatWinds?.[userId]}
+                  seatWindYou={gameState.seatWinds?.[effectiveUserId]}
                   seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
                   concealedMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.concealedMeldIndices ?? [])}
                   daiminkanMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.daiminkanMeldIndices ?? [])}
@@ -1719,7 +1780,7 @@ export default function GamePage({
                       <div className="inline-block">
                         <TileImage
                           tile={tile}
-                          faceDown={!showOpponentHand || !otherPlayer?.isCPU}
+                          faceDown={isSpectator ? false : (!showOpponentHand || !displayOtherPlayer?.isCPU)}
                         />
                       </div>
                     </React.Fragment>
@@ -1789,7 +1850,7 @@ export default function GamePage({
                   {getRoundLabel(gameState)}
                 </div>
                 <div className="text-xs font-bold text-green-900">
-                  自風 {getSeatWindLabel(gameState, userId)}
+                  自風 {getSeatWindLabel(gameState, effectiveUserId)}
                 </div>
               </div>
 
@@ -1806,13 +1867,13 @@ export default function GamePage({
                 <div className="text-xs text-gray-500 mb-1">得点</div>
                 <div className="text-sm font-bold flex justify-around gap-4">
                   <div>
-                    <div className="text-xs text-gray-600">あなた ({playerName})</div>
+                    <div className="text-xs text-gray-600">{isSpectator ? (gameState.players?.find(p => p.userId === effectiveUserId)?.playerName ?? 'P1') : `あなた (${playerName})`}</div>
                     <div className="text-green-600">
-                      {((gameState?.scores?.[userId]) ?? 25000)?.toLocaleString()}
+                      {((gameState?.scores?.[effectiveUserId]) ?? 25000)?.toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-600">相手 ({otherPlayer?.playerName || '---'})</div>
+                    <div className="text-xs text-gray-600">相手 ({displayOtherPlayer?.playerName || '---'})</div>
                     <div className="text-red-500">
                       {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                     </div>
@@ -1857,7 +1918,7 @@ export default function GamePage({
             <div className="w-full mb-3 rounded-lg p-1 border border-gray-300 min-h-28">
               {/* 自分のリーチ棒表示 */}
               {(() => {
-                const isPlayerRiichi = gameState.riichi && gameState.riichi[userId];
+                const isPlayerRiichi = gameState.riichi && gameState.riichi[effectiveUserId];
                 return isPlayerRiichi ? (
                   <div className="mb-2 flex items-center gap-2">
                     <img
@@ -1874,7 +1935,7 @@ export default function GamePage({
                     <span className="text-gray-400 text-xs">なし</span>
                   ) : (
                     yourDiscards.map((tile, idx) => {
-                      const isRiichiDiscard = gameState.riichiDiscards?.[userId] === idx;
+                      const isRiichiDiscard = gameState.riichiDiscards?.[effectiveUserId] === idx;
                       const isTsumogiri = tile.isTsumogiri === true;
                       return (
                         <div
@@ -1997,7 +2058,7 @@ export default function GamePage({
         <div className="flex flex-row gap-4 items-start">
           {/* Hand tiles section */}
           <div className="flex gap-3 flex-1 flex-wrap content-start justify-start">
-            {gameState.tiles && gameState.tiles[userId]?.hand && gameState.tiles[userId].hand.length > 0 ? (
+            {gameState.tiles && gameState.tiles[effectiveUserId]?.hand && gameState.tiles[effectiveUserId].hand.length > 0 ? (
               <>
                 <div className="flex flex-wrap gap-px">
                   {displayHandIndices.map((idx: number) => (
@@ -2273,15 +2334,16 @@ export default function GamePage({
             <FuroDisplay
               melds={melds}
               layout="vertical"
-              seatWindYou={gameState.seatWinds?.[userId]}
+              seatWindYou={gameState.seatWinds?.[effectiveUserId]}
               seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
-              concealedMeldIndices={new Set(gameState.tiles?.[userId]?.concealedMeldIndices ?? [])}
-              daiminkanMeldIndices={new Set(gameState.tiles?.[userId]?.daiminkanMeldIndices ?? [])}
+              concealedMeldIndices={new Set(gameState.tiles?.[effectiveUserId]?.concealedMeldIndices ?? [])}
+              daiminkanMeldIndices={new Set(gameState.tiles?.[effectiveUserId]?.daiminkanMeldIndices ?? [])}
             />
           </div>
         </div>
 
-        {/* Action buttons & settings - pushed to bottom */}
+        {/* Action buttons & settings - pushed to bottom (hidden in spectator mode) */}
+        {!isSpectator && (
         <div className="mt-auto">
         {/* Action buttons section - compact vertical layout */}
           <div className='w-full flex gap-8 justify-end'>
@@ -2475,6 +2537,7 @@ export default function GamePage({
           </div>
         </div>
         </div>
+        )}
       </div>
 
       {/* Score Result Modal */}
@@ -2514,7 +2577,7 @@ export default function GamePage({
               finalResults={finalResults}
               gameState={gameState}
               onBack={onBack}
-              onRequestRematch={() => {
+              onRequestRematch={isSpectator ? undefined : () => {
                 if (wsRef.current?.readyState === WebSocket.OPEN) {
                   wsRef.current.send(JSON.stringify({ type: 'rematch' }))
                   setRematchRequested(true)
