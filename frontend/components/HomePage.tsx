@@ -69,6 +69,7 @@ export default function HomePage({
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(savedSettings?.autoActionTimerSeconds ?? defaultAutoActionTimerSeconds)
   const [useRedDora, setUseRedDora] = useState(savedSettings?.useRedDora ?? true)
   const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? true)
+  const [riichiDepositRequired, setRiichiDepositRequired] = useState(savedSettings?.riichiDepositRequired ?? true)
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
@@ -137,6 +138,42 @@ export default function HomePage({
           autoActionTimerSeconds: defaultAutoActionTimerSeconds,
           useRedDora: true,
           notenPenalty: true,
+          riichiDepositRequired: true,
+          aotenjou: false,
+          dealerSelection: 'random',
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateWithQuickRules = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: defaultWallTiles,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: defaultAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: false,
           aotenjou: false,
           dealerSelection: 'random',
         }),
@@ -192,6 +229,7 @@ export default function HomePage({
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora: useRedDora,
           notenPenalty: notenPenalty,
+          riichiDepositRequired: riichiDepositRequired,
           aotenjou: aotenjou,
           dealerSelection: dealerSelection,
         }),
@@ -216,6 +254,7 @@ export default function HomePage({
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora,
           notenPenalty,
+          riichiDepositRequired,
           aotenjou,
           dealerSelection,
         }))
@@ -244,6 +283,7 @@ export default function HomePage({
     setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
     setUseRedDora(true)
     setNotenPenalty(false)
+    setRiichiDepositRequired(true)
     setAotenjou(false)
     setDealerSelection('random')
   }
@@ -462,12 +502,12 @@ export default function HomePage({
           <div className="w-full max-w-xs border-2 border-white bg-[#2d5016] p-6 shadow-2xl flex flex-col gap-3">
             <h3 className="text-xl font-bold text-white m-0 mb-2">部屋の作成方法</h3>
             <button
-              onClick={handleCreateWithDefaults}
+              onClick={handleCreateWithQuickRules}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              デフォルトルールで作成<br/>
-              (一局勝負)
+              <div>クイックルールで作成</div>
+              <div className='text-xs'>(一局勝負・和了以外の得点変動なし)</div>
             </button>
             <button
               onClick={handleOpenCustomCreate}
@@ -678,6 +718,20 @@ export default function HomePage({
                       className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
                     />
                     <span className="text-gray-300 text-xs">ノーテン罰符あり</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">リーチ供託点</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={riichiDepositRequired}
+                      onChange={(e) => setRiichiDepositRequired(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">リーチ時に供託点あり（1000点）</span>
                   </label>
                 </div>
               </div>

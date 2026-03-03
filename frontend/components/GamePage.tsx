@@ -2457,14 +2457,6 @@ export default function GamePage({
               </div>
             )}
           </div>
-        {/* autoPlayモード時のインジケーター */}
-        {autoPlayMode && gameState.status === 'playing' && (
-          <div className="w-full flex justify-center">
-            <div className="px-4 py-2 bg-blue-100 border-2 border-blue-500 rounded font-bold text-sm text-blue-800 text-center shadow-md animate-pulse">
-              🤖 CPU操作中...
-            </div>
-          </div>
-        )}
 
         <div className="mt-1 flex grid grid-cols-4 gap-1 items-center justify-center flex-wrap">
           {(DEVELOPMENT_MODE || otherPlayer?.isCPU) && (

@@ -123,6 +123,9 @@ app.post('/api/rooms', (req, res) => {
   // ノーテン罰符
   const notenPenalty = req.body?.notenPenalty === true;
 
+  // リーチ供託点必須
+  const riichiDepositRequired = req.body?.riichiDepositRequired !== false;
+
   // 青天井モード
   const aotenjou = req.body?.aotenjou === true;
 
@@ -132,7 +135,7 @@ app.post('/api/rooms', (req, res) => {
     ? req.body.dealerSelection
     : 'random';
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, aotenjou, dealerSelection });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, dealerSelection });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

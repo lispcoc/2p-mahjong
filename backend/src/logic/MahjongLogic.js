@@ -38,6 +38,7 @@ class MahjongLogic {
     this.aotenjou = options.aotenjou || false; // 青天井モード
     this.scoreCalculator = new ScoreCalculator({ aotenjou: this.aotenjou });
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
+    this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     const rawWallTiles = Number(options.wallTiles);
@@ -2558,8 +2559,8 @@ class MahjongLogic {
       return { success: false, message: '既にリーチしています' };
     }
 
-    // 持ち点がリーチ供託点未満
-    if (player.score < settings.game.riichiDeposit) {
+    // 持ち点がリーチ供託点未満（供託点必須の場合のみチェック）
+    if (this.riichiDepositRequired && player.score < settings.game.riichiDeposit) {
       return { success: false, message: '持ち点が' + settings.game.riichiDeposit + '点未満のためリーチできません（現在' + player.score + '点）' };
     }
 
@@ -2644,10 +2645,12 @@ class MahjongLogic {
       console.log(`[Riichi] ⭐ ダブル立直成立！ Player: ${playerId}`);
     }
 
-    player.score -= settings.game.riichiDeposit;
-    this.riichiDeposits += settings.game.riichiDeposit;
+    if (this.riichiDepositRequired) {
+      player.score -= settings.game.riichiDeposit;
+      this.riichiDeposits += settings.game.riichiDeposit;
+    }
 
-    console.log(`[Riichi] ${playerId} declared riichi. Deposit: ${this.riichiDeposits}, isDoubleRiichi: ${player.isDoubleRiichi}`);
+    console.log(`[Riichi] ${playerId} declared riichi. Deposit: ${this.riichiDeposits}, isDoubleRiichi: ${player.isDoubleRiichi}, riichiDepositRequired: ${this.riichiDepositRequired}`);
     console.log(`[Riichi] New score: ${player.score}`);
     console.log(`[Riichi] Riichi discard index: ${player.riichiDiscardIndex}`);
 

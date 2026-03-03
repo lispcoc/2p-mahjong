@@ -53,6 +53,7 @@ class GameRoom {
     this.pendingTsumoLuckSettings = { my: 1, opponent: 1 }; // Default pending settings to be applied on player join
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
+    this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
@@ -311,6 +312,7 @@ class GameRoom {
         tsumoLuckSettings: tsumoLuckSettings,
         useRedDora: this.useRedDora,
         aotenjou: this.aotenjou,
+        riichiDepositRequired: this.riichiDepositRequired,
       }
     );
     if (this.riichiDepositsCarryover > 0) {
