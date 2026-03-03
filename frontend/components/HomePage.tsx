@@ -72,6 +72,7 @@ export default function HomePage({
   const [riichiDepositRequired, setRiichiDepositRequired] = useState(savedSettings?.riichiDepositRequired ?? true)
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
+  const [ronMultiplier, setRonMultiplier] = useState<number>(savedSettings?.ronMultiplier ?? 1)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
@@ -141,6 +142,7 @@ export default function HomePage({
           riichiDepositRequired: true,
           aotenjou: false,
           dealerSelection: 'random',
+          ronMultiplier: 1,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -176,6 +178,7 @@ export default function HomePage({
           riichiDepositRequired: false,
           aotenjou: false,
           dealerSelection: 'random',
+          ronMultiplier: 1,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -232,6 +235,7 @@ export default function HomePage({
           riichiDepositRequired: riichiDepositRequired,
           aotenjou: aotenjou,
           dealerSelection: dealerSelection,
+          ronMultiplier: ronMultiplier,
         }),
       })
 
@@ -257,6 +261,7 @@ export default function HomePage({
           riichiDepositRequired,
           aotenjou,
           dealerSelection,
+          ronMultiplier,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -286,6 +291,7 @@ export default function HomePage({
     setRiichiDepositRequired(true)
     setAotenjou(false)
     setDealerSelection('random')
+    setRonMultiplier(1)
   }
 
   const handleCancelCreateRoom = () => {
@@ -794,6 +800,27 @@ export default function HomePage({
                       相手の親から開始
                     </label>
                   </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">ロン得点倍率</label>
+                <div className="flex flex-col gap-2 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  {([1, 1.5, 2] as number[]).map((val) => (
+                    <div key={val} className="flex items-center gap-2">
+                      <input
+                        id={`ron-multiplier-${val}`}
+                        type="radio"
+                        name="ronMultiplier"
+                        value={val}
+                        checked={ronMultiplier === val}
+                        onChange={() => setRonMultiplier(val)}
+                        className="w-4 h-4 cursor-pointer"
+                      />
+                      <label className="text-gray-300 text-xs cursor-pointer" htmlFor={`ron-multiplier-${val}`}>
+                        {val === 1 ? `×${val}（デフォルト）` : `×${val}`}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

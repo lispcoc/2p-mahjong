@@ -129,13 +129,18 @@ app.post('/api/rooms', (req, res) => {
   // 青天井モード
   const aotenjou = req.body?.aotenjou === true;
 
+  // ロン倍率: 1 (デフォルト), 1.5, 2
+  const supportedRonMultipliers = [1, 1.5, 2];
+  const rawRonMultiplier = Number(req.body?.ronMultiplier);
+  const ronMultiplier = supportedRonMultipliers.includes(rawRonMultiplier) ? rawRonMultiplier : 1;
+
   // 親の開始設定: 'random' | 'self' | 'opponent'
   const supportedDealerSelections = ['random', 'self', 'opponent'];
   const dealerSelection = supportedDealerSelections.includes(req.body?.dealerSelection)
     ? req.body.dealerSelection
     : 'random';
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, dealerSelection });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, ronMultiplier, dealerSelection });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

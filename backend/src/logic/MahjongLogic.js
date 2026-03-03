@@ -36,6 +36,7 @@ class MahjongLogic {
     this.ronPossibleFor = null; // Track if Ron is possible for a player
     this.ronTile = null; // The tile that can be claimed for Ron
     this.aotenjou = options.aotenjou || false; // 青天井モード
+    this.ronMultiplier = [1, 1.5, 2].includes(options.ronMultiplier) ? options.ronMultiplier : 1; // ロン倍率
     this.scoreCalculator = new ScoreCalculator({ aotenjou: this.aotenjou });
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
@@ -1353,7 +1354,14 @@ class MahjongLogic {
 
     // 点数精算（ロン：振り込み者が支払う）
     const loserPlayerId = this.lastDiscardBy;
-    const payment = scoreResult.score;
+    let payment = scoreResult.score;
+
+    // ロン倍率の適用（1倍以外のとき100点単位で切り上げ）
+    if (this.ronMultiplier !== 1) {
+      payment = Math.ceil(payment * this.ronMultiplier / 100) * 100;
+      scoreResult.score = payment;
+      scoreResult.ronMultiplier = this.ronMultiplier;
+    }
 
     this.players[userId].score += payment;
     this.players[loserPlayerId].score -= payment;

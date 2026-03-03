@@ -167,13 +167,19 @@ export function ScoreResultModal({
               {scoreResult.yaku && scoreResult.yaku.length > 0 ? (
                 <div className="text-sm">
                   {scoreResult.yaku.map((y: any, idx: number) => (
-                    <div key={idx} className={`flex justify-between py-1.5 px-0 ${idx < scoreResult.yaku.length - 1 ? 'border-b border-white' : ''} text-white`}>
+                    <div key={idx} className={`flex justify-between py-1.5 px-0 border-b border-white text-white`}>
                       <span className="font-bold">{y.name}</span>
                       <span className={`${y.isYakuman ? 'text-yellow-300 font-bold' : 'text-green-300'}`}>
                         {y.isYakuman ? (y.yakumanValue === 2 ? 'ダブル役満' : '役満') : `${y.han}飜`}
                       </span>
                     </div>
                   ))}
+                  {scoreResult.ronMultiplier && scoreResult.ronMultiplier !== 1 && (
+                    <div className="flex justify-between py-1.5 px-0 text-white">
+                      <span className="font-bold">ロン</span>
+                      <span className="text-orange-300 font-bold">×{scoreResult.ronMultiplier}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <p className="text-gray-300 italic text-xs m-0">役なし</p>

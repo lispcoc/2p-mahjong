@@ -55,6 +55,8 @@ class GameRoom {
     this.notenPenalty = options.notenPenalty || false; // ノーテン罰符を使用するか
     this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
+    const supportedRonMultipliers = [1, 1.5, 2];
+    this.ronMultiplier = supportedRonMultipliers.includes(options.ronMultiplier) ? options.ronMultiplier : 1; // ロン倍率
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
   }
@@ -312,6 +314,7 @@ class GameRoom {
         tsumoLuckSettings: tsumoLuckSettings,
         useRedDora: this.useRedDora,
         aotenjou: this.aotenjou,
+        ronMultiplier: this.ronMultiplier,
         riichiDepositRequired: this.riichiDepositRequired,
       }
     );
