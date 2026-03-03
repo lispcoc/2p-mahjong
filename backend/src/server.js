@@ -547,6 +547,7 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     gameState: { ...gameState, isSpectatorView: true },
     isSpectator: true,
     isReconnecting,
+    spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
   };
 
   try {

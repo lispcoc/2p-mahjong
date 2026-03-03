@@ -90,6 +90,8 @@ export default function GamePage({
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
   const [showHandEditor, setShowHandEditor] = useState(false) // 手牌エディタ表示フラグ
+  const [spectatorShowHands, setSpectatorShowHands] = useState(false) // 観戦時 手牌表示フラグ
+  const [spectatorHandsAllowed, setSpectatorHandsAllowed] = useState(false) // サーバー設定: 観戦時に手牌表示を許可するか
   const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
@@ -399,6 +401,9 @@ export default function GamePage({
           }
           try { localStorage.setItem('mahjong-session', JSON.stringify(spectatorSession)) } catch {}
         }
+        const handsAllowed = payload.spectatorShowHandsByDefault !== false
+        setSpectatorHandsAllowed(handsAllowed)
+        setSpectatorShowHands(handsAllowed)
         if (payload.gameState) {
           setGameState({ ...payload.gameState, isSpectatorView: true })
           if (payload.gameState.autoActionTimerSeconds) {
@@ -1679,6 +1684,14 @@ export default function GamePage({
             ルームID: {roomId}<br/>
             ステータス: {gameState.status}
             {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">👁️ 観戦中</span>}
+            {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
+              <button
+                onClick={() => setSpectatorShowHands(prev => !prev)}
+                className={`ml-2 px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors ${spectatorShowHands ? 'bg-green-600 text-white' : 'bg-gray-500 text-white'}`}
+              >
+                {spectatorShowHands ? '🃏 手牌を隠す' : '🃏 手牌を見る'}
+              </button>
+            )}
             {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
               <span className="ml-2 text-yellow-300">👁️ 見学中: {gameState.spectatorCount}人</span>
             )}
@@ -1780,7 +1793,7 @@ export default function GamePage({
                       <div className="inline-block">
                         <TileImage
                           tile={tile}
-                          faceDown={isSpectator ? false : (!showOpponentHand || !displayOtherPlayer?.isCPU)}
+                          faceDown={isSpectator ? (!spectatorHandsAllowed || !spectatorShowHands) : (!showOpponentHand || !displayOtherPlayer?.isCPU)}
                         />
                       </div>
                     </React.Fragment>
@@ -2068,6 +2081,7 @@ export default function GamePage({
                     >
                       <TileImage
                         tile={fullHand[idx]}
+                        faceDown={isSpectator && (!spectatorHandsAllowed || !spectatorShowHands)}
                         onClick={() => {
                           // リーチ中は手牌をクリックできない
                           if (isRiichi) {

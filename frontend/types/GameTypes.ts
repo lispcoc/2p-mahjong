@@ -55,4 +55,5 @@ export interface GameState {
   initialScore?: number
   spectatorCount?: number
   isSpectatorView?: boolean
+  spectatorShowHandsByDefault?: boolean
 }

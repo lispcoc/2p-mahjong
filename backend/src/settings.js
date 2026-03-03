@@ -55,6 +55,11 @@ module.exports = {
     cpuTurnRecheckDelayMs: 100,   // CPU次ターン再チェック遅延（ミリ秒）
   },
 
+  // ===== 観戦設定 =====
+  spectator: {
+    showHandsByDefault: false, // 観戦時にプレイヤーの手牌をデフォルトで表示するか
+  },
+
   // ===== 配牌運（ツモ運）設定 =====
   tsumoLuck: {
     maxLevel: 3,                      // ツモ運最大レベル
