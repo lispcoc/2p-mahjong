@@ -1226,6 +1226,36 @@ function executeCPUTurnIfNeeded(room) {
     } // end of !hasTsumoOpportunity block
   }
 
+  // 人間プレイヤーがリーチ中・ツモ牌あり・和了不可 → ツモ切りを自動実行
+  const ct = room.gameLogic.getCurrentTurn();
+  const cp = room.players?.get(ct);
+  if (
+    cp && !cp.isCPU && !cp.autoPlay &&
+    room.gameLogic.isPlayerRiichi(ct) &&
+    room.gameLogic.getDrawnTileIndex(ct) >= 0 &&
+    !room.gameLogic.isWinningHand(ct)
+  ) {
+    const roomId = room.roomId;
+    console.log(`🔴 [executeCPUTurnIfNeeded] Human ${cp.playerName} in riichi with drawn tile - triggering tsumo-giri in ${settings.cpuDelays.riichiAutoDiscardDelayMs}ms`);
+    setTimeout(() => {
+      console.log(`🔴 [executeCPUTurnIfNeeded] Executing tsumo-giri for ${ct}`);
+      const autoDiscardResult = room.handlePlayerAction(ct, { type: 'discard' });
+      console.log(`🔴 [executeCPUTurnIfNeeded] Tsumo-giri result:`, { success: autoDiscardResult?.success, finished: autoDiscardResult?.finished });
+
+      broadcastToRoom(roomId, {
+        type: 'gameStateUpdate',
+        payload: room.getGameState(),
+      });
+
+      if (room.isFinished()) {
+        handleAutoPlayGameFinished(room, 'RIICHI_TSUMOGIRI');
+      } else {
+        executeCPUTurnIfNeeded(room);
+      }
+    }, settings.cpuDelays.riichiAutoDiscardDelayMs);
+    return;
+  }
+
   if (room.isCurrentTurnCPU()) {
     console.log('🤖 Executing CPU turn...');
     room.executeCPUTurn(() => {
