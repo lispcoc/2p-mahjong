@@ -466,7 +466,8 @@ export default function HomePage({
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              デフォルトルールで作成
+              デフォルトルールで作成<br/>
+              (一局勝負)
             </button>
             <button
               onClick={handleOpenCustomCreate}
@@ -619,7 +620,7 @@ export default function HomePage({
                       className="w-4 h-4 cursor-pointer"
                     />
                     <label className="text-gray-300 text-xs cursor-pointer" htmlFor="gameMode-oneRound">
-                      1局勝負（最初に和了したプレイヤーが勝ち）
+                      一局勝負（最初に和了したプレイヤーが勝ち）
                     </label>
                   </div>
                   <div className="flex items-center gap-2">
