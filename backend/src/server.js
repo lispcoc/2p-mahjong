@@ -98,6 +98,31 @@ app.get('/', (req, res) => {
   res.json({ message: 'Mahjong backend is running', port });
 });
 
+app.get('/playerNames', (req, res) => {
+  try {
+    if (!fs.existsSync(PLAYER_LOG_FILE)) {
+      return res.json({ playerNames: [] });
+    }
+    const content = fs.readFileSync(PLAYER_LOG_FILE, 'utf8');
+    const playerNames = content
+      .trim()
+      .split('\n')
+      .filter(line => line.trim())
+      .map(line => {
+        const commaIndex = line.indexOf(',');
+        return {
+          date: line.slice(0, commaIndex).trim(),
+          name: line.slice(commaIndex + 1).trim(),
+        };
+      });
+    res.json({ playerNames });
+  } catch (err) {
+    console.error('❌ Failed to read player names:', err.message);
+    res.status(500).json({ error: 'Failed to read player names' });
+  }
+});
+
+
 app.get('/api/debug', (req, res) => {
   const roomsInfo = [];
   rooms.forEach((room, roomId) => {
