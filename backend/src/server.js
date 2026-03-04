@@ -2,9 +2,56 @@ const express = require('express');
 const WebSocket = require('ws');
 const http = require('http');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
+
+// プレイヤー名をCSVファイルに記録する関数
+// 同じ名前が再度使われた場合は日付のみ更新する
+const PLAYER_LOG_FILE = path.join(process.cwd(), 'player-names.csv');
+
+function logPlayerName(playerName) {
+  try {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    let records = [];
+    let found = false;
+
+    if (fs.existsSync(PLAYER_LOG_FILE)) {
+      const content = fs.readFileSync(PLAYER_LOG_FILE, 'utf8');
+      records = content
+        .trim()
+        .split('\n')
+        .filter(line => line.trim())
+        .map(line => {
+          const commaIndex = line.indexOf(',');
+          return {
+            date: line.slice(0, commaIndex).trim(),
+            name: line.slice(commaIndex + 1).trim(),
+          };
+        });
+    }
+
+    records = records.map(record => {
+      if (record.name === playerName) {
+        found = true;
+        return { date: today, name: playerName };
+      }
+      return record;
+    });
+
+    if (!found) {
+      records.push({ date: today, name: playerName });
+    }
+
+    const content = records.map(r => `${r.date},${r.name}`).join('\n') + '\n';
+    fs.writeFileSync(PLAYER_LOG_FILE, content, 'utf8');
+    console.log(`📝 Player name logged: ${playerName} (${today})`);
+  } catch (err) {
+    console.error('❌ Failed to log player name:', err.message);
+  }
+}
 
 const app = express();
 const port = process.env.PORT || settings.server.port;
@@ -355,6 +402,9 @@ function handleJoin(ws, payload) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
     return;
   }
+
+  // プレイヤー名をCSVログに記録
+  logPlayerName(playerName);
 
   const room = rooms.get(roomId);
   if (!room) {
