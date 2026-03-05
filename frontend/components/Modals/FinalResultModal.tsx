@@ -100,14 +100,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, isHost, rema
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
-          {/* Rematch ready status */}
-          {(onRematchReady || onStartRematch) && (
-            <div className="text-center text-gray-600 text-sm bg-gray-50 rounded py-2">
-              再戦準備OK: {rematchReadyCount} / {totalPlayers} 人
-            </div>
-          )}
-
-          <div className="flex gap-3 flex-wrap">
+          <div className="flex gap-3 flex-col">
             {/* 再戦準備OK button – available to all non-spectators */}
             {onRematchReady && (
               <button
@@ -136,7 +129,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, isHost, rema
               >
                 再戦開始
                 {rematchReadyCount < totalPlayers && (
-                  <span className="block text-xs font-normal mt-0.5">（全員の準備完了を待っています）</span>
+                  <span className="block text-xs font-normal mt-0.5">（準備完了: {rematchReadyCount} / {totalPlayers} 人）</span>
                 )}
               </button>
             )}
@@ -159,7 +152,7 @@ export function FinalResultModal({ finalResults, gameState, onBack, isHost, rema
               onClick={onBack}
               className="px-6 py-3 text-base font-bold rounded bg-gray-500 text-white cursor-pointer flex-1 hover:bg-gray-600 border-none"
             >
-              戻る
+              退室する
             </button>
           </div>
         </div>

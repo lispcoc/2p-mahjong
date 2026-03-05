@@ -2589,7 +2589,11 @@ export default function GamePage({
           {/* Final Results Modal (Game Over) */}
           {finalResults && showFinalResults && (() => {
             const isRoomHost = !isSpectator && !!userId && gameState?.hostId === userId
-            const totalRematchPlayers = gameState?.players?.length ?? 2
+            const humanPlayers = gameState?.players?.filter((p: any) => !p.isCPU) ?? []
+            const totalRematchPlayers = humanPlayers.length || 1
+            const humanReadyCount = rematchReadyUserIds.filter(uid =>
+              humanPlayers.some((p: any) => p.userId === uid)
+            ).length
             const myRematchReady = rematchReadyUserIds.includes(userId)
             return (
               <FinalResultModal
@@ -2598,7 +2602,7 @@ export default function GamePage({
                 onBack={onBack}
                 isHost={isRoomHost}
                 rematchReady={myRematchReady}
-                rematchReadyCount={rematchReadyCount}
+                rematchReadyCount={humanReadyCount}
                 totalPlayers={totalRematchPlayers}
                 onRematchReady={isSpectator ? undefined : () => {
                   if (wsRef.current?.readyState === WebSocket.OPEN) {

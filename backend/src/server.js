@@ -1070,6 +1070,13 @@ function handleRematch(ws) {
   room.rematchReady.add(userId);
   console.log(`🔄 Rematch ready: ${playerName} in room ${roomId} (${room.rematchReady.size}/${room.players.size})`);
 
+  // CPU対戦時は人間プレイヤーが押したら即座に全CPUも準備完了にする
+  for (const [playerId, player] of room.players) {
+    if (player.isCPU && !room.rematchReady.has(playerId)) {
+      room.rematchReady.add(playerId);
+    }
+  }
+
   // 全員に再戦準備状況を通知
   broadcastToRoom(roomId, {
     type: 'rematchReadyUpdate',
