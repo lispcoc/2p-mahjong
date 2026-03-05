@@ -228,14 +228,15 @@ app.post('/api/rooms', (req, res) => {
 app.get('/api/rooms', (req, res) => {
   const roomsInfo = [];
   rooms.forEach((room, roomId) => {
-    // Only show rooms that have at least one connected player
-    // or are waiting for players
+    // Only show rooms that have at least one connected player,
+    // are waiting for players, or have finished a round/game
     const connectedCount = room.getConnectedPlayersCount();
-    if (connectedCount > 0 || room.getStatus() === 'waiting') {
+    const status = room.getStatus();
+    if (connectedCount > 0 || status === 'waiting' || status === 'finished' || status === 'gameOver') {
       const players = room.getPlayers();
       roomsInfo.push({
         roomId,
-        status: room.getStatus(),
+        status,
         playersCount: connectedCount,
         playerNames: players.map(p => p.playerName),
         createdAt: room.createdAt,
