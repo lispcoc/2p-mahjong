@@ -48,8 +48,8 @@ export default function Page() {
           console.log('✅ Valid session found, restoring...')
           setPlayerName(session.playerName)
           setRoomId(session.roomId)
-          setPageState('game')
-          console.log('✅ State updated to game')
+          setPageState(session.isSpectator ? 'spectate' : 'game')
+          console.log('✅ State updated to', session.isSpectator ? 'spectate' : 'game')
           shouldGoToLogin = false
         } else {
           console.log('⏰ Session expired or invalid, clearing...')
@@ -98,18 +98,20 @@ export default function Page() {
         const session = JSON.parse(savedData)
         if (session.roomId && session.roomId !== newRoomId && session.userId) {
           console.log('🗑️ Cleaning up old session (different room)')
-          // Notify backend to remove the old player
-          try {
-            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-            const response = await fetch(
-              `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
-              { method: 'DELETE' }
-            )
-            if (response.ok) {
-              console.log('✅ Old player removed from server')
+          // Notify backend to remove the old player (spectators have no player entry)
+          if (!session.isSpectator) {
+            try {
+              const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+              const response = await fetch(
+                `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
+                { method: 'DELETE' }
+              )
+              if (response.ok) {
+                console.log('✅ Old player removed from server')
+              }
+            } catch (err) {
+              console.error('Error removing old player:', err)
             }
-          } catch (err) {
-            console.error('Error removing old player:', err)
           }
           localStorage.removeItem('mahjong-session')
         }
@@ -133,18 +135,20 @@ export default function Page() {
         const session = JSON.parse(savedData)
         if (session.roomId && session.roomId !== existingRoomId && session.userId) {
           console.log('🗑️ Cleaning up old session (different room)')
-          // Notify backend to remove the old player
-          try {
-            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-            const response = await fetch(
-              `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
-              { method: 'DELETE' }
-            )
-            if (response.ok) {
-              console.log('✅ Old player removed from server')
+          // Notify backend to remove the old player (spectators have no player entry)
+          if (!session.isSpectator) {
+            try {
+              const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+              const response = await fetch(
+                `${backendUrl}/api/rooms/${session.roomId}/players/${session.userId}`,
+                { method: 'DELETE' }
+              )
+              if (response.ok) {
+                console.log('✅ Old player removed from server')
+              }
+            } catch (err) {
+              console.error('Error removing old player:', err)
             }
-          } catch (err) {
-            console.error('Error removing old player:', err)
           }
           localStorage.removeItem('mahjong-session')
         }
@@ -160,8 +164,14 @@ export default function Page() {
   }
 
   const handleBackToHome = () => {
-    // Keep session so the user can rejoin the same room from the list
-    console.log('ℹ️ Keeping session on back to home')
+    if (pageState === 'spectate') {
+      // 観戦モードから戻る場合はセッションをクリア
+      localStorage.removeItem('mahjong-session')
+      console.log('🗑️ Cleared spectator session on back to home')
+    } else {
+      // Keep session so the user can rejoin the same room from the list
+      console.log('ℹ️ Keeping session on back to home')
+    }
     setPageState('home')
     setRoomId('')
     setShouldRefreshRooms(true)
