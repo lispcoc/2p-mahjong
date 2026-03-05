@@ -323,11 +323,22 @@ export function useGameConnection({
         joinPayload.spectator = true
       }
 
-      // If we have a saved session, include the userId for reconnection
-      if (savedSession && savedSession.userId) {
+      // Always include the persistent userId (generated at login, kept until logout)
+      // This ensures the same userId is used across all rooms
+      let persistentUserId: string | null = null
+      try {
+        persistentUserId = localStorage.getItem('mahjong-userId')
+      } catch {}
+
+      if (persistentUserId) {
+        joinPayload.userId = persistentUserId
+        debugLog(`🪪 Sending persistent userId=${persistentUserId}`)
+        console.log('🪪 Sending persistent userId:', persistentUserId)
+      } else if (savedSession && savedSession.userId) {
+        // Fallback: use session userId (e.g. for reconnection before migration)
         joinPayload.userId = savedSession.userId
-        debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
-        console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
+        debugLog(`🔄 Fallback: reconnect with session userId=${savedSession.userId}`)
+        console.log('🔄 Fallback reconnection with userId:', savedSession.userId)
       }
 
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)

@@ -473,9 +473,9 @@ function handleJoin(ws, payload) {
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid reconnection attempt' }));
       return;
     } else {
-      // UserId provided but player not found - treat as new connection
-      console.log(`⚠️ UserId provided but player not found in room - treating as new player`);
-      userId = null;
+      // UserId provided but player not found in this room - new connection, reuse provided userId
+      console.log(`ℹ️ UserId provided but not in room - new player joining with existing userId`);
+      // Keep userId as-is (do not reset to null) so the persistent client ID is preserved
     }
   } else {
     console.log(`ℹ️ No userId provided - new player joining`);
@@ -490,7 +490,9 @@ function handleJoin(ws, payload) {
       return;
     }
 
-    userId = uuidv4();
+    if (!userId) {
+      userId = uuidv4();
+    }
     const addPlayerResult = room.addPlayer(userId, playerName, ws);
 
     if (!addPlayerResult.success) {
@@ -610,7 +612,9 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
   }
 
   if (!isReconnecting) {
-    userId = uuidv4();
+    if (!userId) {
+      userId = uuidv4();
+    }
     room.addSpectator(userId, spectatorName, ws);
     console.log(`👀 Spectator joined: ${spectatorName} (${userId}) to room ${roomId}`);
   }

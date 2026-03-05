@@ -68,6 +68,13 @@ export default function Page() {
       const savedName = localStorage.getItem('mahjong-playerName')
       if (savedName) {
         console.log('➡️ No valid session, but found saved playerName, going to home')
+        // Generate persistent userId if not yet created
+        try {
+          if (!localStorage.getItem('mahjong-userId')) {
+            localStorage.setItem('mahjong-userId', crypto.randomUUID())
+            console.log('🆔 Generated new persistent userId for returning user')
+          }
+        } catch {}
         setPlayerName(savedName)
         setPageState('home')
       } else {
@@ -86,6 +93,13 @@ export default function Page() {
   const handleLogin = (name: string) => {
     setPlayerName(name)
     localStorage.setItem('mahjong-playerName', name)
+    // Generate persistent userId on first login (kept until logout)
+    try {
+      if (!localStorage.getItem('mahjong-userId')) {
+        localStorage.setItem('mahjong-userId', crypto.randomUUID())
+        console.log('🆔 Generated new persistent userId on login')
+      }
+    } catch {}
     setPageState('home')
   }
 
@@ -188,7 +202,8 @@ export default function Page() {
     // Clear session and saved player name on logout
     localStorage.removeItem('mahjong-session')
     localStorage.removeItem('mahjong-playerName')
-    console.log('🗑️ Cleared session and playerName on logout')
+    localStorage.removeItem('mahjong-userId')
+    console.log('🗑️ Cleared session, playerName, and userId on logout')
 
     setPageState('login')
     setPlayerName('')
