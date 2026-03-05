@@ -99,6 +99,7 @@ export default function GamePage({
   const [rematchRequested, setRematchRequested] = useState(false) // 再戦準備OK送信済み（自分）
   const [rematchReadyCount, setRematchReadyCount] = useState(0) // 再戦準備OK人数
   const [rematchReadyUserIds, setRematchReadyUserIds] = useState<string[]>([]) // 再戦準備OK済みuserId一覧
+  const [reconnectTrigger, setReconnectTrigger] = useState(0) // 再接続トリガー
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try { return localStorage.getItem('mahjong-sound-enabled') !== 'false' } catch { return false }
   })
@@ -114,6 +115,7 @@ export default function GamePage({
   const pendingPungIntervalRef = useRef<number | null>(null)  // ポン待ち時のカウントダウンインターバルのID
   const noMeldAutoDrawRef = useRef<string | null>(null)  // ノーメルドモード自動ツモの状態フラグ
   const attemptedReconnectUserId = useRef<string | null>(null)  // Track if we tried to reconnect with a specific userId
+  const reconnectTimerRef = useRef<number | null>(null)  // 再接続タイマー
   const onBackRef = useRef(onBack)
   const opponentActionDelayRef = useRef<number | null>(null)
   const opponentActionHideRef = useRef<number | null>(null)
@@ -923,6 +925,9 @@ export default function GamePage({
       if (opponentTedashiGapTimerRef.current !== null) {
         clearTimeout(opponentTedashiGapTimerRef.current)
       }
+      if (reconnectTimerRef.current !== null) {
+        clearTimeout(reconnectTimerRef.current)
+      }
     }
   }, [])
 
@@ -1073,6 +1078,15 @@ export default function GamePage({
     ws.onclose = () => {
       debugLog('🔌 WebSocket disconnected')
       console.log('🔌 WebSocket disconnected')
+      // 接続フラグをリセットして再接続を許可する
+      connectionAttempted.current = false
+      // タブが表示中なら自動再接続（2秒待機）
+      if (document.visibilityState === 'visible') {
+        if (reconnectTimerRef.current !== null) clearTimeout(reconnectTimerRef.current)
+        reconnectTimerRef.current = window.setTimeout(() => {
+          setReconnectTrigger((t) => t + 1)
+        }, 2000)
+      }
     }
 
     wsRef.current = ws
@@ -1082,7 +1096,28 @@ export default function GamePage({
         wsRef.current.close()
       }
     }
-  }, [roomId, playerName, handleMessage])
+  }, [roomId, playerName, handleMessage, reconnectTrigger])
+
+  // タブ切り替え時に再接続する（スマホブラウザ対応）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const ws = wsRef.current
+        if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+          console.log('🔌 Tab visible but WS closed - scheduling reconnect...')
+          connectionAttempted.current = false
+          if (reconnectTimerRef.current !== null) clearTimeout(reconnectTimerRef.current)
+          reconnectTimerRef.current = window.setTimeout(() => {
+            setReconnectTrigger((t) => t + 1)
+          }, 500)
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
 
   React.useEffect(() => {
     // Debug: log when component is mounted
