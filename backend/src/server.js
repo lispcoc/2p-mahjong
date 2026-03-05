@@ -147,7 +147,22 @@ app.get('/api/debug', (req, res) => {
 });
 
 app.post('/api/rooms', (req, res) => {
-  const roomId = uuidv4().slice(0, 8).toUpperCase();
+  // 部屋数の上限チェック（4桁: 1000〜9999 = 9000通り、その半数を上限とする）
+  if (rooms.size >= 4500) {
+    return res.status(503).json({ error: 'Server is full. Please try again later.' });
+  }
+
+  let roomId;
+  let attempts = 0;
+  const maxAttempts = 20;
+  do {
+    roomId = String(Math.floor(1000 + Math.random() * 9000));
+    attempts++;
+    if (attempts >= maxAttempts) {
+      return res.status(503).json({ error: 'Could not generate a unique room ID. Please try again.' });
+    }
+  } while (rooms.has(roomId));
+
   const rawInitialScore = Number(req.body?.initialScore);
   const initialScore = Number.isFinite(rawInitialScore) && rawInitialScore >= 0
     ? Math.floor(rawInitialScore)
