@@ -17,6 +17,8 @@ class CPUBattleTest {
     this.progress = options.progress !== undefined ? options.progress : false; // プログレッシブ進行度表示
     this.parallel = options.parallel !== undefined ? options.parallel : false; // 並列実行モード
     this.concurrency = options.concurrency || Math.max(2, Math.floor(os.cpus().length / 2)); // 並列度（デフォルトはCPUコア数の半分）
+    this.luck1 = options.luck1 !== undefined ? options.luck1 : null; // CPU-1のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
+    this.luck2 = options.luck2 !== undefined ? options.luck2 : null; // CPU-2のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
     this.room = null;
     this.turnCount = 0;
     this.errors = [];
@@ -104,10 +106,14 @@ class CPUBattleTest {
     this.room.addPlayer('cpu1', 'CPU-1', null, true);
     this.room.addPlayer('cpu2', 'CPU-2', null, true);
 
+    // ツモ運レベルを設定
+    if (this.luck1 !== null) this.room.setTsumoLuck('cpu1', this.luck1);
+    if (this.luck2 !== null) this.room.setTsumoLuck('cpu2', this.luck2);
+
     if (!this.summaryOnly && !this.progress) {
       this.log('✓ CPUプレイヤーを追加しました');
-      this.log(`  - CPU-1 (cpu1)`);
-      this.log(`  - CPU-2 (cpu2)`);
+      this.log(`  - CPU-1 (cpu1) ツモ運Lv.${this.luck1 !== null ? this.luck1 : 0}`);
+      this.log(`  - CPU-2 (cpu2) ツモ運Lv.${this.luck2 !== null ? this.luck2 : 0}`);
     }
 
     // ゲーム開始
@@ -453,6 +459,10 @@ class CPUBattleTest {
     localRoom.addPlayer('cpu1', 'CPU-1', null, true);
     localRoom.addPlayer('cpu2', 'CPU-2', null, true);
 
+    // ツモ運レベルを設定
+    if (this.luck1 !== null) localRoom.setTsumoLuck('cpu1', this.luck1);
+    if (this.luck2 !== null) localRoom.setTsumoLuck('cpu2', this.luck2);
+
     // ゲーム開始
     localRoom.start();
 
@@ -549,6 +559,8 @@ class CPUBattleTest {
       totalTurns: 0,
       totalWinPoints: 0,
       winCount: 0,
+      playerWins: {},    // プレイヤーID -> 勝利数
+      playerDraws: {},   // プレイヤーID -> 流局時テンパイ数
       errors: [],
       warnings: [],
     };
@@ -584,6 +596,8 @@ class CPUBattleTest {
               const han = scoreResult?.han || 0;
               results.totalWinPoints += winScore;
               results.winCount++;
+              // プレイヤー別勝利数を記録
+              results.playerWins[gameResult.winner] = (results.playerWins[gameResult.winner] || 0) + 1;
               // 役の統計に追加
               if (scoreResult?.yaku) {
                 this.addToYakuStats(scoreResult.yaku);
@@ -624,11 +638,14 @@ class CPUBattleTest {
             const han = scoreResult?.han || 0;
             results.totalWinPoints += winScore;
             results.winCount++;
+            // プレイヤー別勝利数を記録
+            results.playerWins[gameResult.winner] = (results.playerWins[gameResult.winner] || 0) + 1;
             // 役の統計に追加
             if (scoreResult?.yaku) {
               this.addToYakuStats(scoreResult.yaku);
             }
-            const resultLine = `🎉 第${i + 1}回: ${gameResult.turnCount}ターン - 和了 ${winScore}点 | 上がり手: ${yaku} | ${han}翻`;
+            const winnerName = gameResult.room.players.get(gameResult.winner)?.playerName || gameResult.winner;
+            const resultLine = `🎉 第${i + 1}回: ${gameResult.turnCount}ターン - ${winnerName} 和了 ${winScore}点 | 上がり手: ${yaku} | ${han}翻`;
             if (!this.progress) {
               this.log(resultLine);
             }
@@ -667,6 +684,20 @@ class CPUBattleTest {
     this.log(`流局率: ${drawRate.toFixed(1)}%`);
     const avgWinPoints = results.winCount > 0 ? (results.totalWinPoints / results.winCount) : 0;
     this.log(`平均打点: ${avgWinPoints.toFixed(0)}点`);
+
+    // プレイヤー別勝率表示
+    if (results.winCount > 0) {
+      this.log('');
+      this.log('  プレイヤー別勝率:');
+      const playerEntries = [['cpu1', 'CPU-1'], ['cpu2', 'CPU-2']];
+      playerEntries.forEach(([pid, defaultName]) => {
+        const wins = results.playerWins[pid] || 0;
+        const luckLevel = pid === 'cpu1' ? this.luck1 : this.luck2;
+        const luckStr = luckLevel !== null ? ` (ツモ運Lv.${luckLevel})` : '';
+        const winRate = results.total > 0 ? (wins / results.total * 100).toFixed(1) : '0.0';
+        this.log(`    ${defaultName}${luckStr}: ${wins}勝 / ${results.total}局 = ${winRate}%`);
+      });
+    }
 
     // 役の統計情報を表示
     if (Object.keys(this.yakuStats).length > 0) {
@@ -720,6 +751,8 @@ if (require.main === module) {
   let progress = false;
   let parallel = false;
   let concurrency = null;
+  let luck1 = null;
+  let luck2 = null;
   let showHelp = false;
 
   args.forEach((arg) => {
@@ -751,6 +784,20 @@ if (require.main === module) {
       concurrency = parseInt(arg.split('=')[1], 10);
       return;
     }
+    if (arg.startsWith('--luck1=')) {
+      luck1 = parseInt(arg.split('=')[1], 10);
+      return;
+    }
+    if (arg.startsWith('--luck2=')) {
+      luck2 = parseInt(arg.split('=')[1], 10);
+      return;
+    }
+    if (arg.startsWith('--tsumo-luck=')) {
+      const lvl = parseInt(arg.split('=')[1], 10);
+      luck1 = lvl;
+      luck2 = lvl;
+      return;
+    }
     if (/^\d+$/.test(arg) && count === 1) {
       count = parseInt(arg, 10);
       return;
@@ -775,11 +822,20 @@ CPU同士の自動対戦テスト
   --summary               局の結果のみ表示
   --verbose               詳細ログを表示
   --quiet, --silent       内部ログを抑制
+  --luck1=N               CPU-1のツモ運レベルを指定 (0=なし, 1=弱, 2=中, 3=強)
+  --luck2=N               CPU-2のツモ運レベルを指定 (0=なし, 1=弱, 2=中, 3=強)
+  --tsumo-luck=N          両プレイヤーのツモ運レベルをまとめて指定
   --help, -h              このメッセージを表示
 
 使用例:
   順序実行（通常モード）:
     node test-cpu-battle.js 10
+
+  ツモ運シミュレーション（CPU-1に強ツモ運）:
+    node test-cpu-battle.js 100 --luck1=3 --luck2=0 --progress --parallel
+
+  両プレイヤーに中ツモ運:
+    node test-cpu-battle.js 100 --tsumo-luck=2 --progress --parallel
 
   並列実行（高速化）:
     node test-cpu-battle.js 10 --progress --parallel
@@ -805,8 +861,15 @@ CPU同士の自動対戦テスト
     progress: progress, // trueにするとプログレッシブ進行度表示モード
     parallel: parallel, // trueにするとマルチスレッド並列実行
     concurrency: concurrency, // 並列度を指定（デフォルトはCPUコア数の半分）
+    luck1: luck1, // CPU-1のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
+    luck2: luck2, // CPU-2のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
     logFile: logFile, // ログファイルのパス（UTF-8で保存される）
   });
+
+  // ツモ運設定をログ表示（progressモード外）
+  if (!progress && (luck1 !== null || luck2 !== null)) {
+    console.log(`ツモ運設定: CPU-1=Lv.${luck1 !== null ? luck1 : 0}, CPU-2=Lv.${luck2 !== null ? luck2 : 0}`);
+  }
 
   if (count > 1) {
     test.runMultiple(count).catch(console.error);
