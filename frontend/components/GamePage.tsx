@@ -113,6 +113,8 @@ export default function GamePage({
   const autoDiscardTimeoutRef = useRef<number | null>(null)  // 自動ツモ切りのタイマーID
   const autoDiscardKeyRef = useRef<string | null>(null)  // 直近の自動ツモ切り対象
   const pendingPungIntervalRef = useRef<number | null>(null)  // ポン待ち時のカウントダウンインターバルのID
+  const autoDiscardDeadlineRef = useRef<number | null>(null)  // 自動ツモ切り期限時刻 (Date.now() + ms)
+  const pendingPungDeadlineRef = useRef<number | null>(null)   // ポン見逃し期限時刻 (Date.now() + ms)
   const noMeldAutoDrawRef = useRef<string | null>(null)  // ノーメルドモード自動ツモの状態フラグ
   const attemptedReconnectUserId = useRef<string | null>(null)  // Track if we tried to reconnect with a specific userId
   const reconnectTimerRef = useRef<number | null>(null)  // 再接続タイマー
@@ -1102,6 +1104,16 @@ export default function GamePage({
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        // カウントダウン表示をdeadlineから即座に同期
+        if (pendingPungDeadlineRef.current !== null) {
+          const remaining = Math.ceil((pendingPungDeadlineRef.current - Date.now()) / 1000);
+          setPendingPungTimeLeft(remaining > 0 ? remaining : null);
+        }
+        if (autoDiscardDeadlineRef.current !== null) {
+          const remaining = Math.ceil((autoDiscardDeadlineRef.current - Date.now()) / 1000);
+          setAutoDiscardTimeLeft(remaining > 0 ? remaining : null);
+        }
+        // WSが切断されていれば再接続
         const ws = wsRef.current
         if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
           console.log('🔌 Tab visible but WS closed - scheduling reconnect...')
@@ -1351,9 +1363,19 @@ export default function GamePage({
         clearInterval(autoDiscardIntervalRef.current);
         autoDiscardIntervalRef.current = null;
       }
-      // 残り時間をrefに保存
-      pausedAutoDiscardTimeLeft.current = autoDiscardTimeLeft;
-      pausedPendingPungTimeLeft.current = pendingPungTimeLeft;
+      // deadlineから正確な残り時間を保存し、deadlineはクリア（visibilitychangeで同期しないよう）
+      if (pendingPungDeadlineRef.current !== null) {
+        pausedPendingPungTimeLeft.current = Math.max(1, Math.ceil((pendingPungDeadlineRef.current - Date.now()) / 1000));
+        pendingPungDeadlineRef.current = null;
+      } else {
+        pausedPendingPungTimeLeft.current = pendingPungTimeLeft;
+      }
+      if (autoDiscardDeadlineRef.current !== null) {
+        pausedAutoDiscardTimeLeft.current = Math.max(1, Math.ceil((autoDiscardDeadlineRef.current - Date.now()) / 1000));
+        autoDiscardDeadlineRef.current = null;
+      } else {
+        pausedAutoDiscardTimeLeft.current = autoDiscardTimeLeft;
+      }
       return;
     }
 
@@ -1400,19 +1422,18 @@ export default function GamePage({
 
     // Handle pending pung waiting - auto-draw after N seconds (unless in no-meld mode)
     if (canPung && !isNoMeldMode) {
-      // Start countdown from autoActionTimerSeconds or 一時停止復帰時は残り秒数から
-      setPendingPungTimeLeft(pausedPendingPungTimeLeft.current ?? autoActionTimerSeconds);
+      // 一時停止後の復帰時は残り秒数から、初回は全秒数から開始
+      const initialTime = pausedPendingPungTimeLeft.current ?? autoActionTimerSeconds;
       pausedPendingPungTimeLeft.current = null;
+      const deadline = Date.now() + initialTime * 1000;
+      pendingPungDeadlineRef.current = deadline;
+      setPendingPungTimeLeft(initialTime);
 
-      // Update countdown every second
+      // 残り時間をdeadlineベースで計算（200ms間隔でタブ復帰時に即座正確表示）
       const interval = window.setInterval(() => {
-        setPendingPungTimeLeft((prev) => {
-          if (prev === null || prev <= 1) {
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const remaining = Math.ceil((deadline - Date.now()) / 1000);
+        setPendingPungTimeLeft(remaining > 0 ? remaining : null);
+      }, 200);
 
       pendingPungIntervalRef.current = interval;
 
@@ -1421,7 +1442,8 @@ export default function GamePage({
         console.log('⏱️ Auto-drawing after pending pung timeout');
         sendAction({ type: 'draw' });
         setPendingPungTimeLeft(null);
-      }, (pausedPendingPungTimeLeft.current ?? autoActionTimerSeconds) * 1000);
+        pendingPungDeadlineRef.current = null;
+      }, initialTime * 1000);
 
       return () => {
         clearTimeout(timer);
@@ -1469,19 +1491,18 @@ export default function GamePage({
 
     // Set timer if player needs to discard (N second fallback)
     if (!autoDrawMode && canDiscard && drawnTileIndex >= 0) {
-      // Start countdown from autoActionTimerSeconds or 一時停止復帰時は残り秒数から
-      setAutoDiscardTimeLeft(pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds);
+      // 一時停止後の復帰時は残り秒数から、初回は全秒数から開始
+      const initialDiscard = pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds;
       pausedAutoDiscardTimeLeft.current = null;
+      const deadline = Date.now() + initialDiscard * 1000;
+      autoDiscardDeadlineRef.current = deadline;
+      setAutoDiscardTimeLeft(initialDiscard);
 
-      // Update countdown every second
+      // 残り時間をdeadlineベースで計算（200ms间隔でタブ復帰時に即座正確表示）
       const interval = window.setInterval(() => {
-        setAutoDiscardTimeLeft((prev) => {
-          if (prev === null || prev <= 1) {
-            return null;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const remaining = Math.ceil((deadline - Date.now()) / 1000);
+        setAutoDiscardTimeLeft(remaining > 0 ? remaining : null);
+      }, 200);
 
       autoDiscardIntervalRef.current = interval;
 
@@ -1492,7 +1513,8 @@ export default function GamePage({
           sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
         }
         setAutoDiscardTimeLeft(null);
-      }, (pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds) * 1000);
+        autoDiscardDeadlineRef.current = null;
+      }, initialDiscard * 1000);
 
       return () => {
         clearTimeout(timer);
