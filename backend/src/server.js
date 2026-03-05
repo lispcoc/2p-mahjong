@@ -410,6 +410,12 @@ async function handleMessage(ws, data) {
     case 'rematch':
       handleRematch(ws);
       break;
+    case 'startRematch':
+      handleStartRematch(ws);
+      break;
+    case 'deleteRoom':
+      handleDeleteRoom(ws);
+      break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
   }
@@ -543,6 +549,7 @@ function handleJoin(ws, payload) {
     players: room.getPlayers(),
     gameState: room.getGameState(),
     isReconnecting,
+    hostId: room.getHostId(),
   };
 
   console.log('Sending joined message:', JSON.stringify(joinedPayload, null, 2));
@@ -1038,7 +1045,7 @@ function handleDisconnect(ws) {
   }
 }
 
-// Handle rematch request - create a new room with the same settings and notify the opponent
+// Handle rematch ready - marks the player as ready for rematch
 function handleRematch(ws) {
   const connection = connections.get(ws);
   if (!connection) {
@@ -1059,51 +1066,111 @@ function handleRematch(ws) {
     return;
   }
 
-  // このプレイヤーを再戦希望としてマーク
+  // このプレイヤーを再戦準備完了としてマーク
   room.rematchReady.add(userId);
-  console.log(`🔄 Rematch: ${playerName} wants rematch in room ${roomId} (${room.rematchReady.size}/${room.players.size})`);
+  console.log(`🔄 Rematch ready: ${playerName} in room ${roomId} (${room.rematchReady.size}/${room.players.size})`);
 
-  // CPU対戦時は、人間プレイヤーが押したら即座に全CPUプレイヤーも準備完了にする
+  // 全員に再戦準備状況を通知
+  broadcastToRoom(roomId, {
+    type: 'rematchReadyUpdate',
+    payload: {
+      readyUserIds: Array.from(room.rematchReady),
+      readyCount: room.rematchReady.size,
+      totalPlayers: room.players.size,
+    },
+  });
+}
+
+// Handle start rematch - host-only action to begin the rematch
+function handleStartRematch(ws) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+
+  const { roomId, userId, playerName } = connection;
+  const room = rooms.get(roomId);
+
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  if (room.status !== 'gameOver') {
+    ws.send(JSON.stringify({ type: 'error', message: 'Game is not over yet' }));
+    return;
+  }
+
+  // ホストのみ使用可能
+  if (room.getHostId() !== userId) {
+    ws.send(JSON.stringify({ type: 'error', message: '部屋の作成者のみ再戦を開始できます' }));
+    return;
+  }
+
+  // CPUプレイヤーは自動的に準備完了にする
   for (const [playerId, player] of room.players) {
     if (player.isCPU && !room.rematchReady.has(playerId)) {
       room.rematchReady.add(playerId);
     }
   }
 
-  // 全プレイヤーが同意したらリセットして再開
-  if (room.rematchReady.size >= room.players.size) {
-    room.resetForRematch();
-    room.start();
-
-    console.log(`🔄 Rematch: All players agreed. Restarting game in room ${roomId}`);
-
-    broadcastToRoom(roomId, {
-      type: 'rematchStart',
-      payload: room.getGameState(),
-    });
-
-    // 非アクティブタイマーを再開
-    room.startInactivityTimer(createInactivityCallback(roomId));
-  } else {
-    // 相手にこのプレイヤーが再戦を希望していることを通知
-    broadcastToRoom(roomId, {
-      type: 'rematchRequested',
-      payload: {
-        requestedBy: playerName,
-        readyCount: room.rematchReady.size,
-        totalPlayers: room.players.size,
-      },
-    }, ws); // 要求者以外に送信
-
-    // 要求者に確認応答
-    ws.send(JSON.stringify({
-      type: 'rematchWaiting',
-      payload: {
-        readyCount: room.rematchReady.size,
-        totalPlayers: room.players.size,
-      },
-    }));
+  // 全プレイヤーが準備完了しているか確認
+  if (room.rematchReady.size < room.players.size) {
+    ws.send(JSON.stringify({ type: 'error', message: '全員が再戦準備OKを押していません' }));
+    return;
   }
+
+  room.resetForRematch();
+  room.start();
+  console.log(`🔄 Rematch started by host ${playerName} in room ${roomId}`);
+
+  broadcastToRoom(roomId, {
+    type: 'rematchStart',
+    payload: room.getGameState(),
+  });
+
+  // 非アクティブタイマーを再開
+  room.startInactivityTimer(createInactivityCallback(roomId));
+
+  // CPUが最初に動く必要があるか確認
+  executeCPUTurnIfNeeded(room);
+}
+
+// Handle delete room - host-only action to remove the room
+function handleDeleteRoom(ws) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+
+  const { roomId, userId, playerName } = connection;
+  const room = rooms.get(roomId);
+
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  // ホストのみ使用可能
+  if (room.getHostId() !== userId) {
+    ws.send(JSON.stringify({ type: 'error', message: '部屋の作成者のみ部屋を削除できます' }));
+    return;
+  }
+
+  console.log(`🗑️ Room ${roomId} manually deleted by host ${playerName}`);
+
+  broadcastToRoom(roomId, {
+    type: 'roomDeleted',
+    payload: { message: '部屋が履唱者によって削除されました' },
+  });
+
+  room.clearAutoReadyTimer();
+  room.clearGameOverTimer();
+  room.clearInactivityTimer();
+  rooms.delete(roomId);
+  console.log(`🗑️ Room ${roomId} deleted successfully`);
 }
 
 function broadcastToRoom(roomId, message, excludeWs = null) {

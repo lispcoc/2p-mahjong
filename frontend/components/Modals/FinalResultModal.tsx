@@ -5,12 +5,16 @@ interface FinalResultModalProps {
   finalResults: any[] | null
   gameState: GameState
   onBack: () => void
-  onRequestRematch?: () => void
-  rematchRequested: boolean
-  opponentRematchRequested: boolean
+  isHost: boolean
+  rematchReady: boolean
+  rematchReadyCount: number
+  totalPlayers: number
+  onRematchReady?: () => void
+  onStartRematch?: () => void
+  onDeleteRoom?: () => void
 }
 
-export function FinalResultModal({ finalResults, gameState, onBack, onRequestRematch, rematchRequested, opponentRematchRequested }: FinalResultModalProps) {
+export function FinalResultModal({ finalResults, gameState, onBack, isHost, rematchReady, rematchReadyCount, totalPlayers, onRematchReady, onStartRematch, onDeleteRoom }: FinalResultModalProps) {
   if (!finalResults) return null
 
   return (
@@ -96,30 +100,64 @@ export function FinalResultModal({ finalResults, gameState, onBack, onRequestRem
         </div>
 
         <div className="mt-5 flex flex-col gap-3">
-          {opponentRematchRequested && !rematchRequested && onRequestRematch && (
-            <div className="text-center text-blue-600 font-bold text-sm bg-blue-50 rounded py-2">
-              🔄 相手がもう一戦を希望しています！
+          {/* Rematch ready status */}
+          {(onRematchReady || onStartRematch) && (
+            <div className="text-center text-gray-600 text-sm bg-gray-50 rounded py-2">
+              再戦準備OK: {rematchReadyCount} / {totalPlayers} 人
             </div>
           )}
-          <div className="flex gap-3">
-            {onRequestRematch && (
+
+          <div className="flex gap-3 flex-wrap">
+            {/* 再戦準備OK button – available to all non-spectators */}
+            {onRematchReady && (
               <button
-                onClick={onRequestRematch}
-                disabled={rematchRequested}
+                onClick={onRematchReady}
+                disabled={rematchReady}
                 className={`px-6 py-3 text-base font-bold rounded text-white cursor-pointer flex-1 border-none ${
-                  rematchRequested
+                  rematchReady
                     ? 'bg-blue-300 cursor-not-allowed'
-                    : opponentRematchRequested
-                      ? 'bg-blue-600 hover:bg-blue-700 animate-pulse'
-                      : 'bg-blue-500 hover:bg-blue-600'
+                    : 'bg-blue-500 hover:bg-blue-600'
                 }`}
               >
-                {rematchRequested ? '相手の同意を待っています...' : '同じメンバーでもう一戦'}
+                {rematchReady ? '✓ 再戦準備OK済み' : '再戦準備OK'}
               </button>
             )}
+
+            {/* 再戦開始 button – host only, enabled when all players ready */}
+            {onStartRematch && (
+              <button
+                onClick={onStartRematch}
+                disabled={rematchReadyCount < totalPlayers}
+                className={`px-6 py-3 text-base font-bold rounded text-white cursor-pointer flex-1 border-none ${
+                  rematchReadyCount >= totalPlayers
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-gray-300 cursor-not-allowed'
+                }`}
+              >
+                再戦開始
+                {rematchReadyCount < totalPlayers && (
+                  <span className="block text-xs font-normal mt-0.5">（全員の準備完了を待っています）</span>
+                )}
+              </button>
+            )}
+
+            {/* 部屋を削除 button – host only */}
+            {onDeleteRoom && (
+              <button
+                onClick={() => {
+                  if (window.confirm('部屋を削除しますか？全員がホーム画面に戻されます。')) {
+                    onDeleteRoom()
+                  }
+                }}
+                className="px-6 py-3 text-base font-bold rounded bg-red-500 text-white cursor-pointer hover:bg-red-600 border-none"
+              >
+                部屋を削除
+              </button>
+            )}
+
             <button
               onClick={onBack}
-              className="px-6 py-3 text-base font-bold rounded bg-green-500 text-white cursor-pointer flex-1 hover:bg-green-600 border-none"
+              className="px-6 py-3 text-base font-bold rounded bg-gray-500 text-white cursor-pointer flex-1 hover:bg-gray-600 border-none"
             >
               戻る
             </button>

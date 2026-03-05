@@ -56,4 +56,6 @@ export interface GameState {
   spectatorCount?: number
   isSpectatorView?: boolean
   spectatorShowHandsByDefault?: boolean
+  hostId?: string
+  rematchReadyUserIds?: string[]
 }

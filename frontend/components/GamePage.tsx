@@ -96,8 +96,9 @@ export default function GamePage({
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
   const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
-  const [rematchRequested, setRematchRequested] = useState(false) // 再戦リクエスト送信済み
-  const [opponentRematchRequested, setOpponentRematchRequested] = useState(false) // 相手が再戦を希望
+  const [rematchRequested, setRematchRequested] = useState(false) // 再戦準備OK送信済み（自分）
+  const [rematchReadyCount, setRematchReadyCount] = useState(0) // 再戦準備OK人数
+  const [rematchReadyUserIds, setRematchReadyUserIds] = useState<string[]>([]) // 再戦準備OK済みuserId一覧
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try { return localStorage.getItem('mahjong-sound-enabled') !== 'false' } catch { return false }
   })
@@ -341,6 +342,8 @@ export default function GamePage({
           kanningWall: payload.gameState?.kanningWall,
           pendingPungFor: payload.gameState?.pendingPungFor,
           canWinFor: payload.gameState?.canWinFor,
+          hostId: payload.hostId || payload.gameState?.hostId,
+          rematchReadyUserIds: payload.gameState?.rematchReadyUserIds || [],
         }
         debugLog(`Setting gameState to status=${initialState.status}`)
         console.log('Game state initialized:', initialState)
@@ -861,14 +864,14 @@ export default function GamePage({
         console.log('🔄 Player reconnected:', payload)
         toast.success(`${payload.playerName}さんが再接続しました`, { duration: 3000 })
         break
-      case 'rematchWaiting':
-        console.log('🔄 Rematch waiting:', payload)
-        setRematchRequested(true)
-        break
-      case 'rematchRequested':
-        console.log('🔄 Opponent requested rematch:', payload)
-        setOpponentRematchRequested(true)
-        toast(`${payload.requestedBy}さんがもう一戦を希望しています`, { icon: '🔄', duration: 5000 })
+      case 'rematchReadyUpdate':
+        console.log('🔄 Rematch ready update:', payload)
+        setRematchReadyCount(payload.readyCount)
+        setRematchReadyUserIds(payload.readyUserIds)
+        // Mark self as ready if our userId is in the list
+        if (payload.readyUserIds?.includes(userIdRef.current)) {
+          setRematchRequested(true)
+        }
         break
       case 'rematchStart':
         console.log('🔄 Rematch starting:', payload)
@@ -877,7 +880,8 @@ export default function GamePage({
         setShowFinalResults(false)
         setScoreResult(null)
         setRematchRequested(false)
-        setOpponentRematchRequested(false)
+        setRematchReadyCount(0)
+        setRematchReadyUserIds([])
         setNextRoundReady(false)
         setLastWinnerId(null)
         setLastWinnerHand([])
@@ -886,6 +890,11 @@ export default function GamePage({
         setNotenPenalty(null)
         setGameState(payload)
         toast.success('再戦開始！', { duration: 3000 })
+        break
+      case 'roomDeleted':
+        console.log('🗑️ Room deleted:', payload)
+        toast('部屋が削除されました', { icon: '🗑️', duration: 4000 })
+        setTimeout(() => onBackRef.current(), 1500)
         break
       default:
         debugLog(`⚠️ Unknown message type: ${type}`)
@@ -2578,21 +2587,38 @@ export default function GamePage({
             />
           )}
           {/* Final Results Modal (Game Over) */}
-          {finalResults && showFinalResults && (
-            <FinalResultModal
-              finalResults={finalResults}
-              gameState={gameState}
-              onBack={onBack}
-              onRequestRematch={isSpectator ? undefined : () => {
-                if (wsRef.current?.readyState === WebSocket.OPEN) {
-                  wsRef.current.send(JSON.stringify({ type: 'rematch' }))
-                  setRematchRequested(true)
-                }
-              }}
-              rematchRequested={rematchRequested}
-              opponentRematchRequested={opponentRematchRequested}
-            />
-          )}
+          {finalResults && showFinalResults && (() => {
+            const isRoomHost = !isSpectator && !!userId && gameState?.hostId === userId
+            const totalRematchPlayers = gameState?.players?.length ?? 2
+            const myRematchReady = rematchReadyUserIds.includes(userId)
+            return (
+              <FinalResultModal
+                finalResults={finalResults}
+                gameState={gameState}
+                onBack={onBack}
+                isHost={isRoomHost}
+                rematchReady={myRematchReady}
+                rematchReadyCount={rematchReadyCount}
+                totalPlayers={totalRematchPlayers}
+                onRematchReady={isSpectator ? undefined : () => {
+                  if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({ type: 'rematch' }))
+                    setRematchRequested(true)
+                  }
+                }}
+                onStartRematch={isRoomHost ? () => {
+                  if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({ type: 'startRematch' }))
+                  }
+                } : undefined}
+                onDeleteRoom={isRoomHost ? () => {
+                  if (wsRef.current?.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({ type: 'deleteRoom' }))
+                  }
+                } : undefined}
+              />
+            )
+          })()}
         </>
       ) : null}
 

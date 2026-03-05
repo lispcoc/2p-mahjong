@@ -58,6 +58,7 @@ class GameRoom {
     const supportedRonMultipliers = [1, 1.5, 2];
     this.ronMultiplier = supportedRonMultipliers.includes(options.ronMultiplier) ? options.ronMultiplier : 1; // ロン倍率
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
+    this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
   }
 
@@ -158,6 +159,11 @@ class GameRoom {
 
     this.players.set(userId, player);
 
+    // 最初の非CPUプレイヤーをホストとして設定
+    if (!isCPU && this.hostId === null) {
+      this.hostId = userId;
+    }
+
     // CPUプレイヤーの場合はAIPlayerを初期化
     if (isCPU) {
       this.aiPlayers.set(userId, new AIPlayer(false)); // false = 通常モード（ツモ切りではない）
@@ -227,6 +233,10 @@ class GameRoom {
     player.ws = null;
     player.disconnectedAt = Date.now();
     return player;
+  }
+
+  getHostId() {
+    return this.hostId;
   }
 
   getPlayers() {
@@ -587,6 +597,8 @@ class GameRoom {
         totalPlayers: this.players.size,
         initialScore: this.initialScore,
         spectatorCount: this.spectators.size,
+        hostId: this.hostId,
+        rematchReadyUserIds: Array.from(this.rematchReady),
       };
       // ゲームオーバー時は最終結果も含める
       if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
@@ -624,6 +636,8 @@ class GameRoom {
       autoActionTimerSeconds: this.autoActionTimerSeconds, // ツモ切り・ポン見逃しのタイマー秒数
       initialScore: this.initialScore, // 初期持ち点
       spectatorCount: this.spectators.size, // 見学者数
+      hostId: this.hostId, // 部屋作成者のuserId
+      rematchReadyUserIds: Array.from(this.rematchReady), // 再戦準備完了プレイヤー一覧
     };
 
     // Send each player their own hand and public information
