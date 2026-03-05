@@ -227,8 +227,8 @@ export default function HomePage({
           initialScore: sanitizedInitialScore,
           wallTiles: wallTilesToSend,
           gameMode: gameMode,
-          myTsumoLuck: myTsumoLuck,
-          opponentTsumoLuck: opponentTsumoLuck,
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
           autoActionTimerSeconds: sanitizedAutoActionTimerSeconds,
           useRedDora: useRedDora,
           notenPenalty: notenPenalty,
@@ -573,65 +573,67 @@ export default function HomePage({
                 <p className="text-xs text-gray-400 m-0 mt-1">配牌26枚と予約牌22枚を除いた、ゲーム進行中にツモできる牌の枚数です</p>
               </div>
               <div className="flex flex-col gap-3 p-3 bg-[#1a2e0a] border border-gray-500 rounded">
-                <div>
-                  <label className="text-gray-300 text-xs" htmlFor="myTsumoLuckModal">
-                    あなたのツモ運レベル
-                  </label>
-                  <div className="flex gap-2 items-center mt-2">
-                    <input
-                      id="myTsumoLuckModal"
-                      type="range"
-                      min={0}
-                      max={3}
-                      step={1}
-                      value={myTsumoLuck}
-                      onChange={(e) => setMyTsumoLuck(Number(e.target.value))}
-                      className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
-                    />
-                    <span className="text-white text-sm font-bold w-12 text-center">{myTsumoLuck}</span>
+                <div className="hidden">
+                  <div>
+                    <label className="text-gray-300 text-xs" htmlFor="myTsumoLuckModal">
+                      あなたのツモ運レベル
+                    </label>
+                    <div className="flex gap-2 items-center mt-2">
+                      <input
+                        id="myTsumoLuckModal"
+                        type="range"
+                        min={0}
+                        max={3}
+                        step={1}
+                        value={myTsumoLuck}
+                        onChange={(e) => setMyTsumoLuck(Number(e.target.value))}
+                        className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
+                      />
+                      <span className="text-white text-sm font-bold w-12 text-center">{myTsumoLuck}</span>
+                    </div>
+                    <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
+                      <span>0: なし</span>
+                      <span>1: 軽い</span>
+                      <span>2: 中程度</span>
+                      <span>3: 強い</span>
+                    </div>
+                    <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
+                      {myTsumoLuck === 0 && '完全ランダムに牌を引きます'}
+                      {myTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
+                      {myTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
+                      {myTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
+                    </div>
                   </div>
-                  <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
-                    <span>0: なし</span>
-                    <span>1: 軽い</span>
-                    <span>2: 中程度</span>
-                    <span>3: 強い</span>
-                  </div>
-                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
-                    {myTsumoLuck === 0 && '完全ランダムに牌を引きます'}
-                    {myTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
-                    {myTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
-                    {myTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
-                  </div>
-                </div>
 
-                <div className="border-t border-gray-600 pt-3">
-                  <label className="text-gray-300 text-xs" htmlFor="opponentTsumoLuckModal">
-                    相手のツモ運レベル
-                  </label>
-                  <div className="flex gap-2 items-center mt-2">
-                    <input
-                      id="opponentTsumoLuckModal"
-                      type="range"
-                      min={0}
-                      max={3}
-                      step={1}
-                      value={opponentTsumoLuck}
-                      onChange={(e) => setOpponentTsumoLuck(Number(e.target.value))}
-                      className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
-                    />
-                    <span className="text-white text-sm font-bold w-12 text-center">{opponentTsumoLuck}</span>
-                  </div>
-                  <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
-                    <span>0: なし</span>
-                    <span>1: 軽い</span>
-                    <span>2: 中程度</span>
-                    <span>3: 強い</span>
-                  </div>
-                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
-                    {opponentTsumoLuck === 0 && '完全ランダムに牌を引きます'}
-                    {opponentTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
-                    {opponentTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
-                    {opponentTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
+                  <div className="border-t border-gray-600 pt-3">
+                    <label className="text-gray-300 text-xs" htmlFor="opponentTsumoLuckModal">
+                      相手のツモ運レベル
+                    </label>
+                    <div className="flex gap-2 items-center mt-2">
+                      <input
+                        id="opponentTsumoLuckModal"
+                        type="range"
+                        min={0}
+                        max={3}
+                        step={1}
+                        value={opponentTsumoLuck}
+                        onChange={(e) => setOpponentTsumoLuck(Number(e.target.value))}
+                        className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
+                      />
+                      <span className="text-white text-sm font-bold w-12 text-center">{opponentTsumoLuck}</span>
+                    </div>
+                    <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
+                      <span>0: なし</span>
+                      <span>1: 軽い</span>
+                      <span>2: 中程度</span>
+                      <span>3: 強い</span>
+                    </div>
+                    <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
+                      {opponentTsumoLuck === 0 && '完全ランダムに牌を引きます'}
+                      {opponentTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
+                      {opponentTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
+                      {opponentTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
+                    </div>
                   </div>
                 </div>
               </div>
