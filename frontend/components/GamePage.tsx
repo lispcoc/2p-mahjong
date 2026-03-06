@@ -501,7 +501,7 @@ export default function GamePage({
           setAutoActionTimerSeconds(payload.autoActionTimerSeconds)
         }
 
-        toast.success('ゲームが始まりました！', { duration: 3000 })
+        toast.success('対局開始', { duration: 3000 })
         break
       case 'gameStateUpdate':
         debugLog(`♻️ Game state updated`)
@@ -809,7 +809,7 @@ export default function GamePage({
 
           const winnerName = prevState?.players?.find((p: any) => p.userId === payload.winner)?.playerName || payload.winner
           if (!payload.gameOver) {
-            toast.success(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`, { duration: 5000 })
+            // toast.success(`${payload.winType || 'ゲーム終了'} 勝者: ${winnerName}`, { duration: 5000 })
           }
           // gameStateはそのまま保持（finished状態を維持）
           return prevState ? {
@@ -841,7 +841,7 @@ export default function GamePage({
           }
         } else if (payload.riichi) {
           // リーチ成功メッセージ
-          toast.success(payload.message || 'リーチ宣言しました！', { duration: 5000 })
+          // toast.success(payload.message || 'リーチ宣言しました！', { duration: 5000 })
         }
         break
       case 'error':
@@ -2520,10 +2520,6 @@ export default function GamePage({
               <button
                 onClick={() => {
                   setRiichiMode(!riichiMode);
-                  if (!riichiMode) {
-                    // リーチモードONにする際のメッセージ
-                    toast.success('リーチモードON: 聴牌形になる牌を選んでクリックしてください（グレーの牌は選べません）', { duration: 5000 });
-                  }
                 }}
                 className={`px-3 py-2 text-xs font-bold rounded text-white cursor-pointer transition-all ${riichiMode ? 'bg-green-600 border-2 border-green-700 shadow-lg' : 'bg-red-600 border-2 border-red-700'}`}
               >
