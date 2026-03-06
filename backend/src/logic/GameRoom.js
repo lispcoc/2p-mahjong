@@ -1182,13 +1182,20 @@ class GameRoom {
       // リーチ判断に見えている牌情報を渡す
       const opponentId = this.gameLogic.getOtherPlayerId(userId);
       const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
+      const opponentScoreForRiichi = opponentId ? this.gameLogic.getPlayerScore(opponentId) : 25000;
       const riichiGameState = {
+        opponentRiichi: opponentPlayer?.riichi || false,
+        opponentIppatsu: opponentPlayer?.ippatsuValid || false,
         opponentDiscards: opponentPlayer?.discards || [],
         ownDiscards: this.gameLogic.players[userId].discards || [],
         ownMelds: melds,
         opponentMelds: opponentPlayer?.melds || [],
         doraIndicators: this.gameLogic.doraIndicators || [],
         wallRemaining: this.gameLogic.wall?.length || 0,
+        ownScore: currentScore,
+        opponentScore: opponentScoreForRiichi,
+        roundNumber: this.roundNumber || 1,
+        totalRounds: this.maxRounds || 4,
       };
       const riichiDecision = aiPlayer.shouldDeclareRiichi(hand, melds, currentScore, riichiGameState);
       if (riichiDecision.shouldRiichi && riichiDecision.discardIndex >= 0) {
@@ -1252,9 +1259,17 @@ class GameRoom {
 
     console.log(`🤖 CPU ponging decision...`);
 
+    // AI判断用コンテキスト
+    const pungOpponentId = this.gameLogic.getOtherPlayerId(userId);
+    const pungOpponent = pungOpponentId ? this.gameLogic.players[pungOpponentId] : null;
+    const pungGameState = {
+      opponentRiichi: pungOpponent?.riichi || false,
+      opponentIppatsu: pungOpponent?.ippatsuValid || false,
+    };
+
     // 大明槓が可能かチェック（ポンより優先）
     if (lastDiscard && this.gameLogic.canPlayerDaiminkan(userId, lastDiscard)) {
-      if (aiPlayer.shouldDaiminkan(hand, lastDiscard, melds)) {
+      if (aiPlayer.shouldDaiminkan(hand, lastDiscard, melds, pungGameState)) {
         console.log('🤖 CPU will daiminkan');
         const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
         if (kanResult.success) {
@@ -1271,7 +1286,7 @@ class GameRoom {
     }
 
     // AIPlayerにポンすべきか判定させる
-    if (lastDiscard && aiPlayer.shouldPung(hand, lastDiscard, melds)) {
+    if (lastDiscard && aiPlayer.shouldPung(hand, lastDiscard, melds, pungGameState)) {
       console.log('🤖 CPU will pung');
       const pungResult = this.handlePlayerAction(userId, { type: 'pung' });
 
@@ -1306,8 +1321,15 @@ class GameRoom {
 
     console.log(`🤖 CPU kan decision...`);
 
+    // AI判断用コンテキスト
+    const kanOpponentId = this.gameLogic.getOtherPlayerId(userId);
+    const kanOpponent = kanOpponentId ? this.gameLogic.players[kanOpponentId] : null;
+    const kanGameState = {
+      opponentRiichi: kanOpponent?.riichi || false,
+    };
+
     // AIPlayerにカンすべきか判定させる
-    if (aiPlayer.shouldKan(hand, melds, isRiichi)) {
+    if (aiPlayer.shouldKan(hand, melds, isRiichi, kanGameState)) {
       console.log('🤖 CPU will kan');
       const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
 
@@ -1354,11 +1376,14 @@ class GameRoom {
     // 通常は drawnTileIndex を渡すが、-1の場合は最後の牌を使う
     const effectiveDrawnIndex = drawnTileIndex >= 0 ? drawnTileIndex : hand.length - 1;
 
-    // AI に相手情報を渡す（防御・受入計算用）
+    // AI に相手情報を渡す（防御・受入計算・ベタオリ・スコア判断用）
     const opponentId = this.gameLogic.getOtherPlayerId(userId);
     const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
+    const currentScore = this.gameLogic.getPlayerScore(userId);
+    const opponentScore = opponentId ? this.gameLogic.getPlayerScore(opponentId) : 25000;
     const gameState = {
       opponentRiichi: opponentPlayer?.riichi || false,
+      opponentIppatsu: opponentPlayer?.ippatsuValid || false,
       opponentDiscards: opponentPlayer?.discards || [],
       ownDiscards: this.gameLogic.players[userId].discards || [],
       ownMelds: melds,
@@ -1368,6 +1393,10 @@ class GameRoom {
       melds: melds,
       wallRemaining: this.gameLogic.wall?.length || 0,
       ownHand: hand,
+      ownScore: currentScore,
+      opponentScore: opponentScore,
+      roundNumber: this.roundNumber || 1,
+      totalRounds: this.maxRounds || 4,
     };
     const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];

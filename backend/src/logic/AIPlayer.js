@@ -9,10 +9,24 @@ const TenpaiChecker = require('./TenpaiChecker');
  *   3. 相手リーチ時の防御（現物・筋・壁）
  *   4. 副露判断のシャンテンベース化
  *   5. 役志向ボーナスによるタイブレーク
+ *   6. 難易度設定（easy/normal/hard）
+ *   7. 打点評価（ドラ・役・翻数推定）
+ *   8. ダマテン戦略（高打点手でのリーチ抑制）
+ *   9. ベタオリ（完全防御）モード
+ *  10. フリテン確認付きリーチ判断
+ *  11. ダブルリーチ検出
+ *  12. スコア状況を考慮した戦略
+ *  13. 相手リーチ中のカンリスク判断
+ *  14. 一発消しポン考慮
  */
 class AIPlayer {
-  constructor(tsumoKiriMode = false) {
+  /**
+   * @param {boolean} tsumoKiriMode - ツモ切りモード
+   * @param {number}  difficulty    - 難易度: 0=easy, 1=normal, 2=hard
+   */
+  constructor(tsumoKiriMode = false, difficulty = 1) {
     this.tsumoKiriMode = tsumoKiriMode;
+    this.difficulty = difficulty; // 0=easy, 1=normal, 2=hard
   }
 
   // ================================================================
@@ -216,6 +230,117 @@ class AIPlayer {
   }
 
   // ================================================================
+  //  Dora / Hand Value   ドラ・打点評価
+  // ================================================================
+
+  /**
+   * ドラ表示牌からドラ牌インデックスを求める
+   * 字牌: 東(1)→南(2)→西(3)→北(4)→東(1), 白(5)→發(6)→中(7)→白(5)
+   * 数牌: 9→1 (循環)
+   */
+  static _doraFromIndicator(indicator) {
+    if (!indicator) return null;
+    if (indicator.suit === 'honor') {
+      const n = indicator.number;
+      if (n <= 4) return { suit: 'honor', number: (n % 4) + 1 };
+      // 三元牌: 白(5)→發(6)→中(7)→白(5)
+      return { suit: 'honor', number: ((n - 4) % 3) + 5 };
+    }
+    return { suit: indicator.suit, number: (indicator.number % 9) + 1 };
+  }
+
+  /**
+   * 手牌の翻数を簡易推定する（リーチ翻は含まない）
+   * 目的: ダマテン判断・押し引き基準に使用
+   */
+  _estimateHandHan(hand, melds, doraIndicators = []) {
+    let han = 0;
+    const hc = AIPlayer.handToCountArray(hand);
+    const allTiles = [...hand, ...melds.flat()];
+
+    // ── ドラ（通常） ──
+    for (const di of doraIndicators) {
+      const dora = AIPlayer._doraFromIndicator(di);
+      if (!dora) continue;
+      const doraIdx = AIPlayer.tileToIndex(dora);
+      if (doraIdx >= 0) han += hc[doraIdx];
+    }
+    // ── 赤ドラ ──
+    han += hand.filter(t => t.isRed).length;
+
+    // ── 役牌（副露面子） ──
+    for (const m of melds) {
+      if (m.length < 3) continue;
+      const t = m[0];
+      if (t.suit === 'honor') {
+        if (t.number >= 5) han += 1; // 三元牌
+        else if (t.number <= 2) han += 1; // 場風・自風（簡略2人麻雀）
+      }
+    }
+
+    // ── 断么九: 全牌2〜8の数牌 ──
+    if (allTiles.every(t => t.suit !== 'honor' && t.number >= 2 && t.number <= 8)) {
+      han += 1;
+    }
+
+    // ── 七対子の潜在力（門前のみ） ──
+    if (melds.length === 0) {
+      let pairs = 0;
+      for (let i = 0; i < 34; i++) if (hc[i] >= 2) pairs++;
+      if (pairs >= 5) han += 2;
+    }
+
+    return han;
+  }
+
+  // ================================================================
+  //  Furiten Check   フリテン確認
+  // ================================================================
+
+  /**
+   * 自分の捨て牌に待ち牌が含まれているかを確認（フリテン判定）
+   * リーチ前に呼ばれ、フリテンリーチを回避する
+   */
+  _isFuritenByDiscards(hand, melds, ownDiscards) {
+    if (!ownDiscards || ownDiscards.length === 0) return false;
+    const discardSet = new Set(ownDiscards.map(d => `${d.suit}-${d.number}`));
+    const opts = this.getRiichiOptions(hand, melds);
+    for (const opt of opts) {
+      for (const wt of opt.waitTiles) {
+        if (discardSet.has(`${wt.suit}-${wt.number}`)) return true;
+      }
+    }
+    return false;
+  }
+
+  // ================================================================
+  //  Betaori (Full Defense)   ベタオリ判断
+  // ================================================================
+
+  /**
+   * 完全防御（ベタオリ）すべきか判定
+   * 相手リーチ時にシャンテン数・スコア差・難易度で判断する
+   */
+  _isBetaoriAdvised(gameState, shanten) {
+    if (this.difficulty === 0) return false; // イージーは守備なし
+    if (!gameState.opponentRiichi) return false;
+    if (shanten < 0) return false; // 和了形: 必ず和了
+    if (shanten === 0) return false; // テンパイ: 原則押し
+
+    const scoreDiff = (gameState.ownScore || 25000) - (gameState.opponentScore || 25000);
+
+    if (this.difficulty === 2) {
+      // ハード: 1シャンテン以上でベタオリ検討、大差リードなら確定ベタオリ
+      if (shanten >= 2) return true;
+      if (shanten >= 1 && scoreDiff > 8000) return true;
+      return false;
+    }
+
+    // ノーマル: 2シャンテン以上はベタオリ
+    return shanten >= 2;
+  }
+
+  // ================================================================
   //  Main Discard Logic   打牌選択
   // ================================================================
 
@@ -226,6 +351,21 @@ class AIPlayer {
     if (this.tsumoKiriMode) return drawnTileIndex;
     if (isRiichi) return drawnTileIndex;
     if (hand.length < 2 || drawnTileIndex === -1) return drawnTileIndex;
+
+    // イージーモード: 20%の確率でランダム打牌（最悪のシャンテン悪化は回避）
+    if (this.difficulty === 0 && Math.random() < 0.20) {
+      const hc = AIPlayer.handToCountArray(hand);
+      const nm = gameState.numMelds || 0;
+      const entries = hand.map((tile, i) => {
+        const tc = hc.slice();
+        tc[AIPlayer.tileToIndex(tile)]--;
+        return { i, sh: AIPlayer.calculateShanten(tc, nm) };
+      });
+      const minSh = Math.min(...entries.map(e => e.sh));
+      const safe = entries.filter(e => e.sh <= minSh + 1);
+      return safe[Math.floor(Math.random() * safe.length)].i;
+    }
+
     return this.selectBestDiscard(hand, drawnTileIndex, gameState);
   }
 
@@ -236,7 +376,7 @@ class AIPlayer {
    *   1. シャンテン数が最小の打牌を最優先
    *   2. 同シャンテンなら受入枚数（有効牌）で選択
    *   3. テンパイなら待ちの残り枚数で選択
-   *   4. 相手リーチ時は安全度を加味
+   *   4. 相手リーチ時は安全度を加味（ベタオリモード含む）
    *   5. 役志向で微調整
    */
   selectBestDiscard(hand, drawnTileIndex, gameState = {}) {
@@ -244,6 +384,15 @@ class AIPlayer {
     const visible = AIPlayer.buildVisibleCounts(gameState);
     const oppRiichi = !!gameState.opponentRiichi;
     const melds = gameState.melds || [];
+
+    // ── ベタオリ判断 ──
+    const hc0 = AIPlayer.handToCountArray(hand);
+    const curShanten = AIPlayer.calculateShanten(hc0, numMelds);
+    const betaori = this._isBetaoriAdvised(gameState, curShanten);
+
+    if (betaori) {
+      console.log(`[AI] Betaori mode activated (shanten=${curShanten})`);
+    }
 
     // ── Phase 1: 各打牌のシャンテン数 ──
     const entries = [];
@@ -260,49 +409,54 @@ class AIPlayer {
     for (const e of entries) {
       let score = 0;
 
-      // --- 攻撃スコア ---
-      const shantenBase = [10000, 4000, 2000, 1000, 500, 250, 125, 60, 30];
-      score += shantenBase[Math.min(e.sh, 8)] || 0;
-      score -= (e.sh - bestSh) * 3000;
+      if (betaori) {
+        // ベタオリモード: 安全牌スコアのみ使用（攻撃スコアを無視）
+        const safety = this._tileSafety(e.tile, gameState, visible, hand);
+        score = safety * 5;
+        // シャンテン悪化は小さなペナルティ（追い詰められない限り手を壊さない)
+        score -= (e.sh - bestSh) * 200;
+      } else {
+        // ── 通常攻撃スコア ──
+        const shantenBase = [10000, 4000, 2000, 1000, 500, 250, 125, 60, 30];
+        score += shantenBase[Math.min(e.sh, 8)] || 0;
+        score -= (e.sh - bestSh) * 3000;
 
-      if (e.sh === 0) {
-        // テンパイ: 待ち牌の実効残枚数
-        const afterHand = hand.filter((_, j) => j !== e.i);
-        const wins = TenpaiChecker.getWinningTiles(afterHand, melds);
-        let effWaits = 0;
-        for (const w of wins) {
-          const wi = AIPlayer.tileToIndex(w);
-          effWaits += Math.max(0, 4 - e.hc[wi] - visible[wi]);
+        if (e.sh === 0) {
+          // テンパイ: 待ち牌の実効残枚数
+          const afterHand = hand.filter((_, j) => j !== e.i);
+          const wins = TenpaiChecker.getWinningTiles(afterHand, melds);
+          let effWaits = 0;
+          for (const w of wins) {
+            const wi = AIPlayer.tileToIndex(w);
+            effWaits += Math.max(0, 4 - e.hc[wi] - visible[wi]);
+          }
+          score += wins.length * 500;
+          score += effWaits * 200;
+        } else if (e.sh <= bestSh + 1) {
+          // 最良シャンテン or +1 以内: 受入計算
+          const acc = AIPlayer.calculateAcceptance(e.hc, numMelds, visible);
+          score += acc.types * 200;
+          score += Math.min(acc.total, 30) * 30;
         }
-        score += wins.length * 500;
-        score += effWaits * 200;
-      } else if (e.sh <= bestSh + 1) {
-        // 最良シャンテン or +1 以内: 受入計算
-        const acc = AIPlayer.calculateAcceptance(e.hc, numMelds, visible);
-        score += acc.types * 200;
-        score += Math.min(acc.total, 30) * 30;
-      }
 
-      // --- 防御スコア (相手リーチ時) ---
-      if (oppRiichi) {
-        score += this._tileSafety(e.tile, gameState, visible, hand);
-      }
+        // --- 防御スコア (相手リーチ時) ---
+        if (oppRiichi) {
+          score += this._tileSafety(e.tile, gameState, visible, hand);
+        }
 
-      // --- 役志向ボーナス (±80以内のタイブレーク) ---
-      score += this._yakuBonus(hand, e.i, numMelds);
+        // --- 役志向ボーナス (±80以内のタイブレーク) ---
+        score += this._yakuBonus(hand, e.i, numMelds);
 
-      // --- 赤ドラ保持: 赤5を切るとペナルティ ---
-      // 同じ数字・スートの通常牌があるなら、そちらを切るべき
-      if (e.tile.isRed) {
-        const hasNormalVersion = hand.some(
-          (t, j) => j !== e.i && t.suit === e.tile.suit && t.number === e.tile.number && !t.isRed
-        );
-        if (hasNormalVersion) {
-          // 通常版がある場合、赤を捨てるのは大きなペナルティ
-          score -= 500;
-        } else {
-          // 通常版がなくても赤ドラは1翻の価値がある
-          score -= 150;
+        // --- 赤ドラ保持: 赤5を切るとペナルティ ---
+        if (e.tile.isRed) {
+          const hasNormalVersion = hand.some(
+            (t, j) => j !== e.i && t.suit === e.tile.suit && t.number === e.tile.number && !t.isRed
+          );
+          if (hasNormalVersion) {
+            score -= 500;
+          } else {
+            score -= 150;
+          }
         }
       }
 
@@ -320,39 +474,72 @@ class AIPlayer {
 
   /**
    * 牌の安全度スコア（高い = 安全 = 捨てやすい）
+   * 現物 > 壁 > 筋 > 字牌 > 端数牌 > 中張牌
    */
   _tileSafety(tile, gs, visible, hand) {
     const oppDisc = gs.opponentDiscards || [];
 
-    // 現物（相手が切った牌）= 100% 安全
+    // ── 現物（相手が切った牌）= 100% 安全 ──
     if (oppDisc.some(d => d.suit === tile.suit && d.number === tile.number)) {
       return 2500;
     }
 
-    // 壁（4枚全て既知）= 安全
+    // ── 壁（4枚全て既知 or 3枚見えれば実質安全）──
     const ti = AIPlayer.tileToIndex(tile);
     const hc = AIPlayer.handToCountArray(hand);
-    if (hc[ti] + visible[ti] >= 4) return 2500;
+    const totalSeen = hc[ti] + visible[ti];
+    if (totalSeen >= 4) return 2500; // 壁（4枚全確認）
+    if (totalSeen >= 3) return 1800; // 3枚見えでほぼ安全（残り1枚）
 
-    // 筋（スジ安全）
-    if (tile.suit !== 'honor' && this._isSuji(tile, oppDisc)) {
-      return 1200;
-    }
-
-    // 字牌: 見えている枚数で安全度が変わる
+    // ── 字牌: 見えている枚数で段階評価 ──
     if (tile.suit === 'honor') {
-      const seen = hc[ti] + visible[ti];
-      if (seen >= 3) return 2000;
-      if (seen >= 2) return 1000;
-      if (seen >= 1) return 600;
+      if (totalSeen >= 2) return 1000;
+      if (totalSeen >= 1) return 600;
       return 300;
     }
 
-    // 数牌: 端ほど安全
+    // ── 筋（スジ安全）──
+    if (this._isSuji(tile, oppDisc)) {
+      return 1200;
+    }
+
+    // ── カベ（数牌で隣接牌が4枚見えていれば索子が通りやすい）──
+    if (this._isKabe(tile, gs, visible, hand)) {
+      return 900;
+    }
+
+    // ── 数牌: 端ほど安全 ──
     const n = tile.number;
     if (n === 1 || n === 9) return 200;
     if (n === 2 || n === 8) return 100;
-    return 0;
+    // 3,4,6,7はやや危険（嵌張・辺張の待ち牌になりやすい）
+    if (n === 3 || n === 7) return -100;
+    // 4,5,6は最も危険（両面待ちの中心）
+    return -200;
+  }
+
+  /**
+   * カベ（壁）安全判定
+   * 数牌 n に対して、スジを構成する牌の片方が4枚全て見えていれば
+   * その牌はロンされない（例：1が4枚見えていれば4は安全）
+   */
+  _isKabe(tile, gs, visible, hand) {
+    if (tile.suit === 'honor') return false;
+    const s = tile.suit;
+    const n = tile.number;
+    const hc = AIPlayer.handToCountArray(hand);
+
+    // n-3 の牌が4枚全て見えている → n は安全（1-4スジ）
+    if (n >= 4) {
+      const idx = AIPlayer.tileToIndex({ suit: s, number: n - 3 });
+      if (idx >= 0 && hc[idx] + visible[idx] >= 4) return true;
+    }
+    // n+3 の牌が4枚全て見えている → n は安全（スジ）
+    if (n <= 6) {
+      const idx = AIPlayer.tileToIndex({ suit: s, number: n + 3 });
+      if (idx >= 0 && hc[idx] + visible[idx] >= 4) return true;
+    }
+    return false;
   }
 
   /**
@@ -416,12 +603,13 @@ class AIPlayer {
    * @param {Array} hand           手牌（13枚、ポン対象2枚含む）
    * @param {Object} discardedTile 相手が切った牌
    * @param {Array}  melds         現在の副露
+   * @param {Object} gameState     ゲーム状態（opponentIppatsu等）
    */
-  shouldPung(hand, discardedTile, melds = []) {
+  shouldPung(hand, discardedTile, melds = [], gameState = {}) {
     if (!hand || hand.length === 0 || !discardedTile) return false;
 
     // 大明槓が可能な場合は常にカンを優先（ドラ増加 + 嶺上牌）
-    if (this.shouldDaiminkan(hand, discardedTile, melds)) {
+    if (this.shouldDaiminkan(hand, discardedTile, melds, gameState)) {
       return false; // ポンせずカンさせる
     }
 
@@ -448,16 +636,24 @@ class AIPlayer {
 
     console.log(`[AIPlayer.shouldPung] ${discardedTile.suit}-${discardedTile.number}: shanten ${shBefore}→${bestShAfter}`);
 
-    // シャンテン悪化 → 不可
+    // シャンテン悪化 → 一発消し目的で許容するか判断
     if (bestShAfter > shBefore) {
-      console.log(`[AIPlayer.shouldPung] ❌ Shanten worsens`);
+      const oppIppatsu = gameState.opponentIppatsu || false;
+      // ノーマル以上: 一発をキャンセルするためにシャンテン+1まで許容
+      if (oppIppatsu && this.difficulty >= 1 && bestShAfter <= shBefore + 1) {
+        if (this._hasYakuAfterFuro(pc, melds, discardedTile)) {
+          console.log('[AIPlayer.shouldPung] ✅ Pong for ippatsu cancellation (with yaku)');
+          return true;
+        }
+      }
+      console.log('[AIPlayer.shouldPung] ❌ Shanten worsens');
       return false;
     }
 
     // シャンテン改善
     if (bestShAfter < shBefore) {
       if (this._hasYakuAfterFuro(pc, melds, discardedTile)) {
-        console.log(`[AIPlayer.shouldPung] ✅ Shanten improves with viable yaku`);
+        console.log('[AIPlayer.shouldPung] ✅ Shanten improves with viable yaku');
         return true;
       }
       // テンパイ or イーシャンテン到達なら役未確定でも許可
@@ -465,21 +661,21 @@ class AIPlayer {
         console.log(`[AIPlayer.shouldPung] ✅ Near tenpai (${bestShAfter})`);
         return true;
       }
-      console.log(`[AIPlayer.shouldPung] ❌ Shanten improves but far and no yaku`);
+      console.log('[AIPlayer.shouldPung] ❌ Shanten improves but far and no yaku');
       return false;
     }
 
     // シャンテン同等
     if (nm === 0 && shBefore >= 2) {
-      console.log(`[AIPlayer.shouldPung] ❌ Preserve menzen (riichi potential)`);
+      console.log('[AIPlayer.shouldPung] ❌ Preserve menzen (riichi potential)');
       return false;
     }
     if (this._hasYakuAfterFuro(pc, melds, discardedTile)) {
-      console.log(`[AIPlayer.shouldPung] ✅ Same shanten, viable yaku path`);
+      console.log('[AIPlayer.shouldPung] ✅ Same shanten, viable yaku path');
       return true;
     }
 
-    console.log(`[AIPlayer.shouldPung] ❌ No clear benefit`);
+    console.log('[AIPlayer.shouldPung] ❌ No clear benefit');
     return false;
   }
 
@@ -579,6 +775,14 @@ class AIPlayer {
     if (melds.length > 0) return { shouldRiichi: false, discardIndex: -1 };
     if (currentScore < 1000) return { shouldRiichi: false, discardIndex: -1 };
 
+    // ── フリテン確認（ノーマル以上）──
+    if (this.difficulty >= 1) {
+      if (this._isFuritenByDiscards(hand, melds, gameState.ownDiscards || [])) {
+        console.log('[AI] Skip riichi: furiten detected');
+        return { shouldRiichi: false, discardIndex: -1 };
+      }
+    }
+
     const opts = this.getRiichiOptions(hand, melds);
     if (opts.length === 0) return { shouldRiichi: false, discardIndex: -1 };
 
@@ -600,6 +804,44 @@ class AIPlayer {
 
     const wallRem = gameState.wallRemaining || 50;
 
+    // ── イージーモード: 制約なしで即リーチ ──
+    if (this.difficulty === 0) {
+      if (effWaits >= 1) return { shouldRiichi: true, discardIndex: best.index };
+      return { shouldRiichi: false, discardIndex: -1 };
+    }
+
+    // ── ダブルリーチ判定（第1打: 自他ともに捨て牌なし）──
+    const ownDiscards = gameState.ownDiscards || [];
+    const oppDiscards = gameState.opponentDiscards || [];
+    const isDoubleRiichi = ownDiscards.length === 0 && oppDiscards.length === 0;
+    if (isDoubleRiichi && effWaits >= 1) {
+      console.log('[AI] Double riichi!');
+      return { shouldRiichi: true, discardIndex: best.index };
+    }
+
+    // ── ダマテン判断（ノーマル以上）──
+    if (this.difficulty >= 1) {
+      const estHan = this._estimateHandHan(hand, melds, gameState.doraIndicators || []);
+      // 既に3翻以上推定される手 + 相手リーチなし + 多面待ち → ダマテン選択
+      if (estHan >= 3 && !gameState.opponentRiichi && best.waitCount >= 2) {
+        console.log(`[AI] Damaten: est ${estHan} han, ${best.waitCount} waits`);
+        return { shouldRiichi: false, discardIndex: -1 };
+      }
+    }
+
+    // ── スコア状況を考慮（ノーマル以上）──
+    const scoreDiff = (gameState.ownScore || 0) - (gameState.opponentScore || 0);
+    const roundNumber = gameState.roundNumber || 1;
+    const totalRounds = gameState.totalRounds || 4;
+    const isNearEnd = roundNumber >= totalRounds - 1;
+
+    // 終盤で大差リード + 薄い待ち → ダマ or スキップ
+    if (this.difficulty >= 1 && isNearEnd && scoreDiff > 12000 && effWaits < 3) {
+      console.log('[AI] Skip riichi: near end + large lead + thin waits');
+      return { shouldRiichi: false, discardIndex: -1 };
+    }
+
+    // ── 通常リーチ判断 ──
     // 良い待ち → 即リーチ
     if (best.waitCount >= 2 && effWaits >= 4) {
       return { shouldRiichi: true, discardIndex: best.index };
@@ -627,18 +869,32 @@ class AIPlayer {
   //  Kan Decision   カン判断
   // ================================================================
 
-  shouldKan(hand, melds = [], isRiichi = false) {
+  shouldKan(hand, melds = [], isRiichi = false, gameState = {}) {
     if (isRiichi) return false;
 
-    // 加槓: 既存ポンに4枚目追加 → ほぼ常に得
+    const oppRiichi = gameState.opponentRiichi || false;
+
+    // 加槓: 既存ポンに4枚目追加
     if (this.getValidAddedKan(hand, melds).length > 0) {
-      console.log(`[AIPlayer.shouldKan] ✅ Added kan (加槓)`);
+      // 相手リーチ中は加槓を控える（新ドラが相手に有利・一発消しは加槓でも無効化できるが
+      // 新ドラリスクが大きい）
+      if (oppRiichi && this.difficulty >= 1) {
+        console.log('[AIPlayer.shouldKan] ❌ Skip added kan: opponent riichi risk');
+        return false;
+      }
+      console.log('[AIPlayer.shouldKan] ✅ Added kan (加槓)');
       return true;
     }
 
     // 暗槓: シャンテン悪化しなければ実行
     const cks = this.getValidConcealedKan(hand);
     if (cks.length > 0) {
+      // 相手リーチ中は暗槓も控える（新ドラリスク）
+      if (oppRiichi && this.difficulty >= 1) {
+        console.log('[AIPlayer.shouldKan] ❌ Skip concealed kan: opponent riichi risk');
+        return false;
+      }
+
       const ck = cks[0];
       const ci = AIPlayer.tileToIndex(ck);
       const hc = AIPlayer.handToCountArray(hand);
@@ -662,12 +918,20 @@ class AIPlayer {
    * 大明槓判断: 相手の捨て牌に対して手牌に3枚あるときカンすべきか
    * カンはドラ1枚増加 + 嶺上牌1枚ツモ → 基本的にシャンテン悪化しなければ実行
    */
-  shouldDaiminkan(hand, discardedTile, melds = []) {
+  shouldDaiminkan(hand, discardedTile, melds = [], gameState = {}) {
     if (!hand || hand.length === 0 || !discardedTile) return false;
 
     const hc = AIPlayer.handToCountArray(hand);
     const ti = AIPlayer.tileToIndex(discardedTile);
     if (hc[ti] < 3) return false;
+
+    const oppRiichi = gameState.opponentRiichi || false;
+
+    // ハードモード: 相手リーチ中は大明槓を控える（新ドラが相手に有利なリスク）
+    if (oppRiichi && this.difficulty >= 2) {
+      console.log('[AIPlayer.shouldDaiminkan] ❌ Skip: opponent riichi risk (hard mode)');
+      return false;
+    }
 
     const nm = melds.length;
     const shBefore = AIPlayer.calculateShanten(hc, nm);
@@ -682,11 +946,11 @@ class AIPlayer {
 
     // シャンテン悪化しなければ大明槓実行（ドラ増加のメリットがある）
     if (shAfter <= shBefore) {
-      console.log(`[AIPlayer.shouldDaiminkan] ✅ Daiminkan (大明槓)`);
+      console.log('[AIPlayer.shouldDaiminkan] ✅ Daiminkan (大明槓)');
       return true;
     }
 
-    console.log(`[AIPlayer.shouldDaiminkan] ❌ Shanten worsens`);
+    console.log('[AIPlayer.shouldDaiminkan] ❌ Shanten worsens');
     return false;
   }
 
@@ -716,6 +980,9 @@ class AIPlayer {
 
   setTsumoKiriMode(en) { this.tsumoKiriMode = en; }
   getTsumoKiriMode()   { return this.tsumoKiriMode; }
+
+  setDifficulty(d)     { this.difficulty = Math.max(0, Math.min(2, d)); }
+  getDifficulty()      { return this.difficulty; }
 
   // ================================================================
   //  Backward-compatible Helpers  テスト互換ラッパー
