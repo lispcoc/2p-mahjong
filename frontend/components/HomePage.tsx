@@ -193,6 +193,42 @@ export default function HomePage({
     }
   }
 
+  const handleCreateWithQuickRulesLong = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: defaultWallTiles,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: maxAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: false,
+          aotenjou: false,
+          dealerSelection: 'random',
+          ronMultiplier: 1,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const clampWallTiles = (value: number) => {
     if (!Number.isFinite(value)) return defaultWallTiles
     return Math.min(maxWallTiles, Math.max(minWallTiles, Math.floor(value)))
@@ -513,6 +549,16 @@ export default function HomePage({
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
               <div>クイックルールで作成</div>
+              <div className='text-xs'>(待ち時間10秒)</div>
+              <div className='text-xs'>(一局勝負・和了以外の得点変動なし)</div>
+            </button>
+            <button
+              onClick={handleCreateWithQuickRulesLong}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+            >
+              <div>クイックルールで作成</div>
+              <div className='text-xs'>(待ち時間60秒)</div>
               <div className='text-xs'>(一局勝負・和了以外の得点変動なし)</div>
             </button>
             <button
@@ -572,68 +618,66 @@ export default function HomePage({
                 <p className="text-xs text-gray-300 m-0">{minWallTiles}〜{maxWallTiles}（通常 {defaultWallTiles}）</p>
                 <p className="text-xs text-gray-400 m-0 mt-1">配牌26枚と予約牌22枚を除いた、ゲーム進行中にツモできる牌の枚数です</p>
               </div>
-              <div className="flex flex-col gap-3 p-3 bg-[#1a2e0a] border border-gray-500 rounded">
-                <div className="hidden">
-                  <div>
-                    <label className="text-gray-300 text-xs" htmlFor="myTsumoLuckModal">
-                      あなたのツモ運レベル
-                    </label>
-                    <div className="flex gap-2 items-center mt-2">
-                      <input
-                        id="myTsumoLuckModal"
-                        type="range"
-                        min={0}
-                        max={3}
-                        step={1}
-                        value={myTsumoLuck}
-                        onChange={(e) => setMyTsumoLuck(Number(e.target.value))}
-                        className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
-                      />
-                      <span className="text-white text-sm font-bold w-12 text-center">{myTsumoLuck}</span>
-                    </div>
-                    <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
-                      <span>0: なし</span>
-                      <span>1: 軽い</span>
-                      <span>2: 中程度</span>
-                      <span>3: 強い</span>
-                    </div>
-                    <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
-                      {myTsumoLuck === 0 && '完全ランダムに牌を引きます'}
-                      {myTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
-                      {myTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
-                      {myTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
-                    </div>
+              <div className="hidden flex flex-col gap-3 p-3 bg-[#1a2e0a] border border-gray-500 rounded">
+                <div>
+                  <label className="text-gray-300 text-xs" htmlFor="myTsumoLuckModal">
+                    あなたのツモ運レベル
+                  </label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      id="myTsumoLuckModal"
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={1}
+                      value={myTsumoLuck}
+                      onChange={(e) => setMyTsumoLuck(Number(e.target.value))}
+                      className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-white text-sm font-bold w-12 text-center">{myTsumoLuck}</span>
                   </div>
+                  <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
+                    <span>0: なし</span>
+                    <span>1: 軽い</span>
+                    <span>2: 中程度</span>
+                    <span>3: 強い</span>
+                  </div>
+                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
+                    {myTsumoLuck === 0 && '完全ランダムに牌を引きます'}
+                    {myTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
+                    {myTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
+                    {myTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
+                  </div>
+                </div>
 
-                  <div className="border-t border-gray-600 pt-3">
-                    <label className="text-gray-300 text-xs" htmlFor="opponentTsumoLuckModal">
-                      相手のツモ運レベル
-                    </label>
-                    <div className="flex gap-2 items-center mt-2">
-                      <input
-                        id="opponentTsumoLuckModal"
-                        type="range"
-                        min={0}
-                        max={3}
-                        step={1}
-                        value={opponentTsumoLuck}
-                        onChange={(e) => setOpponentTsumoLuck(Number(e.target.value))}
-                        className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
-                      />
-                      <span className="text-white text-sm font-bold w-12 text-center">{opponentTsumoLuck}</span>
-                    </div>
-                    <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
-                      <span>0: なし</span>
-                      <span>1: 軽い</span>
-                      <span>2: 中程度</span>
-                      <span>3: 強い</span>
-                    </div>
-                    <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
-                      {opponentTsumoLuck === 0 && '完全ランダムに牌を引きます'}
-                      {opponentTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
-                      {opponentTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
-                      {opponentTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
-                    </div>
+                <div className="border-t border-gray-600 pt-3">
+                  <label className="text-gray-300 text-xs" htmlFor="opponentTsumoLuckModal">
+                    相手のツモ運レベル
+                  </label>
+                  <div className="flex gap-2 items-center mt-2">
+                    <input
+                      id="opponentTsumoLuckModal"
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={1}
+                      value={opponentTsumoLuck}
+                      onChange={(e) => setOpponentTsumoLuck(Number(e.target.value))}
+                      className="flex-1 h-2 bg-gray-400 rounded-lg appearance-none cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-white text-sm font-bold w-12 text-center">{opponentTsumoLuck}</span>
+                  </div>
+                  <div className="flex gap-2 justify-between text-xs text-gray-300 mt-1">
+                    <span>0: なし</span>
+                    <span>1: 軽い</span>
+                    <span>2: 中程度</span>
+                    <span>3: 強い</span>
+                  </div>
+                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 mt-2 rounded">
+                    {opponentTsumoLuck === 0 && '完全ランダムに牌を引きます'}
+                    {opponentTsumoLuck === 1 && '30%の確率で実用的な牌を引きやすくなります'}
+                    {opponentTsumoLuck === 2 && '50%の確率で実用的な牌を引きやすくなります'}
+                    {opponentTsumoLuck === 3 && '70%の確率で実用的な牌を引きやすくなります'}
                   </div>
                 </div>
               </div>

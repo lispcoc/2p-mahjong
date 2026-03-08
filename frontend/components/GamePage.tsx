@@ -19,9 +19,23 @@ import { HandEditorModal } from './Modals/HandEditorModal'
 // Types are now imported from '../types/GameTypes'
 
 // Utilities and components are now imported from separate files
-import { debugLog } from '../utils/DebugUtils'
+import { debugLog, setDebugLogsEnabled } from '../utils/DebugUtils'
 
 const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development'
+
+// Gate console.log / console.warn to dev mode or CPU battle only.
+// We shadow the module-level `console` so existing calls need no changes.
+let _enableGameLogs = DEVELOPMENT_MODE
+/* eslint-disable no-console */
+const console = new Proxy(globalThis.console, {
+  get(target, prop: string) {
+    if (!_enableGameLogs && (prop === 'log' || prop === 'warn')) {
+      return () => {}
+    }
+    return (target as any)[prop]
+  },
+})
+/* eslint-enable no-console */
 
 const windNames: Record<number, string> = {
   1: '東',
@@ -283,6 +297,13 @@ export default function GamePage({
 
   // Get the other player
   const otherPlayer = gameState?.players?.find(p => p.userId !== userId)
+
+  // Enable verbose logging only in dev mode or when playing against a CPU
+  useEffect(() => {
+    const enabled = DEVELOPMENT_MODE || !!(otherPlayer?.isCPU)
+    _enableGameLogs = enabled
+    setDebugLogsEnabled(enabled)
+  }, [otherPlayer?.isCPU])
 
   const handleMessage = React.useCallback((data: any) => {
     const { type, payload } = data

@@ -1,8 +1,15 @@
 let messageCount = 0
 
+// Controlled by GamePage at runtime - logs are shown in dev mode or CPU battles
+export let enableDebugLogs = process.env.NODE_ENV === 'development'
+
+export function setDebugLogsEnabled(enabled: boolean) {
+  enableDebugLogs = enabled
+}
+
 export function debugLog(message: string) {
   const msg = `[${++messageCount}] ${message}`
-  console.log(msg)
+  if (enableDebugLogs) console.log(msg)
   try {
     const logs = JSON.parse(localStorage.getItem('debugLogs') || '[]')
     logs.push({
