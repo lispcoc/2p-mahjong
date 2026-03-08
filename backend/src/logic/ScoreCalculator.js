@@ -511,7 +511,7 @@ class ScoreCalculator {
     }
 
     // 三暗刻（サンアンコー）- 和了形に依存
-    if (this.isSankouWithCombination(combination)) {
+    if (this.isSankouWithCombination(combination, isRon, winningTile)) {
       yaku.push({ name: '三暗刻', han: 2 });
     }
 
@@ -988,16 +988,27 @@ class ScoreCalculator {
 
   /**
    * 三暗刻（サンアンコー）判定 - combination版
+   * ロン時は和了牌が刻子を完成させた場合、その刻子は明刻扱いのため暗刻カウントから除く。
    */
-  isSankouWithCombination(combination) {
+  isSankouWithCombination(combination, isRon = false, winningTile = null) {
     let ankouCount = 0;
+    let winTileUsedInTriplet = false;
 
     combination.melds.forEach(meld => {
       // 刻子かチェック
       if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
         ankouCount++;
+        // ロン時: 和了牌がこの刻子に含まれる場合、明刻扱いとしてフラグを立てる（1回のみ）
+        if (isRon && winningTile && meld[0].equals(winningTile) && !winTileUsedInTriplet) {
+          winTileUsedInTriplet = true;
+        }
       }
     });
+
+    // ロン時、和了牌が刻子を完成させた場合はその刻子を明刻扱いにする
+    if (winTileUsedInTriplet) {
+      ankouCount--;
+    }
 
     return ankouCount >= 3;
   }
@@ -1716,11 +1727,24 @@ class ScoreCalculator {
     });
 
     // 手牌の面子の符（暗刻）
+    // ロン時、和了牌が刻子を完成させた場合（双碰待ち）はその刻子を明刻扱い（1回のみ）
+    let ronTripletDeducted = false;
     combination.melds.forEach(meld => {
       if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
-        // 暗刻
         const isYaochu = meld[0].suit === 'honor' || meld[0].number === 1 || meld[0].number === 9;
-        fu += isYaochu ? 8 : 4; // 暗刻は明刻の倍
+        const isMingkouByRon = !isTsumo &&
+          !ronTripletDeducted &&
+          winningTile &&
+          meld[0].suit === winningTile.suit &&
+          meld[0].number === winningTile.number;
+        if (isMingkouByRon) {
+          // ロンで完成した刻子は明刻扱い
+          fu += isYaochu ? 4 : 2;
+          ronTripletDeducted = true;
+        } else {
+          // 暗刻は明刻の倍
+          fu += isYaochu ? 8 : 4;
+        }
       }
     });
 
