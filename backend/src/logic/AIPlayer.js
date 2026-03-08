@@ -656,10 +656,10 @@ class AIPlayer {
         console.log('[AIPlayer.shouldPung] ✅ Shanten improves with viable yaku');
         return true;
       }
-      // テンパイ or イーシャンテン到達なら役未確定でも許可
+      // テンパイ or イーシャンテン到達でも役なしは副露後に和了不能 → 見送り
       if (bestShAfter <= 1) {
-        console.log(`[AIPlayer.shouldPung] ✅ Near tenpai (${bestShAfter})`);
-        return true;
+        console.log(`[AIPlayer.shouldPung] ❌ Near tenpai (${bestShAfter}) but no yaku path`);
+        return false;
       }
       console.log('[AIPlayer.shouldPung] ❌ Shanten improves but far and no yaku');
       return false;
@@ -692,6 +692,9 @@ class AIPlayer {
     if (this._canTanyao(handCounts, currentMelds, pungTile)) return true;
     if (this._canHonitsu(handCounts, currentMelds, pungTile)) return true;
     if (this._canToitoi(handCounts, currentMelds)) return true;
+    if (this._canSanshokuDoukou(handCounts, currentMelds, pungTile)) return true;
+    if (this._canShousangen(handCounts, currentMelds, pungTile)) return true;
+    if (this._canChanta(handCounts, currentMelds, pungTile)) return true;
 
     return false;
   }
@@ -741,6 +744,88 @@ class AIPlayer {
       if (hc[i] >= 2) pairs++;
     }
     return pairs >= 2;
+  }
+
+  /**
+   * 三色同刻: 同じ数字の刻子を3スーツで揃える
+   * ポン牌と既存の副露・手牌から同数字の刻子が3スーツそろう見込みか判定
+   */
+  _canSanshokuDoukou(hc, melds, pt) {
+    if (pt.suit === 'honor') return false;
+    const n = pt.number;
+    const suits = ['man', 'pin', 'sou'];
+    const pungSuits = new Set([pt.suit]);
+
+    // 既存面子に同数字の刻子があるか
+    for (const m of melds) {
+      if (m.length >= 3 && m[0].suit !== 'honor' && m[0].number === n &&
+          m[0].suit === m[1].suit && m[0].suit === m[2].suit) {
+        pungSuits.add(m[0].suit);
+      }
+    }
+    // 手牌に同数字の対子以上があるか（刻子に育てられる）
+    for (const s of suits) {
+      if (!pungSuits.has(s)) {
+        const idx = AIPlayer.tileToIndex({ suit: s, number: n });
+        if (hc[idx] >= 2) pungSuits.add(s);
+      }
+    }
+    return pungSuits.size >= 3;
+  }
+
+  /**
+   * 小三元 / 大三元: 三元牌（白・發・中）の刻子2つ以上 + 残り対子
+   */
+  _canShousangen(hc, melds, pt) {
+    const dragons = [5, 6, 7]; // honor番号
+    let dragonPungs = 0;
+    let dragonPairs = 0;
+
+    // 既存副露の三元牌刻子
+    for (const m of melds) {
+      if (m.length >= 3 && m[0].suit === 'honor' && dragons.includes(m[0].number)) {
+        dragonPungs++;
+      }
+    }
+    // 今回ポン/カンする牌
+    if (pt.suit === 'honor' && dragons.includes(pt.number)) {
+      dragonPungs++;
+    }
+    // 手牌に残る三元牌の対子
+    for (const d of dragons) {
+      const idx = AIPlayer.tileToIndex({ suit: 'honor', number: d });
+      // 今回ポンする牌は刻子に使うので対子としてカウントしない
+      if (pt.suit === 'honor' && pt.number === d) continue;
+      if (hc[idx] >= 2) dragonPairs++;
+    }
+
+    // 小三元: 三元牌2刻子 + 1対子, 大三元: 三元牌3刻子
+    return dragonPungs >= 2 && (dragonPungs >= 3 || dragonPairs >= 1);
+  }
+
+  /**
+   * 混全帯么九 (チャンタ): 全ての面子・雀頭に么九牌または字牌を含む
+   * ポン牌が么九牌/字牌 かつ 既存副露が全てチャンタ条件を満たし
+   * 手牌の中張牌が多くない場合に可能性ありと判断
+   */
+  _canChanta(hc, melds, pt) {
+    // ポン牌自体が么九牌・字牌でなければ不可
+    if (pt.suit !== 'honor' && pt.number !== 1 && pt.number !== 9) return false;
+    // 既存副露が全てチャンタ条件（么九牌/字牌を含む）を満たしているか
+    for (const m of melds) {
+      const hasYaochu = m.some(
+        t => t.suit === 'honor' || t.number === 1 || t.number === 9
+      );
+      if (!hasYaochu) return false;
+    }
+    // 手牌に中張牌（2〜8）が多すぎると成立困難
+    let middleCount = 0;
+    for (let i = 0; i < 27; i++) {
+      if (hc[i] <= 0) continue;
+      const t = AIPlayer.indexToTile(i);
+      if (t.number >= 2 && t.number <= 8) middleCount += hc[i];
+    }
+    return middleCount <= 4;
   }
 
   // ================================================================
@@ -944,10 +1029,14 @@ class AIPlayer {
 
     console.log(`[AIPlayer.shouldDaiminkan] ${discardedTile.suit}-${discardedTile.number}: shanten ${shBefore}→${shAfter}`);
 
-    // シャンテン悪化しなければ大明槓実行（ドラ増加のメリットがある）
+    // シャンテン悪化しなければ大明槓候補 → さらに役の見込みを確認（副露後はリーチ不可）
     if (shAfter <= shBefore) {
-      console.log('[AIPlayer.shouldDaiminkan] ✅ Daiminkan (大明槓)');
-      return true;
+      if (this._hasYakuAfterFuro(kc, melds, discardedTile)) {
+        console.log('[AIPlayer.shouldDaiminkan] ✅ Daiminkan (大明槓)');
+        return true;
+      }
+      console.log('[AIPlayer.shouldDaiminkan] ❌ No yaku path after daiminkan');
+      return false;
     }
 
     console.log('[AIPlayer.shouldDaiminkan] ❌ Shanten worsens');
