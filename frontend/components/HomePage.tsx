@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useWhiteMode } from '../contexts/WhiteModeContext'
 import { YakuListModal } from './Modals/YakuListModal'
+import { YakumanListModal } from './Modals/YakumanListModal'
 
 interface HomePageProps {
   playerName: string
@@ -77,6 +78,7 @@ export default function HomePage({
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
+  const [isYakumanModalOpen, setIsYakumanModalOpen] = useState(false)
 
   const fetchRooms = async () => {
     setRoomsLoading(true)
@@ -436,12 +438,18 @@ export default function HomePage({
             </button>
           </div>
         </div>
-        <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
+        <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300 gap-2">
           <button
             onClick={() => setIsYakuModalOpen(true)}
-            className="w-full px-2 py-3 border-2 border-white font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
+            className="flex-1 px-2 py-3 border-2 border-white font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
           >
             役一覧を見る
+          </button>
+          <button
+            onClick={() => setIsYakumanModalOpen(true)}
+            className="flex-1 px-2 py-3 border-2 border-white font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016]"
+          >
+            役満達成記録
           </button>
           </div>
         <div className="flex flex-col gap-4">
@@ -544,6 +552,10 @@ export default function HomePage({
 
       {isYakuModalOpen && (
         <YakuListModal onClose={() => setIsYakuModalOpen(false)} />
+      )}
+
+      {isYakumanModalOpen && (
+        <YakumanListModal onClose={() => setIsYakumanModalOpen(false)} />
       )}
 
       {isCreateMenuOpen && (

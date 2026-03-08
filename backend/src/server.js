@@ -12,6 +12,26 @@ const settings = require('./settings');
 // 同じ名前が再度使われた場合は日付のみ更新する
 const PLAYER_LOG_FILE = path.join(process.cwd(), 'player-names.csv');
 
+// 役満記録ファイル
+const YAKUMAN_LOG_FILE = path.join(process.cwd(), 'yakuman-records.json');
+
+// 役満記録を追記する関数
+function logYakumanRecord(playerName, yakuNames, scoreType) {
+  try {
+    let records = [];
+    if (fs.existsSync(YAKUMAN_LOG_FILE)) {
+      const content = fs.readFileSync(YAKUMAN_LOG_FILE, 'utf8');
+      records = JSON.parse(content);
+    }
+    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    records.push({ date, playerName, yakuNames, scoreType });
+    fs.writeFileSync(YAKUMAN_LOG_FILE, JSON.stringify(records, null, 2), 'utf8');
+    console.log(`🏆 Yakuman logged: ${playerName} - ${yakuNames} (${date})`);
+  } catch (err) {
+    console.error('❌ Failed to log yakuman record:', err.message);
+  }
+}
+
 function logPlayerName(playerName) {
   try {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -119,6 +139,22 @@ app.get('/playerNames', (req, res) => {
   } catch (err) {
     console.error('❌ Failed to read player names:', err.message);
     res.status(500).json({ error: 'Failed to read player names' });
+  }
+});
+
+app.get('/yakumanRecords', (req, res) => {
+  try {
+    if (!fs.existsSync(YAKUMAN_LOG_FILE)) {
+      return res.json({ records: [] });
+    }
+    const content = fs.readFileSync(YAKUMAN_LOG_FILE, 'utf8');
+    const records = JSON.parse(content);
+    // 新しい日付順にソート
+    records.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+    res.json({ records });
+  } catch (err) {
+    console.error('❌ Failed to read yakuman records:', err.message);
+    res.status(500).json({ error: 'Failed to read yakuman records' });
   }
 });
 
@@ -935,6 +971,21 @@ async function handleAction(ws, payload) {
       // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
       room.lastFinishedPayload = finishedPayload;
 
+      // 役満の場合は記録を保存（CPU対戦は除く）
+      const hasCPUPlayer = Array.from(room.players.values()).some(p => p.isCPU);
+      if (!hasCPUPlayer && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
+        const winnerName = finishedPayload.winner
+          ? (room.players.get(finishedPayload.winner)?.playerName || finishedPayload.winner)
+          : null;
+        if (winnerName) {
+          const yakumanYaku = scoreResult.yaku
+            ? scoreResult.yaku.filter(y => y.isYakuman).map(y => y.name)
+            : [];
+          const yakuNames = yakumanYaku.length > 0 ? yakumanYaku.join('・') : '数え役満';
+          logYakumanRecord(winnerName, yakuNames, scoreResult.scoreType);
+        }
+      }
+
       console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
       console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
     } catch (err) {
@@ -1317,6 +1368,22 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
 
     // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
     room.lastFinishedPayload = finishedPayload;
+
+    // 役満の場合は記録を保存（CPU対戦は除く）
+    const hasCPUPlayer = Array.from(room.players.values()).some(p => p.isCPU);
+    if (!hasCPUPlayer && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
+      const winnerPlayerId = finishedPayload.winner;
+      const winnerPlayerName = winnerPlayerId
+        ? (room.players.get(winnerPlayerId)?.playerName || winnerPlayerId)
+        : null;
+      if (winnerPlayerName) {
+        const yakumanYaku = scoreResult.yaku
+          ? scoreResult.yaku.filter(y => y.isYakuman).map(y => y.name)
+          : [];
+        const yakuNames = yakumanYaku.length > 0 ? yakumanYaku.join('・') : '数え役満';
+        logYakumanRecord(winnerPlayerName, yakuNames, scoreResult.scoreType);
+      }
+    }
   } catch (err) {
     console.error(`[🔵 ${logPrefix}] ❌ Error while broadcasting gameFinished:`, err);
     console.error(`[🔵 ${logPrefix}] Error details:`, err.message, err.stack);

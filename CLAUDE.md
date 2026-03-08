@@ -9,8 +9,8 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約9,758行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約5,826行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約9,825行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約5,929行）
 - **テスト**: 19ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -107,12 +107,13 @@ npm run task:generate  # タスク生成
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 48 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 40 |
 | `frontend/components/GamePage.tsx` | 2,751 |
-| `frontend/components/HomePage.tsx` | 931 |
+| `frontend/components/HomePage.tsx` | 943 |
 | `frontend/components/LoginPage.tsx` | 76 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |
 | `frontend/components/Modals/HandEditorModal.tsx` | 181 |
 | `frontend/components/Modals/ScoreResultModal.tsx` | 301 |
 | `frontend/components/Modals/YakuListModal.tsx` | 692 |
+| `frontend/components/Modals/YakumanListModal.tsx` | 91 |
 | `frontend/components/TileImage.tsx` | 101 |
 | `frontend/components/TileInline.tsx` | 58 |
 <!-- AUTO:FRONTEND_STRUCTURE:END -->
