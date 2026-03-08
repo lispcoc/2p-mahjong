@@ -367,6 +367,14 @@ export default function GamePage({
           kanningWall: payload.gameState?.kanningWall,
           pendingPungFor: payload.gameState?.pendingPungFor,
           canWinFor: payload.gameState?.canWinFor,
+          scores: payload.gameState?.scores,
+          initialScore: payload.gameState?.initialScore,
+          roundWind: payload.gameState?.roundWind,
+          roundNumber: payload.gameState?.roundNumber,
+          roundName: payload.gameState?.roundName,
+          currentRound: payload.gameState?.currentRound,
+          dealerId: payload.gameState?.dealerId,
+          seatWinds: payload.gameState?.seatWinds,
           hostId: payload.hostId || payload.gameState?.hostId,
           rematchReadyUserIds: payload.gameState?.rematchReadyUserIds || [],
         }
@@ -1830,10 +1838,10 @@ export default function GamePage({
         {/* Toast notifications are handled by react-hot-toast <Toaster /> */}
 
         {/* Game Content */}
-        {(gameState.status === 'playing' || gameState.status === 'finished') ? (
+        {(gameState.status === 'playing' || gameState.status === 'finished' || gameState.status === 'gameOver') ? (
           <div className="p-1 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center">
             <p className={`max-sm:hidden text-lg font-bold ${isYourTurn ? 'text-green-300' : 'text-yellow-300'}`}>
-              {gameState.status === 'finished'
+              {(gameState.status === 'finished' || gameState.status === 'gameOver')
                 ? 'ゲーム終了'
                 : isSpectator
                   ? (() => {
@@ -2127,9 +2135,6 @@ export default function GamePage({
             </div>
 
           </div>
-        ) : gameState.status === 'gameOver' ? (
-          // Game Over - Show modals (ScoreResultModal then FinalResultModal)
-          <div className="hidden" />
         ) : (
           <div className="p-8 text-center bg-[#3d6b20] border-2 border-white rounded-none min-h-52 flex flex-col justify-center items-center mb-5">
             <p>ゲーム開始を待機中...</p>

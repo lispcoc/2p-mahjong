@@ -584,6 +584,13 @@ class GameRoom {
 
   getGameState() {
     if (!this.gameLogic) {
+      // Build scores from player objects (preserved after gameLogic is cleared)
+      const scoresFromPlayers = {};
+      this.players.forEach((player, userId) => {
+        if (typeof player.score === 'number') {
+          scoresFromPlayers[userId] = player.score;
+        }
+      });
       const state = {
         status: this.status,
         players: this.getPlayers(),
@@ -596,6 +603,7 @@ class GameRoom {
         nextRoundReadyCount: this.nextRoundReady.size,
         totalPlayers: this.players.size,
         initialScore: this.initialScore,
+        scores: Object.keys(scoresFromPlayers).length > 0 ? scoresFromPlayers : undefined,
         spectatorCount: this.spectators.size,
         hostId: this.hostId,
         rematchReadyUserIds: Array.from(this.rematchReady),
