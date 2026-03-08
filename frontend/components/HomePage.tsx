@@ -71,6 +71,7 @@ export default function HomePage({
   const [notenPenalty, setNotenPenalty] = useState(savedSettings?.notenPenalty ?? true)
   const [riichiDepositRequired, setRiichiDepositRequired] = useState(savedSettings?.riichiDepositRequired ?? true)
   const [aotenjou, setAotenjou] = useState(savedSettings?.aotenjou ?? false)
+  const [kiriagemangan, setKiriagemangan] = useState(savedSettings?.kiriagemangan !== false)
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [ronMultiplier, setRonMultiplier] = useState<number>(savedSettings?.ronMultiplier ?? 1)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
@@ -141,6 +142,7 @@ export default function HomePage({
           notenPenalty: true,
           riichiDepositRequired: true,
           aotenjou: false,
+          kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
         }),
@@ -177,6 +179,7 @@ export default function HomePage({
           notenPenalty: false,
           riichiDepositRequired: false,
           aotenjou: false,
+          kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
         }),
@@ -213,6 +216,7 @@ export default function HomePage({
           notenPenalty: false,
           riichiDepositRequired: false,
           aotenjou: false,
+          kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
         }),
@@ -270,6 +274,7 @@ export default function HomePage({
           notenPenalty: notenPenalty,
           riichiDepositRequired: riichiDepositRequired,
           aotenjou: aotenjou,
+          kiriagemangan: kiriagemangan,
           dealerSelection: dealerSelection,
           ronMultiplier: ronMultiplier,
         }),
@@ -296,6 +301,7 @@ export default function HomePage({
           notenPenalty,
           riichiDepositRequired,
           aotenjou,
+          kiriagemangan,
           dealerSelection,
           ronMultiplier,
         }))
@@ -326,6 +332,7 @@ export default function HomePage({
     setNotenPenalty(false)
     setRiichiDepositRequired(true)
     setAotenjou(false)
+    setKiriagemangan(true)
     setDealerSelection('random')
     setRonMultiplier(1)
   }
@@ -787,8 +794,20 @@ export default function HomePage({
                   </label>
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-gray-300 text-xs">青天井</label>
+              <div className="flex flex-col gap-1">                <label className="text-gray-300 text-xs">切り上げ満貫</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={kiriagemangan}
+                      onChange={(e) => setKiriagemangan(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">切り上げ満貫（4翻30符・3翻60符を満貫扱い）</span>
+                  </label>
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">                <label className="text-gray-300 text-xs">青天井</label>
                 <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

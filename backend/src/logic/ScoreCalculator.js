@@ -3,6 +3,7 @@ const Tile = require('./Tile');
 class ScoreCalculator {
   constructor(options = {}) {
     this.aotenjou = options.aotenjou || false; // 青天井モード（点数上限なし）
+    this.kiriagemangan = options.kiriagemangan !== false; // 切り上げ満貫（4翻30符・3翻60符を満貫扱い、デフォルト有効）
     // 基本点数表（切り上げ後の実際の支払い点数）
     this.scoreTable = {
       // [飜数][符] = {ron: ロン時の点数, tsumo: ツモ時の各自の支払い}
@@ -220,8 +221,14 @@ class ScoreCalculator {
     } else if (han >= 4 && fu >= 40) {
       scoreType = '満貫';
       score = 8000;
+    } else if (this.kiriagemangan && han >= 4 && fu >= 30) {
+      scoreType = '満貫'; // 切り上げ満貫（4翻30符）
+      score = 8000;
     } else if (han >= 3 && fu >= 70) {
       scoreType = '満貫';
+      score = 8000;
+    } else if (this.kiriagemangan && han >= 3 && fu >= 60) {
+      scoreType = '満貫'; // 切り上げ満貫（3翻60符）
       score = 8000;
     } else {
       // 通常の点数計算

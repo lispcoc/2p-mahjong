@@ -216,6 +216,9 @@ app.post('/api/rooms', (req, res) => {
   // 青天井モード
   const aotenjou = req.body?.aotenjou === true;
 
+  // 切り上げ満貫（4翻30符・3翻60符を満貫扱い）デフォルト有効
+  const kiriagemangan = req.body?.kiriagemangan !== false;
+
   // ロン倍率: 1 (デフォルト), 1.5, 2
   const supportedRonMultipliers = [1, 1.5, 2];
   const rawRonMultiplier = Number(req.body?.ronMultiplier);
@@ -227,7 +230,7 @@ app.post('/api/rooms', (req, res) => {
     ? req.body.dealerSelection
     : 'random';
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, ronMultiplier, dealerSelection });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

@@ -36,8 +36,9 @@ class MahjongLogic {
     this.ronPossibleFor = null; // Track if Ron is possible for a player
     this.ronTile = null; // The tile that can be claimed for Ron
     this.aotenjou = options.aotenjou || false; // 青天井モード
+    this.kiriagemangan = options.kiriagemangan !== false; // 切り上げ満貫（デフォルト有効）
     this.ronMultiplier = [1, 1.5, 2].includes(options.ronMultiplier) ? options.ronMultiplier : 1; // ロン倍率
-    this.scoreCalculator = new ScoreCalculator({ aotenjou: this.aotenjou });
+    this.scoreCalculator = new ScoreCalculator({ aotenjou: this.aotenjou, kiriagemangan: this.kiriagemangan });
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
