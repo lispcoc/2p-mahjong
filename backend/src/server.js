@@ -645,6 +645,8 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
 
   // 現在のゲーム状態（全牌公開）を送信
   const gameState = room.getGameState();
+  // 局間（playing以外）に参加した観戦者には前局の結果も送信する
+  const lastFinishedPayload = room.status !== 'playing' ? (room.lastFinishedPayload || null) : null;
   const joinedPayload = {
     userId,
     spectatorName,
@@ -655,6 +657,7 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     isSpectator: true,
     isReconnecting,
     spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
+    lastFinishedPayload,
   };
 
   try {
@@ -925,6 +928,9 @@ async function handleAction(ws, payload) {
         type: 'gameFinished',
         payload: finishedPayload,
       });
+
+      // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
+      room.lastFinishedPayload = finishedPayload;
 
       console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
       console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
@@ -1305,6 +1311,9 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
       type: 'gameFinished',
       payload: finishedPayload,
     });
+
+    // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
+    room.lastFinishedPayload = finishedPayload;
   } catch (err) {
     console.error(`[🔵 ${logPrefix}] ❌ Error while broadcasting gameFinished:`, err);
     console.error(`[🔵 ${logPrefix}] Error details:`, err.message, err.stack);

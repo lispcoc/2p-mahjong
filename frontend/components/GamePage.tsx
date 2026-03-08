@@ -445,6 +445,27 @@ export default function GamePage({
           })
         }
         toast.success(`観戦モードで参加しました`, { duration: 3000 })
+
+        // 局間に参加した場合は前の局の結果を表示する
+        if (payload.lastFinishedPayload) {
+          const lf = payload.lastFinishedPayload
+          if (lf.isDraw && lf.tenpaiStatus) setTenpaiStatus(lf.tenpaiStatus)
+          else setTenpaiStatus(null)
+          if (lf.isDraw && lf.notenPenalty) setNotenPenalty(lf.notenPenalty)
+          else setNotenPenalty(null)
+          if (lf.winner) setLastWinnerId(lf.winner)
+          if (lf.gameOver && lf.finalResults) {
+            setFinalResults(lf.finalResults)
+            setShowFinalResults(false)
+          }
+          if (lf.scoreResult) {
+            setScoreResult({ ...lf.scoreResult, winType: lf.winType || '', isDraw: false })
+          } else if (lf.isDraw) {
+            setScoreResult({ valid: true, score: 0, han: 0, fu: 0, scoreType: lf.winType || '流局', yaku: [], isDraw: true })
+          } else if (lf.winner) {
+            setScoreResult({ valid: true, score: 0, han: 0, fu: 0, scoreType: lf.winType || '和了', yaku: [], isDraw: false, winType: lf.winType || '' })
+          }
+        }
         break
       case 'spectatorJoinedNotify':
         debugLog(`👀 A spectator joined: ${payload.spectatorName}`)

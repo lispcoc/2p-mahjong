@@ -509,7 +509,7 @@ export default function HomePage({
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {room.status === 'playing' && onSpectateRoom && (
+                      {onSpectateRoom && (
                         <button
                           onClick={() => onSpectateRoom(room.roomId)}
                           className="px-4 py-3 border-2 border-white bg-[#1a4a5a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f3040]"
