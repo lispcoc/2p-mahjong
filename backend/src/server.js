@@ -428,6 +428,16 @@ app.post('/api/rooms/:roomId/add-cpu', (req, res) => {
   });
 });
 
+// 試合履歴を取得（最大100件）
+app.get('/api/rooms/:roomId/match-history', (req, res) => {
+  const { roomId } = req.params;
+  const room = rooms.get(roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'Room not found' });
+  }
+  res.json({ matchHistory: room.getMatchHistory() });
+});
+
 // WebSocket Connection
 wss.on('connection', (ws) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);

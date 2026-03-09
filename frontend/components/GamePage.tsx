@@ -15,6 +15,7 @@ import { DebugPanel } from './GameBoard/DebugPanel'
 import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
 import { HandEditorModal } from './Modals/HandEditorModal'
+import { MatchHistoryModal } from './Modals/MatchHistoryModal'
 
 // Types are now imported from '../types/GameTypes'
 
@@ -102,6 +103,7 @@ export default function GamePage({
   const pausedAutoDiscardTimeLeft = useRef<number | null>(null)
   const pausedPendingPungTimeLeft = useRef<number | null>(null)
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
+  const [showMatchHistory, setShowMatchHistory] = useState(false) // 履歴モーダル表示
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
   const [showHandEditor, setShowHandEditor] = useState(false) // 手牌エディタ表示フラグ
   const [spectatorShowHands, setSpectatorShowHands] = useState(false) // 観戦時 手牌表示フラグ
@@ -1853,6 +1855,13 @@ export default function GamePage({
                 {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
               </button>
             )}
+            {/* 試合履歴ボタン */}
+            <button
+              onClick={() => setShowMatchHistory(true)}
+              className="px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors bg-indigo-600 hover:bg-indigo-700"
+            >
+              履歴
+            </button>
             <button
               onClick={() => setSoundEnabled(prev => !prev)}
               className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${soundEnabled ? 'bg-blue-600 text-[#ffffff] border-blue-700' : 'bg-white text-blue-600 border-blue-600'}`}
@@ -2759,6 +2768,14 @@ export default function GamePage({
           })()}
         </>
       ) : null}
+
+      {/* Match History Modal */}
+      {showMatchHistory && (
+        <MatchHistoryModal
+          roomId={roomId}
+          onClose={() => setShowMatchHistory(false)}
+        />
+      )}
 
       {/* Hand Editor Modal (DEV only) */}
       {(DEVELOPMENT_MODE || otherPlayer?.isCPU) && showHandEditor && gameState?.tiles?.[userId] && (

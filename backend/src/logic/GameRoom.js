@@ -9,6 +9,7 @@ class GameRoom {
     this.gameLogic = null;
     this.status = 'waiting'; // waiting, playing, finished, gameOver
     this.roundHistory = []; // 局の履歴
+    this.matchHistory = []; // 試合履歴（最大100件、再戦をまたいで保持）
     this.nextRoundReady = new Set(); // 次の局への準備完了プレイヤー
     this.currentRound = 0; // 現在の局数
     this.roundWindIndex = 0; // 0=東, 1=南
@@ -577,6 +578,21 @@ class GameRoom {
           result.gameOver = true;
           result.finalResults = this.roundHistory;
           console.log(`[GameRoom.handlePlayerAction] ✅ result.finalResults set:`, result.finalResults.length, 'rounds');
+
+          // 試合履歴に追加（最大100件）
+          const matchEntry = {
+            endTime: new Date().toISOString(),
+            scores: {},
+            players: this.getPlayers().map(p => ({ userId: p.userId, playerName: p.playerName })),
+          };
+          this.players.forEach((player, uid) => {
+            matchEntry.scores[uid] = player.score;
+          });
+          this.matchHistory.push(matchEntry);
+          if (this.matchHistory.length > 100) {
+            this.matchHistory.shift();
+          }
+          console.log(`[GameRoom.handlePlayerAction] 📋 matchHistory length: ${this.matchHistory.length}`);
         }
       } catch (err) {
         console.error(`[GameRoom.handlePlayerAction] ❌ Error while processing finished game state:`, err);
@@ -760,6 +776,10 @@ class GameRoom {
 
   getRoundHistory() {
     return this.roundHistory;
+  }
+
+  getMatchHistory() {
+    return this.matchHistory;
   }
 
   getCurrentRound() {
