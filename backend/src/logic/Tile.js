@@ -3,6 +3,7 @@ class Tile {
     this.suit = suit // 'man' (萬子), 'pin' (筒子), 'sou' (索子), 'honor' (字牌)
     this.number = number // 1-9 for suits, 1-7 for honors
     this.isRed = isRed // 赤ドラかどうか
+    this.isTransparent = false // 透明手牌ルール: 壁牌生成時に決定される透明フラグ
   }
 
   equals (other) {

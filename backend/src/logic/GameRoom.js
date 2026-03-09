@@ -61,6 +61,7 @@ class GameRoom {
     this.rematchReady = new Set(); // 再戦への準備完了プレイヤー
     this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
+    this.transparentHand = options.transparentHand || false; // 透明手牌ルール（同種3枚保有・赤ドラは透けて見える）
   }
 
   // dealerSelection に基づいて dealerIndex を決定
@@ -328,6 +329,7 @@ class GameRoom {
         kiriagemangan: this.kiriagemangan,
         ronMultiplier: this.ronMultiplier,
         riichiDepositRequired: this.riichiDepositRequired,
+        transparentHand: this.transparentHand,
       }
     );
     if (this.riichiDepositsCarryover > 0) {
@@ -648,6 +650,7 @@ class GameRoom {
       spectatorCount: this.spectators.size, // 見学者数
       hostId: this.hostId, // 部屋作成者のuserId
       rematchReadyUserIds: Array.from(this.rematchReady), // 再戦準備完了プレイヤー一覧
+      transparentHand: this.transparentHand, // 透明手牌ルール
     };
 
     // Send each player their own hand and public information
@@ -690,6 +693,19 @@ class GameRoom {
           state.noMeldMode[userId] = player?.noMeldMode || false;
           state.autoPlay = state.autoPlay || {};
           state.autoPlay[userId] = player?.autoPlay || false;
+        }
+      });
+    }
+
+    // 透明手牌ルール: 壁牌生成時に確定済みの isTransparent フラグを読み取る
+    if (this.transparentHand) {
+      playerIds.forEach((userId) => {
+        const hand = state.tiles[userId]?.hand || [];
+        const transparentIndices = hand
+          .map((tile, idx) => (tile.isTransparent ? idx : -1))
+          .filter((idx) => idx >= 0);
+        if (state.tiles[userId]) {
+          state.tiles[userId].transparentIndices = transparentIndices;
         }
       });
     }

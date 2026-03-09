@@ -75,6 +75,7 @@ export default function HomePage({
   const [kiriagemangan, setKiriagemangan] = useState(savedSettings?.kiriagemangan !== false)
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [ronMultiplier, setRonMultiplier] = useState<number>(savedSettings?.ronMultiplier ?? 1)
+  const [transparentHand, setTransparentHand] = useState(savedSettings?.transparentHand ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
@@ -147,6 +148,7 @@ export default function HomePage({
           kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
+          transparentHand: false,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -184,6 +186,7 @@ export default function HomePage({
           kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
+          transparentHand: false,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -221,6 +224,7 @@ export default function HomePage({
           kiriagemangan: true,
           dealerSelection: 'random',
           ronMultiplier: 1,
+          transparentHand: false,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -279,6 +283,7 @@ export default function HomePage({
           kiriagemangan: kiriagemangan,
           dealerSelection: dealerSelection,
           ronMultiplier: ronMultiplier,
+          transparentHand: transparentHand,
         }),
       })
 
@@ -306,6 +311,7 @@ export default function HomePage({
           kiriagemangan,
           dealerSelection,
           ronMultiplier,
+          transparentHand,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -337,6 +343,7 @@ export default function HomePage({
     setKiriagemangan(true)
     setDealerSelection('random')
     setRonMultiplier(1)
+    setTransparentHand(false)
   }
 
   const handleCancelCreateRoom = () => {
@@ -899,6 +906,27 @@ export default function HomePage({
                     </div>
                   ))}
                 </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">透明牌</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={transparentHand}
+                      onChange={(e) => setTransparentHand(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">透明牌あり</span>
+                  </label>
+                </div>
+                {transparentHand && (
+                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 rounded">
+                    <div>・同種4牌のうち3牌は相手から透けて見えます</div>
+                    <div>・赤ドラは常に透けて見えます</div>
+                    <div>・相手の手牌表示は透けて見える牌が左側、通常牌が右側に並びます</div>
+                  </div>
+                )}
               </div>
             </div>
 

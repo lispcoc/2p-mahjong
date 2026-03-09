@@ -43,6 +43,7 @@ class MahjongLogic {
     this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
+    this.transparentHand = options.transparentHand || false; // 透明手牌ルール
     const rawWallTiles = Number(options.wallTiles);
     // wallTiles: 配牌を除いた、ゲーム進行中にツモできる壁牌の枚数
     // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 87枚
@@ -124,6 +125,11 @@ class MahjongLogic {
     // ピンズ2枚、マンズ1枚、ソウズ1枚
     if (this.useRedDora) {
       this.applyRedDora();
+    }
+
+    // 透明手牌ルール: 壁牌生成直後に各種牌4枚のうち3枚を透明として確定する
+    if (this.transparentHand) {
+      this.applyTransparentHand();
     }
 
     if (this.wallTiles < this.wall.length) {
@@ -271,6 +277,42 @@ class MahjongLogic {
       const j = Math.floor(Math.random() * (i + 1));
       [this.wall[i], this.wall[j]] = [this.wall[j], this.wall[i]];
     }
+  }
+
+  /**
+   * 透明手牌ルール適用: 各種牌4枚のうち3枚を透明としてマーク（壁牌シャッフル後・ゲーム開始前に呼ぶ）
+   * - 赤ドラは必ず透明
+   * - 同種(suit+number)ごとに、赤ドラを除いて残り3枚に達するまで非赤ドラにも透明フラグを付与
+   * - 壁牌はシャッフル済みなので出現順序はランダム
+   */
+  applyTransparentHand() {
+    // suit+number でグループ化（赤ドラと通常牌を同一種として扱う）
+    const groups = {};
+    this.wall.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(tile);
+    });
+
+    for (const tiles of Object.values(groups)) {
+      // 赤ドラは必ず透明
+      tiles.forEach((tile) => {
+        if (tile.isRed) tile.isTransparent = true;
+      });
+
+      // 赤ドラ以外で「3枚透明」に達するまで非赤ドラに透明フラグを付与
+      const redTransparentCount = tiles.filter((t) => t.isRed).length;
+      const stillNeeded = Math.max(0, 3 - redTransparentCount);
+      let marked = 0;
+      tiles.forEach((tile) => {
+        if (!tile.isRed) {
+          tile.isTransparent = marked < stillNeeded;
+          marked++;
+        }
+      });
+    }
+
+    console.log('[applyTransparentHand] Transparent flags applied to wall tiles');
   }
 
   /**

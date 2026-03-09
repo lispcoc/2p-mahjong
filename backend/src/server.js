@@ -266,7 +266,10 @@ app.post('/api/rooms', (req, res) => {
     ? req.body.dealerSelection
     : 'random';
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection });
+  // 透明手牌ルール: 同種3枚保有で透けて見える
+  const transparentHand = req.body?.transparentHand === true;
+
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection, transparentHand });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);

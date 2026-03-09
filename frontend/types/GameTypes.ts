@@ -58,4 +58,5 @@ export interface GameState {
   spectatorShowHandsByDefault?: boolean
   hostId?: string
   rematchReadyUserIds?: string[]
+  transparentHand?: boolean
 }

@@ -1679,6 +1679,35 @@ export default function GamePage({
     ? (((gameState.tiles?.[otherUserId]?.melds as Array<Array<Tile | string>>) || [])
       .map((meld) => meld.map(normalizeTile)))
     : []
+
+  // 透明手牌ルール: 相手の手牌で透明牌のインデックスを取得し、左側（透明）→右側（不透明）でソート
+  const isTransparentHandRule = gameState.transparentHand === true
+  const otherTransparentSet = new Set<number>(
+    isTransparentHandRule && otherUserId
+      ? ((gameState.tiles?.[otherUserId]?.transparentIndices as number[]) ?? [])
+      : []
+  )
+  const otherHandSorted: Array<{ tile: Tile; originalIdx: number; isTransparent: boolean }> =
+    otherHand.map((tile, idx) => ({
+      tile,
+      originalIdx: idx,
+      isTransparent: otherTransparentSet.has(idx),
+    }))
+  if (isTransparentHandRule) {
+    otherHandSorted.sort((a, b) => {
+      if (a.isTransparent && !b.isTransparent) return -1
+      if (!a.isTransparent && b.isTransparent) return 1
+      return 0
+    })
+  }
+
+  // 透明手牌ルール: 自分の手牌で透明牌のインデックスを取得し、半透明表示
+  const myTransparentSet = new Set<number>(
+    isTransparentHandRule
+      ? ((gameState.tiles?.[effectiveUserId]?.transparentIndices as number[]) ?? [])
+      : []
+  )
+
   const melds = ((gameState.tiles?.[effectiveUserId]?.melds as Array<Array<Tile | string>>) || [])
     .map((meld) => meld.map(normalizeTile))
 
@@ -1898,18 +1927,22 @@ export default function GamePage({
 
                 {/* 手牌（裏向きまたは表示） */}
                 <div className="flex gap-px flex-wrap">
-                  {otherHand.map((tile, idx) => (
-                    <React.Fragment key={`other-hand-${idx}`}>
+                  {otherHandSorted.map(({ tile, originalIdx, isTransparent }) => (
+                    <React.Fragment key={`other-hand-${originalIdx}`}>
                       {/* 手出し時の歯抜け表示: 該当位置に空きスペースを挿入 */}
-                      {opponentTedashiGapIdx === idx && (
+                      {opponentTedashiGapIdx === originalIdx && (
                         <div
                           className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
                         />
                       )}
-                      <div className="inline-block">
+                      <div className={`inline-block${isTransparentHandRule && isTransparent ? ' opacity-80' : ''}`}>
                         <TileImage
                           tile={tile}
-                          faceDown={isSpectator ? (!spectatorHandsAllowed || !spectatorShowHands) : (!showOpponentHand || !displayOtherPlayer?.isCPU)}
+                          faceDown={
+                            isTransparentHandRule && isTransparent
+                              ? false
+                              : (isSpectator ? (!spectatorHandsAllowed || !spectatorShowHands) : (!showOpponentHand || !displayOtherPlayer?.isCPU))
+                          }
                         />
                       </div>
                     </React.Fragment>
@@ -2190,7 +2223,7 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
+                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
