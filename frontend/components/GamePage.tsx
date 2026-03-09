@@ -1682,17 +1682,18 @@ export default function GamePage({
 
   // 透明手牌ルール: 相手の手牌で透明牌のインデックスを取得し、左側（透明）→右側（不透明）でソート
   const isTransparentHandRule = gameState.transparentHand === true
-  const otherTransparentSet = new Set<number>(
-    isTransparentHandRule && otherUserId
-      ? ((gameState.tiles?.[otherUserId]?.transparentIndices as number[]) ?? [])
-      : []
-  )
-  const otherHandSorted: Array<{ tile: Tile; originalIdx: number; isTransparent: boolean }> =
-    otherHand.map((tile, idx) => ({
+  const otherHandSorted: Array<{ tile: Tile; originalIdx: number; isTransparent: boolean }> = (() => {
+    const transparentSet = new Set<number>(
+      isTransparentHandRule && otherUserId
+        ? ((gameState.tiles?.[otherUserId]?.transparentIndices as number[]) ?? [])
+        : []
+    )
+    return otherHand.map((tile, idx) => ({
       tile,
       originalIdx: idx,
-      isTransparent: otherTransparentSet.has(idx),
+      isTransparent: transparentSet.has(idx),
     }))
+  })()
   if (isTransparentHandRule) {
     otherHandSorted.sort((a, b) => {
       if (a.isTransparent && !b.isTransparent) return -1

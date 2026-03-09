@@ -2245,6 +2245,7 @@ class MahjongLogic {
       number: tile.number,
       display: tile.toString(),
       isRed: tile.isRed || false,
+      isTransparent: tile.isTransparent || false,
     }));
   }
 
