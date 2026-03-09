@@ -2016,7 +2016,7 @@ export default function GamePage({
               {/* Dora Indicator */}
               {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
                 <div className="flex items-center gap-3">
-                  <div className="flex gap-1">
+                  <div className="flex gap-px">
                     {gameState.dora.indicators.map((tile, idx) => (
                       <TileImage
                         key={idx}
