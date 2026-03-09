@@ -1829,7 +1829,7 @@ export default function GamePage({
           <div className="pl-2 text-xs text-white font-bold">
             ルームID: {roomId}<br/>
             ステータス: {gameState.status}
-            {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">👁️ 観戦中</span>}
+            {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
             {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
               <button
                 onClick={() => setSpectatorShowHands(prev => !prev)}
@@ -1839,7 +1839,7 @@ export default function GamePage({
               </button>
             )}
             {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
-              <span className="ml-2 text-yellow-300">👁️ 見学中: {gameState.spectatorCount}人</span>
+              <span className="ml-2 text-yellow-300">見学中: {gameState.spectatorCount}人</span>
             )}
           </div>
           <div className="flex gap-2 items-center">
@@ -1936,12 +1936,12 @@ export default function GamePage({
                           className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
                         />
                       )}
-                      <div className={`inline-block${isTransparentHandRule && isTransparent ? ' opacity-80' : ''}`}>
+                      <div className="inline-block">
                         <TileImage
                           tile={tile}
                           faceDown={
-                            isTransparentHandRule && isTransparent
-                              ? false
+                            isTransparentHandRule
+                              ? !isTransparent
                               : (isSpectator ? (!spectatorHandsAllowed || !spectatorShowHands) : (!showOpponentHand || !displayOtherPlayer?.isCPU))
                           }
                         />
@@ -2604,13 +2604,13 @@ export default function GamePage({
                 }}
                 className={`px-3 py-2 text-xs font-bold rounded text-white cursor-pointer transition-all ${riichiMode ? 'bg-green-600 border-2 border-green-700 shadow-lg' : 'bg-red-600 border-2 border-red-700'}`}
               >
-                {riichiMode ? '✓ 待機' : '🔴 リーチ'}
+                {riichiMode ? '待機' : 'リーチ'}
               </button>
             )}
             {/* リーチ中の表示 */}
             {gameState.riichi?.[userId] && (
               <div className="px-3 py-2 bg-red-100 border-2 border-red-500 rounded font-bold text-sm text-red-800 text-center shadow-md animate-pulse">
-                🔴 リーチ中
+                リーチ中
               </div>
             )}
           </div>
@@ -2622,7 +2622,7 @@ export default function GamePage({
                 onClick={() => toggleAutoPlayMode(!autoPlayMode)}
                 className={`px-3 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-blue-600 text-[#ffffff] border-blue-700 animate-pulse' : 'bg-white text-blue-600 border-blue-600'}`}
               >
-                🤖 自動: {autoPlayMode ? 'ON' : 'OFF'}
+                自動: {autoPlayMode ? 'ON' : 'OFF'}
               </button>
               <button
                 onClick={toggleTextMode}
