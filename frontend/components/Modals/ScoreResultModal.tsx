@@ -266,7 +266,7 @@ export function ScoreResultModal({
                           )}
                           <div className="flex gap-px flex-wrap items-center">
                             {hand.map((tile: Tile, idx: number) => (
-                              <TileImage key={`hand-${playerId}-${idx}`} tile={tile} />
+                              <TileImage key={`hand-${playerId}-${idx}`} tile={tile} faceDown={!isTenpai} />
                             ))}
                           </div>
                         </div>

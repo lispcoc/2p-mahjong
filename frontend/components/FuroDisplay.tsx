@@ -122,7 +122,9 @@ export function FuroDisplay({
             style={{ gap: 0 }}
           >
             {/* 上: 加槓で追加した牌（横向き） */}
-            <div style={{ marginBottom: -14 }}>
+            {/* モバイル時の回転タイル高さ: 33px、SM+時: 45px
+                50%オーバーラップで、モバイル:-16.5px、SM+:-22.5px */}
+            <div className="-mb-[16.5px] sm:-mb-[22.5px]">
               <TileImage tile={meld[3]} isRotated />
             </div>
             {/* 下: 元のポンで鳴いた牌（横向き） */}
