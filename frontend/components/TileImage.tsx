@@ -38,8 +38,10 @@ export function TileImage({
     const colorClass = faceDown ? 'text-gray-600' : getTileTextColorClass(tile)
 
     // スケール値を考慮した表示サイズ (mobile: 33x47, PC sm+: 45x64)
-    const baseSizesMobile = isRotated ? [47, 33] : [33, 47]
-    const baseSizesSm = isRotated ? [64, 45] : [45, 64]
+    // 回転時は幅と高さを入れ替える
+    const baseSizesMobile = [33, 47]
+    const containerWidth = (isRotated ? baseSizesMobile[1] : baseSizesMobile[0]) * scale
+    const containerHeight = (isRotated ? baseSizesMobile[0] : baseSizesMobile[1]) * scale
 
     return (
       <div
@@ -49,10 +51,8 @@ export function TileImage({
         onMouseLeave={onMouseLeave}
         style={{
           cursor: onClick ? 'pointer' : 'default',
-          width: `${baseSizesMobile[0] * scale}px`,
-          height: `${baseSizesMobile[1] * scale}px`,
-          // Tailwind のメディアクエリは使えないので、web APIで対応する必要があります
-          // ここでは mobile サイズのみを指定しています
+          width: `${containerWidth}px`,
+          height: `${containerHeight}px`,
         }}
       >
         <div
@@ -61,7 +61,7 @@ export function TileImage({
             width: '100%',
             height: '100%',
             boxShadow: isDrawn ? '0 0 8px #FFD700' : (isHovered ? `0 0 10px ${hoverGlow}` : '0 2px 4px rgba(0,0,0,0.2)'),
-            transform: isRotated ? `rotate(90deg) scale(${scale})` : (isDrawn ? `scale(${1.1 * scale})` : `scale(${scale})`),
+            transform: isRotated ? `rotate(90deg)` : (isDrawn ? `scale(${1.1 * scale})` : `scale(${scale})`),
             transformOrigin: 'center',
             transition: 'all 200ms',
             lineHeight: 1.1,
@@ -80,14 +80,17 @@ export function TileImage({
   const src = faceDown ? getTileImageUrl('pai') : getTileImageUrl(getTileKey(tile))
 
   // スケール値を考慮した表示サイズ (mobile: 33x47, PC sm+: 45x64)
-  const baseSizesMobile = isRotated ? [47, 33] : [33, 47]
+  // 回転時は幅と高さを入れ替える
+  const baseSizesMobile = [33, 47]
+  const containerWidth = (isRotated ? baseSizesMobile[1] : baseSizesMobile[0]) * scale
+  const containerHeight = (isRotated ? baseSizesMobile[0] : baseSizesMobile[1]) * scale
 
   return (
     <div
       className={`flex items-center justify-center`}
       style={{
-        width: `${baseSizesMobile[0] * scale}px`,
-        height: `${baseSizesMobile[1] * scale}px`,
+        width: `${containerWidth}px`,
+        height: `${containerHeight}px`,
       }}
     >
       <img
