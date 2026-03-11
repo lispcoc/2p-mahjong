@@ -500,10 +500,24 @@ function handleShareIcon(ws, payload) {
   const { iconData } = payload || {};
   if (!iconData || typeof iconData !== 'string') return;
   room.setPlayerIcon(userId, iconData);
+
   // Forward to the opponent (non-broadcast)
   room.players.forEach((player, pid) => {
     if (pid !== userId && player.ws && player.ws.readyState === 1) {
       player.ws.send(JSON.stringify({ type: 'opponentIcon', payload: { iconData } }));
+    }
+  });
+
+  // Also notify spectators of the icon update
+  room.spectators.forEach((spectator) => {
+    if (spectator.ws && spectator.ws.readyState === 1) {
+      // Find which player this is (for spectators to update the correct icon slot)
+      const player = room.players.get(userId);
+      const playerIndex = room.getPlayers().findIndex(p => p.userId === userId);
+      spectator.ws.send(JSON.stringify({
+        type: 'playerIconUpdated',
+        payload: { userId, playerIndex, iconData }
+      }));
     }
   });
 }
@@ -729,6 +743,17 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
   const gameState = room.getGameState();
   // 局間（playing以外）に参加した観戦者には前局の結果も送信する
   const lastFinishedPayload = room.status !== 'playing' ? (room.lastFinishedPayload || null) : null;
+
+  // 両プレイヤーのアイコンを取得して観戦者に送信
+  const playerIconsData = {};
+  const players = room.getPlayers();
+  players.forEach((player, index) => {
+    const icon = room.getPlayerIcon(player.userId);
+    if (icon) {
+      playerIconsData[player.userId] = icon;
+    }
+  });
+
   const joinedPayload = {
     userId,
     spectatorName,
@@ -740,6 +765,7 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     isReconnecting,
     spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
     lastFinishedPayload,
+    playerIcons: playerIconsData,
   };
 
   try {

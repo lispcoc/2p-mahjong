@@ -506,6 +506,15 @@ export default function GamePage({
             isSpectatorView: true,
           })
         }
+
+        // 観戦モード時：両プレイヤーのアイコンを設定
+        if (payload.playerIcons && payload.players && payload.players.length >= 2) {
+          const player1Icon = payload.playerIcons[payload.players[0].userId] || null
+          const player2Icon = payload.playerIcons[payload.players[1].userId] || null
+          setPlayerIcon(player1Icon)
+          setOpponentIcon(player2Icon)
+        }
+
         toast.success(`観戦モードで参加しました`, { duration: 3000 })
 
         // 局間に参加した場合は前の局の結果を表示する
@@ -1004,6 +1013,16 @@ export default function GamePage({
       case 'opponentIcon':
         if (payload?.iconData) {
           setOpponentIcon(payload.iconData)
+        }
+        break
+      case 'playerIconUpdated':
+        // 観戦モード時：プレイヤーがアイコンを更新した場合、該当するアイコンを更新
+        if (payload?.iconData && payload?.playerIndex !== undefined) {
+          if (payload.playerIndex === 0) {
+            setPlayerIcon(payload.iconData)
+          } else if (payload.playerIndex === 1) {
+            setOpponentIcon(payload.iconData)
+          }
         }
         break
       case 'roomDeleted':
@@ -2226,7 +2245,7 @@ export default function GamePage({
                 </div>
               </div>
               </div>
-              {playerIcon && (
+              {playerIcon && !gameState?.isSpectatorView && (
                 <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
                   <img
                     src={playerIcon}
