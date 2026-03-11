@@ -15,6 +15,8 @@ interface ScoreResultModalProps {
   notenPenalty?: { amount: number; tenpaiPlayer: string; notenPlayer: string } | null
   playerOrder?: string[]
   playerNames?: Record<string, string>
+  isSpectator?: boolean
+  onLeave?: () => void
 }
 
 export function ScoreResultModal({
@@ -29,6 +31,8 @@ export function ScoreResultModal({
   notenPenalty,
   playerOrder,
   playerNames,
+  isSpectator = false,
+  onLeave,
 }: ScoreResultModalProps) {
   if (!scoreResult) return null
 
@@ -283,17 +287,27 @@ export function ScoreResultModal({
           </p>
         )}
 
-        <button
-          onClick={onNextRound}
-          disabled={nextRoundReady}
-          className={`mt-4 px-5 py-2.5 text-sm font-bold border-2 border-white w-full transition-colors ${
-            nextRoundReady
-              ? 'bg-gray-600 cursor-not-allowed text-white'
-              : 'bg-mahjong-dark-secondary hover:bg-green-700 text-white cursor-pointer'
-          }`}
-        >
-          {nextRoundReady ? '準備完了' : '次へ'}
-        </button>
+        {isSpectator && onLeave && (
+          <button
+            onClick={onLeave}
+            className="mt-4 px-5 py-2.5 text-sm font-bold border-2 border-red-400 w-full transition-colors bg-mahjong-dark-secondary hover:bg-red-900 text-red-300 cursor-pointer"
+          >
+            退室する
+          </button>
+        )}
+        {!isSpectator && (
+          <button
+            onClick={onNextRound}
+            disabled={nextRoundReady}
+            className={`mt-4 px-5 py-2.5 text-sm font-bold border-2 border-white w-full transition-colors ${
+              nextRoundReady
+                ? 'bg-gray-600 cursor-not-allowed text-white'
+                : 'bg-mahjong-dark-secondary hover:bg-green-700 text-white cursor-pointer'
+            }`}
+          >
+            {nextRoundReady ? '準備完了' : '次へ'}
+          </button>
+        )}
       </div>
     </div>
   )

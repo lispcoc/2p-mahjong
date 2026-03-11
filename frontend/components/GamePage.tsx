@@ -2865,6 +2865,8 @@ export default function GamePage({
               scoreResult={scoreResult}
               gameState={gameState}
               nextRoundReady={finalResults ? false : nextRoundReady}
+              isSpectator={isSpectator}
+              onLeave={isSpectator ? onBack : undefined}
               onNextRound={() => {
                 console.log('🏁 ScoreResultModal onNextRound clicked:', { finalResults: !!finalResults, showFinalResults })
                 // 最終局かつfinalResultsがある場合は最終結果モーダルを表示

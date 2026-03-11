@@ -369,6 +369,12 @@ class GameRoom {
         return { success: false, message: 'Can only advance to next round after current round is finished' };
       }
 
+      // 観戦者（players に存在しないuserId）からの nextRound は無視する
+      // 無視しないと nextRoundReady.size が players.size を超え、autoReadyTimer が永久に発火しなくなる
+      if (!this.players.has(userId)) {
+        return { success: true, message: 'Spectators cannot advance rounds' };
+      }
+
       this.nextRoundReady.add(userId);
 
       // CPU/autoPlay対戦時は、人間プレイヤーが押したら即座に全CPU/autoPlayプレイヤーも準備完了にする
