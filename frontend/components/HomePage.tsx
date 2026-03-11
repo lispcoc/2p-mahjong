@@ -654,7 +654,7 @@ export default function HomePage({
             </form>
           </div>
 
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4 pb-20">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg text-[#ffffff] m-0 font-bold">稼働中のルーム</h2>
               <button

@@ -36,7 +36,7 @@ export function YakumanListModal({ onClose }: YakumanListModalProps) {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-yellow-300 m-0">🏆 役満達成記録</h2>
+          <h2 className="text-xl font-bold text-yellow-300 m-0">役満達成記録</h2>
           <button
             onClick={onClose}
             className="text-gray-300 hover:text-white text-2xl leading-none bg-transparent border-0 cursor-pointer px-2"
@@ -64,7 +64,6 @@ export function YakumanListModal({ onClose }: YakumanListModalProps) {
                 <th className="text-left py-2 px-3 text-yellow-300 font-bold w-[110px]">日付</th>
                 <th className="text-left py-2 px-3 text-yellow-300 font-bold w-[130px]">プレイヤー</th>
                 <th className="text-left py-2 px-3 text-yellow-300 font-bold">役名</th>
-                <th className="text-right py-2 px-3 text-yellow-300 font-bold w-[110px]">種別</th>
               </tr>
             </thead>
             <tbody>
@@ -76,9 +75,6 @@ export function YakumanListModal({ onClose }: YakumanListModalProps) {
                   <td className="py-2 px-3 text-gray-300">{record.date}</td>
                   <td className="py-2 px-3 text-white font-bold">{record.playerName}</td>
                   <td className="py-2 px-3 text-white">{record.yakuNames}</td>
-                  <td className="py-2 px-3 text-right">
-                    <span className="text-yellow-300 font-bold text-xs">{record.scoreType}</span>
-                  </td>
                 </tr>
               ))}
             </tbody>
