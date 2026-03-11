@@ -1961,7 +1961,7 @@ export default function GamePage({
                 onClick={() => setSpectatorShowHands(prev => !prev)}
                 className={`ml-2 px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors ${spectatorShowHands ? 'bg-green-600 text-white' : 'bg-gray-500 text-white'}`}
               >
-                {spectatorShowHands ? '🃏 手牌を隠す' : '🃏 手牌を見る'}
+                {spectatorShowHands ? '手牌を隠す' : '手牌を見る'}
               </button>
             )}
             {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
@@ -2052,17 +2052,6 @@ export default function GamePage({
 
             {/* Opponent's Hand */}
             <div className="w-full mb-3 rounded-lg p-3 border-0">
-              <div className="flex justify-between items-center mb-2">
-                {/* CPUの手牌を見るボタン */}
-                {displayOtherPlayer?.isCPU && (
-                  <button
-                    onClick={() => setShowOpponentHand(!showOpponentHand)}
-                    className={`px-3 py-1 text-[#ffffff] border-none rounded text-xs font-bold transition-colors ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
-                  >
-                    {showOpponentHand ? '👁️ 手牌を隠す' : '👁️ 手牌を見る'}
-                  </button>
-                )}
-              </div>
               <div className="flex items-start gap-4 overflow-x-auto">
                 {/* 副露（オープンの牌） */}
                 <FuroDisplay
@@ -2798,11 +2787,17 @@ export default function GamePage({
                 文字牌: {textMode ? 'ON' : 'OFF'}
               </button>
               <button
+                onClick={() => setShowOpponentHand(!showOpponentHand)}
+                className={`px-1 py-2 text-xs font-bold border-2 rounded transition-colors text-[#ffffff] ${showOpponentHand ? 'bg-green-600' : 'bg-yellow-500'}`}
+              >
+                {showOpponentHand ? '手牌を隠す' : '手牌を見る'}
+              </button>
+              <button
                 onClick={() => setShowHandEditor(true)}
                 disabled={gameState?.status !== 'playing'}
                 className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${gameState?.status !== 'playing' ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : 'bg-white text-orange-600 border-orange-600 hover:bg-orange-50'}`}
               >
-                ✏️ 手牌編集
+                手牌編集
               </button>
             </>
           )}
