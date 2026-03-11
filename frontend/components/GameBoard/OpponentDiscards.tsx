@@ -6,9 +6,10 @@ interface OpponentDiscardsProps {
   discards: Tile[]
   gameState: GameState
   otherUserId?: string
+  tileScale?: number
 }
 
-export function OpponentDiscards({ discards, gameState, otherUserId }: OpponentDiscardsProps) {
+export function OpponentDiscards({ discards, gameState, otherUserId, tileScale = 1 }: OpponentDiscardsProps) {
   const otherPlayer = gameState.players.find(p => p.userId === otherUserId)
   const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId]
 
@@ -35,7 +36,7 @@ export function OpponentDiscards({ discards, gameState, otherUserId }: OpponentD
                     transformOrigin: 'center',
                   }}
                 >
-                  <TileImage tile={tile} />
+                  <TileImage tile={tile} scale={tileScale} />
                 </div>
               )
             })

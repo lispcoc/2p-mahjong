@@ -14,6 +14,7 @@ interface TileImageProps {
   isHovered?: boolean
   faceDown?: boolean
   isRotated?: boolean
+  scale?: number
 }
 
 export function TileImage({
@@ -25,6 +26,7 @@ export function TileImage({
   isHovered = false,
   faceDown = false,
   isRotated = false,
+  scale = 1,
 }: TileImageProps) {
   const { textMode } = useTextMode()
   const { whiteMode } = useWhiteMode()
@@ -35,29 +37,37 @@ export function TileImage({
     const text = faceDown ? '🀫' : getTileText(tile)
     const colorClass = faceDown ? 'text-gray-600' : getTileTextColorClass(tile)
 
-    // 回転時は占有スペースを入れ替える
-    const containerClasses = isRotated
-      ? 'w-[47px] h-[33px] sm:w-[64px] sm:h-[45px]'
-      : 'w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]'
+    // スケール値を考慮した表示サイズ (mobile: 33x47, PC sm+: 45x64)
+    const baseSizesMobile = isRotated ? [47, 33] : [33, 47]
+    const baseSizesSm = isRotated ? [64, 45] : [45, 64]
 
     return (
       <div
-        className={`flex items-center justify-center ${containerClasses}`}
+        className={`flex items-center justify-center`}
         onClick={onClick}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        style={{ cursor: onClick ? 'pointer' : 'default' }}
+        style={{
+          cursor: onClick ? 'pointer' : 'default',
+          width: `${baseSizesMobile[0] * scale}px`,
+          height: `${baseSizesMobile[1] * scale}px`,
+          // Tailwind のメディアクエリは使えないので、web APIで対応する必要があります
+          // ここでは mobile サイズのみを指定しています
+        }}
       >
         <div
-          className={`flex items-center justify-center bg-white border border-gray-400 rounded-sm select-none font-bold ${colorClass} ${isRotated ? 'w-[47px] h-[33px] sm:w-[64px] sm:h-[45px] text-[10px] sm:text-xs' : 'w-[33px] h-[47px] sm:w-[45px] sm:h-[64px] text-xs sm:text-sm'}`}
+          className={`flex items-center justify-center bg-white border border-gray-400 rounded-sm select-none font-bold ${colorClass}`}
           style={{
+            width: '100%',
+            height: '100%',
             boxShadow: isDrawn ? '0 0 8px #FFD700' : (isHovered ? `0 0 10px ${hoverGlow}` : '0 2px 4px rgba(0,0,0,0.2)'),
-            transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : 'scale(1)'),
+            transform: isRotated ? `rotate(90deg) scale(${scale})` : (isDrawn ? `scale(${1.1 * scale})` : `scale(${scale})`),
             transformOrigin: 'center',
             transition: 'all 200ms',
             lineHeight: 1.1,
             textAlign: 'center',
             padding: '1px',
+            fontSize: `${isRotated ? 10 * scale : 12 * scale}px`,
           }}
         >
           {text}
@@ -69,14 +79,16 @@ export function TileImage({
   // 画像モード（従来の動作）
   const src = faceDown ? getTileImageUrl('pai') : getTileImageUrl(getTileKey(tile))
 
-  // 回転時は占有スペースを入れ替える (mobile: 33x47, PC sm+: 45x64)
-  const containerClasses = isRotated
-    ? 'w-[47px] h-[33px] sm:w-[64px] sm:h-[45px]'
-    : 'w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]'
+  // スケール値を考慮した表示サイズ (mobile: 33x47, PC sm+: 45x64)
+  const baseSizesMobile = isRotated ? [47, 33] : [33, 47]
 
   return (
     <div
-      className={`flex items-center justify-center ${containerClasses}`}
+      className={`flex items-center justify-center`}
+      style={{
+        width: `${baseSizesMobile[0] * scale}px`,
+        height: `${baseSizesMobile[1] * scale}px`,
+      }}
     >
       <img
         src={src}
@@ -87,12 +99,15 @@ export function TileImage({
         onError={(event) => {
           event.currentTarget.src = getTileImageUrl('missing')
         }}
-        className={`w-[33px] h-[47px] sm:w-[45px] sm:h-[64px] transition-all duration-200 ${onClick ? 'cursor-pointer' : 'cursor-default'}`}
         style={{
+          width: `${baseSizesMobile[0] * scale}px`,
+          height: `${baseSizesMobile[1] * scale}px`,
           filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? `drop-shadow(0 0 10px ${hoverGlow})` : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
           transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : 'scale(1)'),
           borderRadius: '0px',
           transformOrigin: 'center',
+          transition: 'all 200ms',
+          cursor: onClick ? 'pointer' : 'default',
         }}
       />
     </div>

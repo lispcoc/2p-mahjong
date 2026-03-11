@@ -2098,7 +2098,7 @@ export default function GamePage({
             <div className="w-full mb-3 flex gap-1 items-stretch">
               <div className={`${opponentIcon && showOpponentIcon ? 'w-3/4' : 'w-full'} rounded-lg p-1 border border-gray-300 min-h-28`}>
               <div className="flex items-center gap-3">
-                <div className={`flex flex-wrap gap-px ${opponentIcon && showOpponentIcon ? 'scale-75 origin-left' : ''}`}>
+                <div className="flex flex-wrap gap-px">
                   {otherDiscards.length === 0 ? (
                     <span className="text-gray-400 text-xs">なし</span>
                   ) : (
@@ -2114,6 +2114,7 @@ export default function GamePage({
                           <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
+                            scale={opponentIcon && showOpponentIcon ? 0.75 : 1}
                           />
                           {/* ツモ切りマーク: 牌の右上に小さな丸印 */}
                           {isTsumogiri && (
@@ -2240,7 +2241,7 @@ export default function GamePage({
                 ) : null;
               })()}
               <div className="flex items-center gap-3">
-                <div className={`flex flex-wrap gap-px ${playerIcon ? 'scale-75 origin-left' : ''}`}>
+                <div className="flex flex-wrap gap-px">
                   {yourDiscards.length === 0 ? (
                     <span className="text-gray-400 text-xs">なし</span>
                   ) : (
@@ -2256,6 +2257,7 @@ export default function GamePage({
                           <TileImage
                             tile={tile}
                             isRotated={isRiichiDiscard}
+                            scale={playerIcon ? 0.75 : 1}
                           />
                           {/* ツモ切りマーク: 牌の右上に小さな丸印 */}
                           {isTsumogiri && (
