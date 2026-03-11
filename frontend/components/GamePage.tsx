@@ -2053,7 +2053,8 @@ export default function GamePage({
             </div>
 
             {/* Opponent's Discards (Kawa) */}
-            <div className="w-full mb-3 rounded-lg p-1 border border-gray-300 min-h-28">
+            <div className="w-full mb-3 flex gap-1 items-stretch">
+              <div className={`${opponentIcon && showOpponentIcon ? 'w-3/4' : 'w-full'} rounded-lg p-1 border border-gray-300 min-h-28`}>
               <div className="flex items-center gap-3">
                 <div className="flex flex-wrap gap-px">
                   {otherDiscards.length === 0 ? (
@@ -2095,6 +2096,16 @@ export default function GamePage({
                   </div>
                 ) : null;
               })()}
+              </div>
+              {opponentIcon && showOpponentIcon && (
+                <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
+                  <img
+                    src={opponentIcon}
+                    alt="相手アイコン"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Game Info Center */}
@@ -2171,7 +2182,8 @@ export default function GamePage({
             </div>
 
             {/* Your Discards (Kawa) */}
-            <div className="w-full mb-3 rounded-lg p-1 border border-gray-300 min-h-28">
+            <div className="w-full mb-3 flex gap-1 items-stretch">
+              <div className={`${playerIcon ? 'w-3/4' : 'w-full'} rounded-lg p-1 border border-gray-300 min-h-28`}>
               {/* 自分のリーチ棒表示 */}
               {(() => {
                 const isPlayerRiichi = gameState.riichi && gameState.riichi[effectiveUserId];
@@ -2213,6 +2225,15 @@ export default function GamePage({
                   )}
                 </div>
               </div>
+              </div>
+              {playerIcon && (
+                <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
+                  <img
+                    src={playerIcon}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Test Button - Display Opponent Action Modal & Timer Pause */}
