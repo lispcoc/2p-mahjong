@@ -119,6 +119,26 @@ export default function GamePage({
   const [soundEnabled, setSoundEnabled] = useState(() => {
     try { return localStorage.getItem('mahjong-sound-enabled') !== 'false' } catch { return false }
   })
+  const [playerIcon, setPlayerIcon] = useState<string | null>(null)
+  const [iconPanelWidth, setIconPanelWidth] = useState(0)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('mahjong-player-icon')
+      if (saved) setPlayerIcon(saved)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    const updateIconWidth = () => {
+      // max-w-4xl = 896px; show icon only when enough space remains on the left
+      const available = Math.floor((window.innerWidth - 896) / 2) - 16
+      setIconPanelWidth(available > 60 ? available : 0)
+    }
+    updateIconWidth()
+    window.addEventListener('resize', updateIconWidth)
+    return () => window.removeEventListener('resize', updateIconWidth)
+  }, [])
   const soundEnabledRef = useRef(true)
   const dahaiAudioRef = useRef<HTMLAudioElement | null>(null)
   const opponentTedashiGapTimerRef = useRef<number | null>(null)
@@ -1819,6 +1839,19 @@ export default function GamePage({
 
   return (
     <div className={`fixed inset-0 flex flex-col items-center bg-gradient-to-br from-[#2d5016] to-[#1a2e0a] overflow-hidden sm:pt-1 ${isGrayscale ? 'grayscale' : ''}`}>
+      {/* Player icon displayed in left margin when screen is wide enough */}
+      {playerIcon && iconPanelWidth > 0 && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center overflow-hidden"
+          style={{ left: 8, width: iconPanelWidth, maxHeight: '80vh' }}
+        >
+          <img
+            src={playerIcon}
+            alt="アイコン"
+            style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+          />
+        </div>
+      )}
       <Toaster
         position="top-center"
         reverseOrder={false}

@@ -80,6 +80,42 @@ export default function HomePage({
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
   const [isYakumanModalOpen, setIsYakumanModalOpen] = useState(false)
+  const ICON_STORAGE_KEY = 'mahjong-player-icon'
+  const [playerIcon, setPlayerIcon] = useState<string | null>(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(ICON_STORAGE_KEY)
+      if (saved) setPlayerIcon(saved)
+    } catch {}
+  }, [])
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 1024 * 1024) {
+      setError('画像サイズは1MB以下にしてください')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string
+      try {
+        localStorage.setItem(ICON_STORAGE_KEY, dataUrl)
+        setPlayerIcon(dataUrl)
+      } catch {
+        setError('画像の保存に失敗しました（ストレージ容量不足の可能性があります）')
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleIconRemove = () => {
+    try {
+      localStorage.removeItem(ICON_STORAGE_KEY)
+      setPlayerIcon(null)
+    } catch {}
+  }
 
   const fetchRooms = async () => {
     setRoomsLoading(true)
@@ -435,8 +471,28 @@ export default function HomePage({
         <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
           <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
           <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
-            <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
-
+            <div className="flex items-center gap-2">
+              {playerIcon && (
+                <img src={playerIcon} alt="アイコン" className="w-10 h-10 object-cover rounded-full border-2 border-white flex-shrink-0" />
+              )}
+              <div className="flex flex-col items-end gap-1">
+                <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
+                <div className="flex gap-1">
+                  <label className="px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors">
+                    {playerIcon ? '🖼 変更' : '🖼 アイコン設定'}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
+                  </label>
+                  {playerIcon && (
+                    <button
+                      onClick={handleIconRemove}
+                      className="px-2 py-1 text-xs text-[#ffffff] bg-transparent border border-red-400 cursor-pointer hover:bg-red-900 transition-colors"
+                    >
+                      削除
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             <button
               onClick={onLogout}
               className="px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
