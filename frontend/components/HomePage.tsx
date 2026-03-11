@@ -104,21 +104,76 @@ export default function HomePage({
     })
   }
 
+  const compressImage = (dataUrl: string, maxSize: number = 1024 * 1024): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        let width = img.width
+        let height = img.height
+
+        // 最大幅を512pxに設定してリサイズ
+        const maxWidth = 512
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width)
+          width = maxWidth
+        }
+
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Canvas context error'))
+          return
+        }
+        ctx.drawImage(img, 0, 0, width, height)
+
+        // 品質を段階的に下げながら圧縮
+        let quality = 0.95
+        let compressed = canvas.toDataURL('image/jpeg', quality)
+
+        while (compressed.length > maxSize && quality > 0.1) {
+          quality -= 0.05
+          compressed = canvas.toDataURL('image/jpeg', quality)
+        }
+
+        if (compressed.length > maxSize) {
+          reject(new Error('Cannot compress image below target size'))
+          return
+        }
+
+        resolve(compressed)
+      }
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = dataUrl
+    })
+  }
+
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 1024 * 1024) {
-      setError('画像サイズは1MB以下にしてください')
-      return
-    }
+
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       const dataUrl = ev.target?.result as string
       try {
-        localStorage.setItem(ICON_STORAGE_KEY, dataUrl)
-        setPlayerIcon(dataUrl)
-      } catch {
-        setError('画像の保存に失敗しました（ストレージ容量不足の可能性があります）')
+        // 1MB以上の場合は自動圧縮
+        let finalDataUrl = dataUrl
+        if (file.size > 1024 * 1024) {
+          setError('画像を圧縮中...')
+          finalDataUrl = await compressImage(dataUrl)
+        }
+
+        localStorage.setItem(ICON_STORAGE_KEY, finalDataUrl)
+        setPlayerIcon(finalDataUrl)
+        setError('')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'unknown error'
+        if (message.includes('compress')) {
+          setError('画像の圧縮に失敗しました。別の画像をお試しください。')
+        } else {
+          setError('画像の保存に失敗しました（ストレージ容量不足の可能性があります）')
+        }
       }
     }
     reader.readAsDataURL(file)
