@@ -81,14 +81,28 @@ export default function HomePage({
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
   const [isYakumanModalOpen, setIsYakumanModalOpen] = useState(false)
   const ICON_STORAGE_KEY = 'mahjong-player-icon'
+  const SHOW_OPPONENT_ICON_KEY = 'mahjong-show-opponent-icon'
   const [playerIcon, setPlayerIcon] = useState<string | null>(null)
+  const [showOpponentIcon, setShowOpponentIcon] = useState(true)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem(ICON_STORAGE_KEY)
       if (saved) setPlayerIcon(saved)
     } catch {}
+    try {
+      const saved = localStorage.getItem(SHOW_OPPONENT_ICON_KEY)
+      if (saved === 'false') setShowOpponentIcon(false)
+    } catch {}
   }, [])
+
+  const toggleShowOpponentIcon = () => {
+    setShowOpponentIcon(prev => {
+      const next = !prev
+      try { localStorage.setItem(SHOW_OPPONENT_ICON_KEY, String(next)) } catch {}
+      return next
+    })
+  }
 
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -473,15 +487,20 @@ export default function HomePage({
           <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
             <div className="flex items-center gap-2">
               {playerIcon && (
-                <img src={playerIcon} alt="アイコン" className="w-10 h-10 object-cover rounded-full border-2 border-white flex-shrink-0" />
+                <label className="cursor-pointer group relative flex-shrink-0" title="クリックしてアイコンを変更">
+                  <img src={playerIcon} alt="アイコン" className="w-10 h-10 object-cover rounded-full border-2 border-white group-hover:opacity-60 transition-opacity" />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
+                </label>
               )}
               <div className="flex flex-col items-end gap-1">
                 <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
                 <div className="flex gap-1">
-                  <label className="px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors">
-                    {playerIcon ? '🖼 変更' : '🖼 アイコン設定'}
-                    <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
-                  </label>
+                  {!playerIcon && (
+                    <label className="px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors">
+                      🖼 アイコン設定
+                      <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
+                    </label>
+                  )}
                   {playerIcon && (
                     <button
                       onClick={handleIconRemove}
@@ -490,6 +509,17 @@ export default function HomePage({
                       削除
                     </button>
                   )}
+                  <button
+                    onClick={toggleShowOpponentIcon}
+                    title="相手のアイコンを対戦画面に表示するかどうか"
+                    className={`px-2 py-1 text-xs font-bold border cursor-pointer transition-colors ${
+                      showOpponentIcon
+                        ? 'bg-[#3d6b20] border-white text-white'
+                        : 'bg-transparent border-gray-500 text-gray-400'
+                    }`}
+                  >
+                    相手アイコン: {showOpponentIcon ? 'ON' : 'OFF'}
+                  </button>
                 </div>
               </div>
             </div>

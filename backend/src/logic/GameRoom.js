@@ -63,6 +63,24 @@ class GameRoom {
     this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
     this.transparentHand = options.transparentHand || false; // 透明手牌ルール（同種3枚保有・赤ドラは透けて見える）
+    this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
+  }
+
+  setPlayerIcon(userId, iconData) {
+    if (iconData && typeof iconData === 'string') {
+      this.playerIcons.set(userId, iconData);
+    }
+  }
+
+  getPlayerIcon(userId) {
+    return this.playerIcons.get(userId) || null;
+  }
+
+  getOpponentIcon(userId) {
+    for (const [id, icon] of this.playerIcons) {
+      if (id !== userId) return icon;
+    }
+    return null;
   }
 
   // dealerSelection に基づいて dealerIndex を決定

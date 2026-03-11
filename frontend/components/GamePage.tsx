@@ -120,14 +120,35 @@ export default function GamePage({
     try { return localStorage.getItem('mahjong-sound-enabled') !== 'false' } catch { return false }
   })
   const [playerIcon, setPlayerIcon] = useState<string | null>(null)
+  const [opponentIcon, setOpponentIcon] = useState<string | null>(null)
+  const [showOpponentIcon, setShowOpponentIcon] = useState(true)
   const [iconPanelWidth, setIconPanelWidth] = useState(0)
+  const playerIconRef = React.useRef<string | null>(null)
 
   useEffect(() => {
     try {
       const saved = localStorage.getItem('mahjong-player-icon')
-      if (saved) setPlayerIcon(saved)
+      if (saved) {
+        setPlayerIcon(saved)
+        playerIconRef.current = saved
+      }
+    } catch {}
+    try {
+      const saved = localStorage.getItem('mahjong-show-opponent-icon')
+      if (saved === 'false') setShowOpponentIcon(false)
     } catch {}
   }, [])
+
+  // After joining, send own icon to the server so it can be forwarded to the opponent
+  useEffect(() => {
+    if (!userId || !playerIconRef.current) return
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'shareIcon',
+        payload: { iconData: playerIconRef.current },
+      }))
+    }
+  }, [userId])
 
   useEffect(() => {
     const updateIconWidth = () => {
@@ -979,6 +1000,11 @@ export default function GamePage({
         setNotenPenalty(null)
         setGameState(payload)
         toast.success('再戦開始！', { duration: 3000 })
+        break
+      case 'opponentIcon':
+        if (payload?.iconData) {
+          setOpponentIcon(payload.iconData)
+        }
         break
       case 'roomDeleted':
         console.log('🗑️ Room deleted:', payload)
@@ -1848,6 +1874,19 @@ export default function GamePage({
           <img
             src={playerIcon}
             alt="アイコン"
+            style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+          />
+        </div>
+      )}
+      {/* Opponent icon displayed in right margin when screen is wide enough */}
+      {opponentIcon && showOpponentIcon && iconPanelWidth > 0 && (
+        <div
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center overflow-hidden"
+          style={{ right: 8, width: iconPanelWidth, maxHeight: '80vh' }}
+        >
+          <img
+            src={opponentIcon}
+            alt="相手アイコン"
             style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
           />
         </div>

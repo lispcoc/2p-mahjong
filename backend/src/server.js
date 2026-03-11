@@ -483,9 +483,29 @@ async function handleMessage(ws, data) {
     case 'deleteRoom':
       handleDeleteRoom(ws);
       break;
+    case 'shareIcon':
+      handleShareIcon(ws, payload);
+      break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
   }
+}
+
+function handleShareIcon(ws, payload) {
+  const conn = connections.get(ws);
+  if (!conn) return;
+  const { userId, roomId } = conn;
+  const room = rooms.get(roomId);
+  if (!room) return;
+  const { iconData } = payload || {};
+  if (!iconData || typeof iconData !== 'string') return;
+  room.setPlayerIcon(userId, iconData);
+  // Forward to the opponent (non-broadcast)
+  room.players.forEach((player, pid) => {
+    if (pid !== userId && player.ws && player.ws.readyState === 1) {
+      player.ws.send(JSON.stringify({ type: 'opponentIcon', payload: { iconData } }));
+    }
+  });
 }
 
 function handleJoin(ws, payload) {
@@ -628,6 +648,16 @@ function handleJoin(ws, payload) {
     console.log('✅ joined message sent successfully to', playerName);
   } catch (err) {
     console.error('❌ Error sending joined message:', err);
+  }
+
+  // If the opponent already shared their icon, forward it to the joining player
+  const opponentIconData = room.getOpponentIcon(userId);
+  if (opponentIconData) {
+    try {
+      ws.send(JSON.stringify({ type: 'opponentIcon', payload: { iconData: opponentIconData } }));
+    } catch (err) {
+      console.error('❌ Error sending opponentIcon:', err);
+    }
   }
 
   // Notify other players (only if not reconnecting, or notify about reconnection)
