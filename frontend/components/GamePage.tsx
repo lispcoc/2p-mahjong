@@ -2226,7 +2226,7 @@ export default function GamePage({
 
             {/* Your Discards (Kawa) */}
             <div className="w-full mb-3 flex gap-1 items-stretch">
-              <div className={`${playerIcon ? 'w-3/4' : 'w-full'} rounded-lg p-1 border border-gray-300 min-h-28`}>
+              <div className={`${playerIcon && (!gameState?.isSpectatorView || showOpponentIcon) ? 'w-3/4' : 'w-full'} rounded-lg p-1 border border-gray-300 min-h-28`}>
               {/* 自分のリーチ棒表示 */}
               {(() => {
                 const isPlayerRiichi = gameState.riichi && gameState.riichi[effectiveUserId];
@@ -2270,7 +2270,7 @@ export default function GamePage({
                 </div>
               </div>
               </div>
-              {playerIcon && !gameState?.isSpectatorView && (
+              {playerIcon && (!gameState?.isSpectatorView || showOpponentIcon) && (
                 <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
                   <img
                     src={playerIcon}
