@@ -112,6 +112,21 @@ export default function HomePage({
         let width = img.width
         let height = img.height
 
+        // 3:4の比率に調整（縦長い場合は下をカットする）
+        const targetRatio = 3 / 4 // 幅:高さ
+        const currentRatio = width / height
+        let srcX = 0
+        let srcY = 0
+        let srcWidth = width
+        let srcHeight = height
+
+        if (currentRatio < targetRatio) {
+          // 現在の比率が3:4より縦長い場合、下をカットして3:4に調整
+          srcHeight = Math.round(width / targetRatio)
+          srcY = height - srcHeight // 下をカットするので、yを調整
+          height = srcHeight
+        }
+
         // 最大幅を512pxに設定してリサイズ
         const maxWidth = 512
         if (width > maxWidth) {
@@ -126,7 +141,7 @@ export default function HomePage({
           reject(new Error('Canvas context error'))
           return
         }
-        ctx.drawImage(img, 0, 0, width, height)
+        ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, width, height)
 
         // 品質を段階的に下げながら圧縮
         let quality = 0.95
