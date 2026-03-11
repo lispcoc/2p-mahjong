@@ -103,6 +103,7 @@ export default function GamePage({
   const pausedAutoDiscardTimeLeft = useRef<number | null>(null)
   const pausedPendingPungTimeLeft = useRef<number | null>(null)
   const [isAddingCPU, setIsAddingCPU] = useState(false) // CPU追加中フラグ
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false) // 部屋削除中フラグ
   const [showMatchHistory, setShowMatchHistory] = useState(false) // 履歴モーダル表示
   const [showOpponentHand, setShowOpponentHand] = useState(false) // 相手の手牌表示フラグ
   const [showHandEditor, setShowHandEditor] = useState(false) // 手牌エディタ表示フラグ
@@ -1458,6 +1459,25 @@ export default function GamePage({
     }
   }, [roomId, isAddingCPU])
 
+  // 部屋削除処理
+  const handleDeleteRoom = React.useCallback(() => {
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'deleteRoom' }))
+        toast.success('部屋を削除しました', { duration: 2000 })
+      } else {
+        toast.error('サーバーに接続されていません', { duration: 3000 })
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : '部屋削除に失敗しました',
+        { duration: 4000 }
+      )
+    }
+  }, [])
+
   // N-second auto-action timer (configurable per game)
   React.useEffect(() => {
     if (!gameState || !userId || gameState.status !== 'playing') {
@@ -1957,6 +1977,20 @@ export default function GamePage({
                 className={`px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
               >
                 {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
+              </button>
+            )}
+            {/* 部屋強制削除ボタン（ホストのみ表示） */}
+            {!isSpectator && userId && gameState.hostId === userId && (
+              <button
+                onClick={() => {
+                  if (window.confirm('部屋を削除しますか？全員がホーム画面に戻されます。')) {
+                    handleDeleteRoom()
+                  }
+                }}
+                disabled={isDeletingRoom}
+                className={`px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isDeletingRoom ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+              >
+                {isDeletingRoom ? '削除中...' : '部屋削除'}
               </button>
             )}
             {/* 試合履歴ボタン */}
