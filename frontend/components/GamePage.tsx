@@ -249,42 +249,53 @@ export default function GamePage({
     const currentUserId = userIdRef.current
     if (!currentUserId || !prevState) return ''
 
-    const opponent = nextState.players?.find((player) => player.userId !== currentUserId)
-      || prevState.players?.find((player) => player.userId !== currentUserId)
+    // 観戦モードでは全プレイヤーのアクションを検出する
+    // 通常モードでは相手プレイヤーのアクションのみ検出する
+    type PlayerEntry = { userId: string; playerName: string; isCPU?: boolean }
+    const playersToCheck: PlayerEntry[] = isSpectator
+      ? (nextState.players || prevState.players || []) as PlayerEntry[]
+      : (
+          [
+            nextState.players?.find((player) => player.userId !== currentUserId)
+            || prevState.players?.find((player) => player.userId !== currentUserId)
+          ].filter((p): p is PlayerEntry => !!p)
+        )
 
-    if (!opponent) return ''
+    for (const player of playersToCheck) {
+      if (!player) continue
 
-    // Check for riichi
-    const prevRiichi = prevState.riichi?.[opponent.userId]
-    const nextRiichi = nextState.riichi?.[opponent.userId]
-    if (!prevRiichi && nextRiichi) {
-      return `リーチ`
-    }
-
-    const prevMelds = (prevState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
-    const nextMelds = (nextState.tiles?.[opponent.userId]?.melds as Array<Array<Tile | string>>) || []
-
-    // Check for newly added meld (pon or ankan)
-    if (nextMelds.length > prevMelds.length) {
-      // Check if the newly added meld is a kan (4 tiles) or pung (3 tiles)
-      const lastMeld = nextMelds[nextMelds.length - 1]
-      if (lastMeld && lastMeld.length === 4) {
-        return `カン`
+      // Check for riichi
+      const prevRiichi = prevState.riichi?.[player.userId]
+      const nextRiichi = nextState.riichi?.[player.userId]
+      if (!prevRiichi && nextRiichi) {
+        return `リーチ`
       }
-      return `ポン`
-    }
 
-    // Check for added kan (existing meld expanded from 3 to 4 tiles)
-    if (nextMelds.length === prevMelds.length && nextMelds.length > 0) {
-      for (let i = 0; i < nextMelds.length; i++) {
-        if (prevMelds[i] && prevMelds[i].length === 3 && nextMelds[i].length === 4) {
+      const prevMelds = (prevState.tiles?.[player.userId]?.melds as Array<Array<Tile | string>>) || []
+      const nextMelds = (nextState.tiles?.[player.userId]?.melds as Array<Array<Tile | string>>) || []
+
+      // Check for newly added meld (pon or ankan)
+      if (nextMelds.length > prevMelds.length) {
+        // Check if the newly added meld is a kan (4 tiles) or pung (3 tiles)
+        const lastMeld = nextMelds[nextMelds.length - 1]
+        if (lastMeld && lastMeld.length === 4) {
           return `カン`
+        }
+        return `ポン`
+      }
+
+      // Check for added kan (existing meld expanded from 3 to 4 tiles)
+      if (nextMelds.length === prevMelds.length && nextMelds.length > 0) {
+        for (let i = 0; i < nextMelds.length; i++) {
+          if (prevMelds[i] && prevMelds[i].length === 3 && nextMelds[i].length === 4) {
+            return `カン`
+          }
         }
       }
     }
 
     return ''
-  }, [])
+  }, [isSpectator])
 
   const getOpponentWinText = React.useCallback((winType: string, winnerName: string) => {
     if (winType.includes('ツモ')) return `ツモ`
@@ -545,7 +556,7 @@ export default function GamePage({
           setAutoPlayMode(payload.autoPlay[currentUserIdForGameStart])
         }
 
-        setGameState(payload)
+        setGameState((prevState) => ({ ...payload, isSpectatorView: prevState?.isSpectatorView }))
         debugLog(`✅ gameState updated to status=${payload.status}`)
 
         // Set autoActionTimerSeconds from gameState
@@ -620,6 +631,8 @@ export default function GamePage({
             seatWinds: payload.seatWinds ?? prevState?.seatWinds,
             nextRoundReadyCount: payload.nextRoundReadyCount ?? prevState?.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers ?? prevState?.totalPlayers,
+            // 観戦モードフラグを維持する
+            isSpectatorView: prevState?.isSpectatorView,
           }
         })
         break
@@ -1998,9 +2011,8 @@ export default function GamePage({
                 </div>
               </div>
               {/* 相手のリーチ棒表示 */}
-              {gameState.players && gameState.players.length > 0 && (() => {
-                const otherPlayer = gameState.players.find(p => p.userId !== userId);
-                const isOtherRiichi = otherPlayer && gameState.riichi && gameState.riichi[otherPlayer.userId];
+              {(() => {
+                const isOtherRiichi = otherUserId && gameState.riichi && gameState.riichi[otherUserId];
                 return isOtherRiichi ? (
                   <div className="w-full mt-2 flex items-center gap-2">
                     <img
