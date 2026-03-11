@@ -16,6 +16,7 @@ import { ScoreResultModal } from './Modals/ScoreResultModal'
 import { FinalResultModal } from './Modals/FinalResultModal'
 import { HandEditorModal } from './Modals/HandEditorModal'
 import { MatchHistoryModal } from './Modals/MatchHistoryModal'
+import { IconPickerModal } from './Modals/IconPickerModal'
 
 // Types are now imported from '../types/GameTypes'
 
@@ -124,6 +125,7 @@ export default function GamePage({
   const [opponentIcon, setOpponentIcon] = useState<string | null>(null)
   const [showOpponentIcon, setShowOpponentIcon] = useState(true)
   const [iconPanelWidth, setIconPanelWidth] = useState(0)
+  const [showIconPicker, setShowIconPicker] = useState(false)
   const playerIconRef = React.useRef<string | null>(null)
 
   useEffect(() => {
@@ -150,6 +152,18 @@ export default function GamePage({
       }))
     }
   }, [userId])
+
+  const handleIconSelectInGame = React.useCallback((icon: string | null) => {
+    setPlayerIcon(icon)
+    playerIconRef.current = icon
+    // shareIcon を送信して相手にも反映
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'shareIcon',
+        payload: { iconData: icon ?? '' },
+      }))
+    }
+  }, [])
 
   useEffect(() => {
     const updateIconWidth = () => {
@@ -1907,14 +1921,33 @@ export default function GamePage({
       {/* Player icon displayed in left margin when screen is wide enough */}
       {playerIcon && iconPanelWidth > 0 && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center overflow-hidden"
+          className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center overflow-hidden"
           style={{ left: 8, width: iconPanelWidth, maxHeight: '80vh' }}
         >
-          <img
-            src={playerIcon}
-            alt="アイコン"
-            style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-          />
+          {!isSpectator ? (
+            <button
+              onClick={() => setShowIconPicker(true)}
+              className="relative group focus:outline-none"
+              title="クリックしてアイコンを変更"
+              style={{ maxWidth: '100%', maxHeight: '80vh' }}
+            >
+              <img
+                src={playerIcon}
+                alt="アイコン"
+                style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+                className="group-hover:opacity-70 transition-opacity"
+              />
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap pointer-events-none">
+                タップして変更
+              </span>
+            </button>
+          ) : (
+            <img
+              src={playerIcon}
+              alt="アイコン"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
+            />
+          )}
         </div>
       )}
       {/* Opponent icon displayed in right margin when screen is wide enough */}
@@ -2271,12 +2304,29 @@ export default function GamePage({
               </div>
               </div>
               {playerIcon && (!gameState?.isSpectatorView || showOpponentIcon) && (
-                <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
-                  <img
-                    src={playerIcon}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
-                  />
-                </div>
+                !isSpectator ? (
+                  <button
+                    onClick={() => setShowIconPicker(true)}
+                    className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28 relative group focus:outline-none"
+                    title="クリックしてアイコンを変更"
+                  >
+                    <img
+                      src={playerIcon}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                      className="group-hover:opacity-70 transition-opacity"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap">変更</span>
+                    </span>
+                  </button>
+                ) : (
+                  <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
+                    <img
+                      src={playerIcon}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                    />
+                  </div>
+                )
               )}
             </div>
 
@@ -2951,6 +3001,14 @@ export default function GamePage({
             toast.success('手牌を変更しました', { duration: 2000 })
           }}
           onClose={() => setShowHandEditor(false)}
+        />
+      )}
+
+      {showIconPicker && (
+        <IconPickerModal
+          activeIcon={playerIcon}
+          onSelect={handleIconSelectInGame}
+          onClose={() => setShowIconPicker(false)}
         />
       )}
     </div>

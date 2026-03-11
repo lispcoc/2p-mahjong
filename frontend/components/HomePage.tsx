@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useWhiteMode } from '../contexts/WhiteModeContext'
 import { YakuListModal } from './Modals/YakuListModal'
 import { YakumanListModal } from './Modals/YakumanListModal'
+import { IconPickerModal, loadIconLibrary } from './Modals/IconPickerModal'
 
 interface HomePageProps {
   playerName: string
@@ -80,14 +81,15 @@ export default function HomePage({
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
   const [isYakumanModalOpen, setIsYakumanModalOpen] = useState(false)
-  const ICON_STORAGE_KEY = 'mahjong-player-icon'
   const SHOW_OPPONENT_ICON_KEY = 'mahjong-show-opponent-icon'
   const [playerIcon, setPlayerIcon] = useState<string | null>(null)
   const [showOpponentIcon, setShowOpponentIcon] = useState(true)
+  const [showIconPicker, setShowIconPicker] = useState(false)
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(ICON_STORAGE_KEY)
+      // アイコンライブラリから現在選択中のアイコンを読み込む
+      const saved = localStorage.getItem('mahjong-player-icon')
       if (saved) setPlayerIcon(saved)
     } catch {}
     try {
@@ -104,101 +106,8 @@ export default function HomePage({
     })
   }
 
-  const compressImage = (dataUrl: string, maxSize: number = 1024 * 1024): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        let width = img.width
-        let height = img.height
-
-        // 3:4の比率に調整（縦長い場合は下をカットする）
-        const targetRatio = 3 / 4 // 幅:高さ
-        const currentRatio = width / height
-        let srcX = 0
-        let srcY = 0
-        let srcWidth = width
-        let srcHeight = height
-
-        if (currentRatio < targetRatio) {
-          // 現在の比率が3:4より縦長い場合、下をカットして3:4に調整
-          srcHeight = Math.round(width / targetRatio)
-          srcY = height - srcHeight // 下をカットするので、yを調整
-          height = srcHeight
-        }
-
-        // 最大幅を512pxに設定してリサイズ
-        const maxWidth = 512
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width)
-          width = maxWidth
-        }
-
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          reject(new Error('Canvas context error'))
-          return
-        }
-        ctx.drawImage(img, srcX, srcY, srcWidth, srcHeight, 0, 0, width, height)
-
-        // 品質を段階的に下げながら圧縮
-        let quality = 0.95
-        let compressed = canvas.toDataURL('image/jpeg', quality)
-
-        while (compressed.length > maxSize && quality > 0.1) {
-          quality -= 0.05
-          compressed = canvas.toDataURL('image/jpeg', quality)
-        }
-
-        if (compressed.length > maxSize) {
-          reject(new Error('Cannot compress image below target size'))
-          return
-        }
-
-        resolve(compressed)
-      }
-      img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = dataUrl
-    })
-  }
-
-  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (ev) => {
-      const dataUrl = ev.target?.result as string
-      try {
-        // 1MB以上の場合は自動圧縮
-        let finalDataUrl = dataUrl
-        if (file.size > 1024 * 1024) {
-          setError('画像を圧縮中...')
-          finalDataUrl = await compressImage(dataUrl)
-        }
-
-        localStorage.setItem(ICON_STORAGE_KEY, finalDataUrl)
-        setPlayerIcon(finalDataUrl)
-        setError('')
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'unknown error'
-        if (message.includes('compress')) {
-          setError('画像の圧縮に失敗しました。別の画像をお試しください。')
-        } else {
-          setError('画像の保存に失敗しました（ストレージ容量不足の可能性があります）')
-        }
-      }
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const handleIconRemove = () => {
-    try {
-      localStorage.removeItem(ICON_STORAGE_KEY)
-      setPlayerIcon(null)
-    } catch {}
+  const handleIconSelect = (icon: string | null) => {
+    setPlayerIcon(icon)
   }
 
   const fetchRooms = async () => {
@@ -547,58 +456,65 @@ export default function HomePage({
     <div className="sm:p-2 flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
       <button
         onClick={toggleWhiteMode}
-        className="fixed top-3 right-3 z-50 px-3 py-1.5 text-xs font-bold border-2 border-white rounded cursor-pointer transition-colors bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06]"
+        className="fixed top-1 right-3 z-50 px-3 py-1.5 text-xs font-bold border-2 border-white rounded cursor-pointer transition-colors bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06]"
       >
         {whiteMode ? '🟢 緑' : '⬜ 白'}
       </button>
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-xl overflow-y-auto max-h-[90dvh] rounded">
         <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
-          <h1 className="text-4xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
-          <div className="flex flex-col items-end gap-2 text-sm text-[#ffffff]">
-            <div className="flex items-center gap-2">
-              {playerIcon && (
-                <label className="cursor-pointer group relative flex-shrink-0" title="クリックしてアイコンを変更">
-                  <img src={playerIcon} alt="アイコン" className="w-10 h-10 object-cover rounded-full border-2 border-white group-hover:opacity-60 transition-opacity" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
-                </label>
-              )}
-              <div className="flex flex-col items-end gap-1">
-                <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
-                <div className="flex gap-1">
-                  {!playerIcon && (
-                    <label className="px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors">
-                      🖼 アイコン設定
-                      <input type="file" accept="image/*" className="hidden" onChange={handleIconChange} />
-                    </label>
-                  )}
-                  {playerIcon && (
-                    <button
-                      onClick={handleIconRemove}
-                      className="px-2 py-1 text-xs text-[#ffffff] bg-transparent border border-red-400 cursor-pointer hover:bg-red-900 transition-colors"
-                    >
-                      削除
-                    </button>
-                  )}
-                  <button
-                    onClick={toggleShowOpponentIcon}
-                    title="相手のアイコンを対戦画面に表示するかどうか"
-                    className={`px-2 py-1 text-xs font-bold border cursor-pointer transition-colors ${
-                      showOpponentIcon
-                        ? 'bg-[#3d6b20] border-white text-white'
-                        : 'bg-transparent border-gray-500 text-gray-400'
-                    }`}
-                  >
-                    相手アイコン: {showOpponentIcon ? 'ON' : 'OFF'}
-                  </button>
-                </div>
-              </div>
+          <h1 className="text-3xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
+          <div className="flex grid grid-cols-2 items-end gap-2 text-sm text-[#ffffff]">
+            <div className='col-span-full text-gray-300 text-xs'>
+              <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
             </div>
-            <button
-              onClick={onLogout}
-              className="px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
-            >
-              ログアウト
-            </button>
+            <div className="h-full flex flex-col items-center gap-2">
+              {/* アイコン表示・変更ボタン */}
+              <button
+                onClick={() => setShowIconPicker(true)}
+                className="cursor-pointer flex-shrink-0 focus:outline-none group relative"
+                title="アイコンを変更"
+                aria-label="アイコンを選択・変更"
+              >
+                {playerIcon ? (
+                  <>
+                    <img
+                      src={playerIcon}
+                      alt="アイコン"
+                      className="w-11 h-11 object-cover rounded-full border-2 border-white group-hover:opacity-70 transition-opacity shadow"
+                    />
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3d6b20] rounded-full border border-white flex items-center justify-center text-white text-[9px] leading-none">✎</span>
+                  </>
+                ) : (
+                  <div className="w-11 h-11 rounded-full border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
+                )}
+              </button>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <button
+                onClick={onLogout}
+                className="w-full px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
+              >
+                ログアウト
+              </button>
+              <button
+                onClick={() => setShowIconPicker(true)}
+                className="w-full px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors"
+              >
+                アイコン設定
+              </button>
+              <button
+                onClick={toggleShowOpponentIcon}
+                title="相手のアイコンを対戦画面に表示するかどうか"
+                className={`w-full px-2 py-1 text-xs font-bold border cursor-pointer transition-colors ${
+                  showOpponentIcon
+                    ? 'bg-[#3d6b20] border-white text-white'
+                    : 'bg-transparent border-gray-500 text-gray-400'
+                }`}
+              >
+                相手アイコン<br />
+                {showOpponentIcon ? 'ON' : 'OFF'}
+              </button>
+            </div>
           </div>
         </div>
         <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300 gap-2">
@@ -719,6 +635,14 @@ export default function HomePage({
 
       {isYakumanModalOpen && (
         <YakumanListModal onClose={() => setIsYakumanModalOpen(false)} />
+      )}
+
+      {showIconPicker && (
+        <IconPickerModal
+          activeIcon={playerIcon}
+          onSelect={handleIconSelect}
+          onClose={() => setShowIconPicker(false)}
+        />
       )}
 
       {isCreateMenuOpen && (
