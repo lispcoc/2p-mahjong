@@ -454,19 +454,19 @@ export default function HomePage({
 
   return (
     <div className="sm:p-2 flex justify-center items-center h-[100vh] h-[100dvh] overflow-hidden bg-gradient-to-br from-[#2d5016] to-[#1a2e0a]">
-      <button
-        onClick={toggleWhiteMode}
-        className="fixed top-1 right-3 z-50 px-3 py-1.5 text-xs font-bold border-2 border-white rounded cursor-pointer transition-colors bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06]"
-      >
-        {whiteMode ? '🟢 緑' : '⬜ 白'}
-      </button>
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl p-2 w-full max-w-xl overflow-y-auto max-h-[90dvh] rounded">
         <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
           <h1 className="text-3xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
           <div className="flex grid grid-cols-2 items-end gap-2 text-sm text-[#ffffff]">
-            <div className='col-span-full text-gray-300 text-xs'>
+            <div className='text-gray-300 text-xs'>
               <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
             </div>
+            <button
+              onClick={onLogout}
+              className="w-full px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
+            >
+              ログアウト
+            </button>
             <div className="h-full flex flex-col items-center gap-2">
               {/* アイコン表示・変更ボタン */}
               <button
@@ -480,22 +480,16 @@ export default function HomePage({
                     <img
                       src={playerIcon}
                       alt="アイコン"
-                      className="w-11 h-11 object-cover rounded-full border-2 border-white group-hover:opacity-70 transition-opacity shadow"
+                      className="w-22 h-22 object-cover rounded-full border-2 border-white group-hover:opacity-70 transition-opacity shadow"
                     />
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3d6b20] rounded-full border border-white flex items-center justify-center text-white text-[9px] leading-none">✎</span>
                   </>
                 ) : (
-                  <div className="w-11 h-11 rounded-full border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
+                  <div className="w-22 h-22 rounded-full border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
                 )}
               </button>
             </div>
-            <div className="flex flex-col items-end gap-1">
-              <button
-                onClick={onLogout}
-                className="w-full px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
-              >
-                ログアウト
-              </button>
+            <div className="h-full flex flex-col items-end gap-1">
               <button
                 onClick={() => setShowIconPicker(true)}
                 className="w-full px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors"
@@ -513,6 +507,12 @@ export default function HomePage({
               >
                 相手アイコン<br />
                 {showOpponentIcon ? 'ON' : 'OFF'}
+              </button>
+              <button
+                onClick={toggleWhiteMode}
+                className="w-full px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors"
+              >
+                {whiteMode ? '表示モード:白' : '表示モード:緑'}
               </button>
             </div>
           </div>
