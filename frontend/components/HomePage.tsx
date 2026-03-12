@@ -458,15 +458,6 @@ export default function HomePage({
         <div className="flex justify-between items-center mb-4 pb-5 border-b-2 border-gray-300">
           <h1 className="text-3xl text-[#ffffff] font-bold m-0">二人麻雀</h1>
           <div className="flex grid grid-cols-2 items-end gap-2 text-sm text-[#ffffff]">
-            <div className='text-gray-300 text-xs'>
-              <span>プレイヤー: <strong className="text-[#ffffff] text-base">{playerName}</strong></span>
-            </div>
-            <button
-              onClick={onLogout}
-              className="w-full px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
-            >
-              ログアウト
-            </button>
             <div className="h-full flex flex-col items-center gap-2">
               {/* アイコン表示・変更ボタン */}
               <button
@@ -488,8 +479,17 @@ export default function HomePage({
                   <div className="w-22 h-22 rounded-full border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
                 )}
               </button>
+              <div className='text-gray-300 text-xs'>
+                <span><strong className="text-[#ffffff] text-sm">{playerName}</strong></span>
+              </div>
             </div>
             <div className="h-full flex flex-col items-end gap-1">
+              <button
+                onClick={onLogout}
+                className="w-full px-3 py-1 bg-[#1a2e0a] border-2 border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]"
+              >
+                ログアウト
+              </button>
               <button
                 onClick={() => setShowIconPicker(true)}
                 className="w-full px-2 py-1 text-xs text-[#ffffff] bg-[#1a2e0a] border border-white cursor-pointer hover:bg-[#0f1a06] transition-colors"
