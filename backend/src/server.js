@@ -7,6 +7,10 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
+const { generateBattleId, saveBattleLog, readBattleLogs, listAvailableMonths } = require('./BattleLogger');
+
+// アクティブな対戦ログ情報を管理（roomId -> { battleId, startTime, playerIPs: Map<userId, ip> }）
+const activeBattleLogs = new Map();
 
 // プレイヤー名をCSVファイルに記録する関数
 // 同じ名前が再度使われた場合は日付のみ更新する
@@ -107,6 +111,7 @@ function createInactivityCallback(roomId) {
     room.clearInactivityTimer();
     // ルームを削除
     rooms.delete(roomId);
+    activeBattleLogs.delete(roomId);
     console.log(`🗑️ Room ${roomId} deleted due to inactivity`);
   };
 }
@@ -157,6 +162,59 @@ app.get('/yakumanRecords', (req, res) => {
     res.status(500).json({ error: 'Failed to read yakuman records' });
   }
 });
+
+// ---- 対戦ログ API -------------------------------------------------------
+
+// 利用可能な月のリストを返す
+app.get('/api/battle-logs/months', (req, res) => {
+  res.json({ months: listAvailableMonths() });
+});
+
+// 月別対戦ログ一覧（デフォルトは概要のみ、?full=true で全データ）
+app.get('/api/battle-logs', (req, res) => {
+  const now = new Date();
+  const year = parseInt(req.query.year) || now.getFullYear();
+  const month = parseInt(req.query.month) || (now.getMonth() + 1);
+  if (year < 2020 || year > 2100 || month < 1 || month > 12) {
+    return res.status(400).json({ error: 'Invalid year or month' });
+  }
+  const logs = readBattleLogs(year, month);
+  if (req.query.full === 'true') {
+    return res.json({ year, month, count: logs.length, logs });
+  }
+  // デフォルトは概要（rounds・hand詳細を省略）
+  const summary = logs.map(l => ({
+    battleId: l.battleId,
+    roomId: l.roomId,
+    startTime: l.startTime,
+    endTime: l.endTime,
+    players: (l.players || []).map(p => ({ playerName: p.playerName, ip: p.ip })),
+    rules: l.rules,
+    finalScores: l.finalScores,
+    roundCount: (l.rounds || []).length,
+  }));
+  res.json({ year, month, count: summary.length, logs: summary });
+});
+
+// 特定の対戦ログを battleId で取得
+app.get('/api/battle-logs/:battleId', (req, res) => {
+  const { battleId } = req.params;
+  // battleId の先頭 6 桁から YYYYMM を取得
+  const match = battleId.match(/^(\d{4})(\d{2})\d{2}-/);
+  if (!match) {
+    return res.status(400).json({ error: 'Invalid battle ID format (expected YYYYMMDD-roomId-timestamp)' });
+  }
+  const year = parseInt(match[1]);
+  const month = parseInt(match[2]);
+  const logs = readBattleLogs(year, month);
+  const log = logs.find(l => l.battleId === battleId);
+  if (!log) {
+    return res.status(404).json({ error: 'Battle log not found' });
+  }
+  res.json(log);
+});
+
+// ---- 対戦ログ API ここまで -----------------------------------------------
 
 
 app.get('/api/debug', (req, res) => {
@@ -360,6 +418,7 @@ app.delete('/api/rooms/:roomId/players/:userId', (req, res) => {
     room.clearAutoReadyTimer();
     room.clearGameOverTimer();
     rooms.delete(roomId);
+    activeBattleLogs.delete(roomId);
     console.log(`Room deleted: ${roomId}`);
   }
 
@@ -609,6 +668,13 @@ function handleJoin(ws, payload) {
       return;
     }
 
+    // プレイヤーのIPアドレスを対戦ログ用に記録
+    const playerIP = ws._socket?.remoteAddress || null;
+    if (!activeBattleLogs.has(roomId)) {
+      activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map() });
+    }
+    activeBattleLogs.get(roomId).playerIPs.set(userId, playerIP);
+
     // Determine which player this is (1st or 2nd) to assign correct tsumo luck
     const playerIndex = room.getPlayers().length; // 1 or 2
     let assignedTsumoLuck = 1; // default
@@ -700,6 +766,16 @@ function handleJoin(ws, payload) {
   if (!isReconnecting && room.isFull() && room.status === 'waiting') {
     console.log(`🎮 Starting game in room: ${roomId}`);
     room.start();
+
+    // CPU対戦でない場合、対戦ログを初期化
+    const hasCPUForLog = Array.from(room.players.values()).some(p => p.isCPU);
+    if (!hasCPUForLog) {
+      const battleId = generateBattleId(roomId);
+      const startTime = new Date().toISOString();
+      const existing = activeBattleLogs.get(roomId) || { playerIPs: new Map() };
+      activeBattleLogs.set(roomId, { battleId, startTime, playerIPs: existing.playerIPs });
+      console.log(`📊 Battle log initialized: ${battleId}`);
+    }
     const gameStartedPayload = room.getGameState();
     console.log('Game state:', JSON.stringify(gameStartedPayload, null, 2));
     broadcastToRoom(roomId, {
@@ -1056,6 +1132,15 @@ async function handleAction(ws, payload) {
         }
       }
 
+      // gameOver時に対戦ログを保存（CPU対戦は除く）
+      if (!hasCPUPlayer && result.gameOver) {
+        const battleLogInfo = activeBattleLogs.get(roomId);
+        if (battleLogInfo?.battleId) {
+          saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs);
+          activeBattleLogs.delete(roomId);
+        }
+      }
+
       console.log(`[🔵 ${requestId}] ✅ gameFinished broadcast complete`);
       console.log(`[🔵 ${requestId}] [CHECK] room.status=${room.status}, room.isFinished()=${room.isFinished()}`);
     } catch (err) {
@@ -1113,6 +1198,7 @@ async function handleAction(ws, payload) {
         });
         // ルームを削除
         rooms.delete(roomId);
+        activeBattleLogs.delete(roomId);
         console.log(`🗑️ Room ${roomId} deleted successfully`);
       });
       console.log(`[🔵 ${requestId}] [TIMER] Game-over timer setup completed`);
@@ -1183,6 +1269,7 @@ function handleDisconnect(ws) {
           stillRoom.clearAutoReadyTimer();
           stillRoom.clearGameOverTimer();
           rooms.delete(roomId);
+          activeBattleLogs.delete(roomId);
           console.log(`Room deleted: ${roomId}`);
         }
       }, gracePeriodMs);
@@ -1275,6 +1362,20 @@ function handleStartRematch(ws) {
 
   room.resetForRematch();
   room.start();
+
+  // CPU対戦でない場合、再戦用の新しい対戦ログを初期化
+  const hasCPUForRematch = Array.from(room.players.values()).some(p => p.isCPU);
+  if (!hasCPUForRematch) {
+    const existingLog = activeBattleLogs.get(roomId);
+    const rematchBattleId = generateBattleId(roomId);
+    activeBattleLogs.set(roomId, {
+      battleId: rematchBattleId,
+      startTime: new Date().toISOString(),
+      playerIPs: existingLog?.playerIPs || new Map(),
+    });
+    console.log(`📊 Rematch battle log initialized: ${rematchBattleId}`);
+  }
+
   console.log(`🔄 Rematch started by host ${playerName} in room ${roomId}`);
 
   broadcastToRoom(roomId, {
@@ -1322,6 +1423,7 @@ function handleDeleteRoom(ws) {
   room.clearGameOverTimer();
   room.clearInactivityTimer();
   rooms.delete(roomId);
+  activeBattleLogs.delete(roomId);
   console.log(`🗑️ Room ${roomId} deleted successfully`);
 }
 
@@ -1454,6 +1556,15 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
         logYakumanRecord(winnerPlayerName, yakuNames, scoreResult.scoreType);
       }
     }
+
+    // gameOver時に対戦ログを保存（CPU対戦は除く）
+    if (!hasCPUPlayer && finishedPayload?.gameOver) {
+      const battleLogInfo = activeBattleLogs.get(roomId);
+      if (battleLogInfo?.battleId) {
+        saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs);
+        activeBattleLogs.delete(roomId);
+      }
+    }
   } catch (err) {
     console.error(`[🔵 ${logPrefix}] ❌ Error while broadcasting gameFinished:`, err);
     console.error(`[🔵 ${logPrefix}] Error details:`, err.message, err.stack);
@@ -1490,6 +1601,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
         payload: { message: 'Room has been deleted due to game over' },
       });
       rooms.delete(roomId);
+      activeBattleLogs.delete(roomId);
       console.log(`🗑️ Room ${roomId} deleted successfully`);
     });
   }
