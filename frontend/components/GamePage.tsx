@@ -145,25 +145,26 @@ export default function GamePage({
   // After joining, send own icon to the server so it can be forwarded to the opponent
   useEffect(() => {
     if (!userId || !playerIconRef.current) return
+    if (isSpectator) return // 観戦者はアイコンを共有しない
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'shareIcon',
         payload: { iconData: playerIconRef.current },
       }))
     }
-  }, [userId])
+  }, [userId, isSpectator])
 
   const handleIconSelectInGame = React.useCallback((icon: string | null) => {
     setPlayerIcon(icon)
     playerIconRef.current = icon
-    // shareIcon を送信して相手にも反映
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    // shareIcon を送信して相手にも反映（観戦者は送信しない）
+    if (!isSpectator && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'shareIcon',
         payload: { iconData: icon ?? '' },
       }))
     }
-  }, [])
+  }, [isSpectator])
 
   useEffect(() => {
     const updateIconWidth = () => {

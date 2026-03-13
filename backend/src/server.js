@@ -494,7 +494,8 @@ async function handleMessage(ws, data) {
 function handleShareIcon(ws, payload) {
   const conn = connections.get(ws);
   if (!conn) return;
-  const { userId, roomId } = conn;
+  const { userId, roomId, isSpectator } = conn;
+  if (isSpectator) return; // 観戦者はアイコンをプレイヤーとして共有しない
   const room = rooms.get(roomId);
   if (!room) return;
   const { iconData } = payload || {};
