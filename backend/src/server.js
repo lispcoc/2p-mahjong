@@ -498,14 +498,14 @@ app.get('/api/rooms/:roomId/match-history', (req, res) => {
 });
 
 // WebSocket Connection
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);
 
   ws.on('message', async (message) => {
     try {
       console.log(`📨 Received message: ${message}`);
       const data = JSON.parse(message);
-      await handleMessage(ws, data);
+      await handleMessage(ws, data, req);
     } catch (error) {
       console.error('Error parsing message:', error);
       ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
@@ -523,12 +523,12 @@ wss.on('connection', (ws) => {
 });
 
 // Message handlers
-async function handleMessage(ws, data) {
+async function handleMessage(ws, data, req = null) {
   const { type, payload } = data;
 
   switch (type) {
     case 'join':
-      handleJoin(ws, payload);
+      handleJoin(ws, payload, req);
       break;
     case 'action':
       await handleAction(ws, payload);
@@ -582,7 +582,7 @@ function handleShareIcon(ws, payload) {
   });
 }
 
-function handleJoin(ws, payload) {
+function handleJoin(ws, payload, req = null) {
   if (!payload || typeof payload !== 'object') {
     console.log('❌ Invalid payload for join message');
     ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
@@ -669,7 +669,7 @@ function handleJoin(ws, payload) {
     }
 
     // プレイヤーのIPアドレスを対戦ログ用に記録
-    const playerIP = ws._socket?.remoteAddress || null;
+    const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
     if (!activeBattleLogs.has(roomId)) {
       activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map() });
     }
