@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { GameState } from '../types/GameTypes'
 import { debugLog } from '../utils/DebugUtils'
+import { generateFingerprint } from '../utils/fingerprint'
 
 interface UseGameConnectionProps {
   roomId: string
@@ -308,7 +309,7 @@ export function useGameConnection({
 
     const ws = new WebSocket(wsUrl)
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
       setError('')
@@ -339,6 +340,16 @@ export function useGameConnection({
         joinPayload.userId = savedSession.userId
         debugLog(`🔄 Fallback: reconnect with session userId=${savedSession.userId}`)
         console.log('🔄 Fallback reconnection with userId:', savedSession.userId)
+      }
+
+      // デバイスフィンガープリントを生成して付与（IPが変わっても個人追跡に使用）
+      try {
+        const fingerprint = await generateFingerprint()
+        joinPayload.fingerprint = fingerprint
+        debugLog(`🔏 Fingerprint generated: ${fingerprint}`)
+        console.log('🔏 Device fingerprint:', fingerprint)
+      } catch (fpErr) {
+        console.warn('⚠️ Failed to generate fingerprint:', fpErr)
       }
 
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)

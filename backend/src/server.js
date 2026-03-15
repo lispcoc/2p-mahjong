@@ -9,7 +9,8 @@ const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
 const { generateBattleId, saveBattleLog, readBattleLogs, listAvailableMonths } = require('./BattleLogger');
 
-// アクティブな対戦ログ情報を管理（roomId -> { battleId, startTime, playerIPs: Map<userId, ip> }）
+// アクティブな対戦ログ情報を管理
+// roomId -> { battleId, startTime, playerIPs: Map<userId, ip>, playerFingerprints: Map<userId, fingerprint> }
 const activeBattleLogs = new Map();
 
 // プレイヤー名をCSVファイルに記録する関数
@@ -188,7 +189,7 @@ app.get('/api/battle-logs', (req, res) => {
     roomId: l.roomId,
     startTime: l.startTime,
     endTime: l.endTime,
-    players: (l.players || []).map(p => ({ playerName: p.playerName, ip: p.ip })),
+    players: (l.players || []).map(p => ({ playerName: p.playerName, ip: p.ip, fingerprint: p.fingerprint || null })),
     rules: l.rules,
     finalScores: l.finalScores,
     roundCount: (l.rounds || []).length,
@@ -589,7 +590,7 @@ function handleJoin(ws, payload, req = null) {
     return;
   }
 
-  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck, spectator: wantSpectator } = payload;
+  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck, spectator: wantSpectator, fingerprint } = payload;
 
   if (!roomId || !playerName) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
@@ -668,12 +669,17 @@ function handleJoin(ws, payload, req = null) {
       return;
     }
 
-    // プレイヤーのIPアドレスを対戦ログ用に記録
+    // プレイヤーのIPアドレスおよびデバイスフィンガープリントを対戦ログ用に記録
     const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
     if (!activeBattleLogs.has(roomId)) {
-      activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map() });
+      activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map(), playerFingerprints: new Map() });
     }
-    activeBattleLogs.get(roomId).playerIPs.set(userId, playerIP);
+    const battleLogEntry = activeBattleLogs.get(roomId);
+    battleLogEntry.playerIPs.set(userId, playerIP);
+    if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
+      battleLogEntry.playerFingerprints.set(userId, fingerprint);
+      console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
+    }
 
     // Determine which player this is (1st or 2nd) to assign correct tsumo luck
     const playerIndex = room.getPlayers().length; // 1 or 2
@@ -1136,7 +1142,7 @@ async function handleAction(ws, payload) {
       if (!hasCPUPlayer && result.gameOver) {
         const battleLogInfo = activeBattleLogs.get(roomId);
         if (battleLogInfo?.battleId) {
-          saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs);
+          saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs, battleLogInfo.playerFingerprints || new Map());
           activeBattleLogs.delete(roomId);
         }
       }
@@ -1561,7 +1567,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
     if (!hasCPUPlayer && finishedPayload?.gameOver) {
       const battleLogInfo = activeBattleLogs.get(roomId);
       if (battleLogInfo?.battleId) {
-        saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs);
+        saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs, battleLogInfo.playerFingerprints || new Map());
         activeBattleLogs.delete(roomId);
       }
     }

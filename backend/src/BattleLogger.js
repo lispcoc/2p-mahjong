@@ -121,13 +121,14 @@ function formatRound(roundEntry, playersMap) {
 /**
  * 対戦ログを組み立てて月別JSOLファイルに追記する
  *
- * @param {object}         room        - GameRoomインスタンス
- * @param {string}         battleId    - 生成済み対戦ID
- * @param {string}         startTime   - ゲーム開始時刻 (ISO string)
- * @param {Map<string,string>} playerIPs - userId -> IPアドレス
+ * @param {object}              room                 - GameRoomインスタンス
+ * @param {string}              battleId             - 生成済み対戦ID
+ * @param {string}              startTime            - ゲーム開始時刻 (ISO string)
+ * @param {Map<string,string>}  playerIPs            - userId -> IPアドレス
+ * @param {Map<string,string>}  playerFingerprints   - userId -> デバイスフィンガープリント (32桁hex)
  * @returns {object|null} 保存した対戦ログオブジェクト（失敗時はnull）
  */
-function saveBattleLog(room, battleId, startTime, playerIPs = new Map()) {
+function saveBattleLog(room, battleId, startTime, playerIPs = new Map(), playerFingerprints = new Map()) {
   try {
     if (!fs.existsSync(LOG_DIR)) {
       fs.mkdirSync(LOG_DIR, { recursive: true });
@@ -141,6 +142,7 @@ function saveBattleLog(room, battleId, startTime, playerIPs = new Map()) {
           userId: uid,
           playerName: player.playerName,
           ip: playerIPs.get(uid) || null,
+          fingerprint: playerFingerprints.get(uid) || null,
         });
       }
     });
