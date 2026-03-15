@@ -214,16 +214,15 @@ export class TenpaiChecker {
   static isChiitoitsu(hand: Tile[]): boolean {
     if (hand.length !== 14) return false;
 
-    const sorted = [...hand].sort((a, b) => this.compareTiles(a, b));
-
-    // 7つの対子をチェック
-    for (let i = 0; i < 14; i += 2) {
-      if (!this.tileEquals(sorted[i], sorted[i + 1])) {
-        return false;
-      }
+    // 各牌の枚数をカウント（4枚使い＝同じ牌を2対子として使うのは不可）
+    const counts: Record<string, number> = {};
+    for (const tile of hand) {
+      const key = `${tile.suit}_${tile.number}`;
+      counts[key] = (counts[key] || 0) + 1;
     }
-
-    return true;
+    const entries = Object.values(counts);
+    if (entries.length !== 7) return false;
+    return entries.every(c => c === 2);
   }
 
   /**

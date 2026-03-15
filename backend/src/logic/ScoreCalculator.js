@@ -67,7 +67,7 @@ class ScoreCalculator {
 
     // 七対子の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isChiitoitsu(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou, concealedMeldIndices);
       const yakumanCount = this.getYakumanCount(yaku);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
 
@@ -93,7 +93,7 @@ class ScoreCalculator {
 
     // 国士無双の判定（特殊形、門前のみ）
     if (melds.length === 0 && this.isKokushi(hand)) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, null, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou, concealedMeldIndices);
       const yakumanCount = this.getYakumanCount(yaku);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
 
@@ -122,7 +122,7 @@ class ScoreCalculator {
 
     // 各和了形で役判定して最高得点を選ぶ
     for (let combination of combinations) {
-      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou);
+      const yaku = this.detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators, doraTiles, urahaIndicators, urahaTiles, isIppatsumari, isHaitei, isHoutei, isRinshan, isDoubleRiichi, isTenhou, isChiihou, isRenhou, concealedMeldIndices);
       const han = yaku.reduce((sum, y) => sum + y.han, 0);
 
       if (han === 0) continue; // 役なしはスキップ
@@ -293,7 +293,7 @@ class ScoreCalculator {
    * @param {boolean} isChiihou - 地和判定
    * @param {boolean} isRenhou - 人和判定
    */
-  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false, isDoubleRiichi = false, isTenhou = false, isChiihou = false, isRenhou = false) {
+  detectYaku(hand, melds, winningTile, isTsumo, isRon, riichi, menzen, combination, roundWind, seatWind, doraIndicators = [], doraTiles = [], urahaIndicators = [], urahaTiles = [], isIppatsumari = false, isHaitei = false, isHoutei = false, isRinshan = false, isDoubleRiichi = false, isTenhou = false, isChiihou = false, isRenhou = false, concealedMeldIndices = new Set()) {
     const yaku = [];
     const allTiles = hand.concat(melds.flat());
 
@@ -326,8 +326,8 @@ class ScoreCalculator {
     }
 
     // 四暗刻（スーアンコー）/ 四暗刻単騎（ダブル役満）
-    if (combination && this.isSuuankouWithCombination(combination, isTsumo, winningTile)) {
-      if (this.isSuuankouTanki(combination, winningTile)) {
+    if (combination && this.isSuuankouWithCombination(combination, isTsumo, winningTile, melds, concealedMeldIndices)) {
+      if (this.isSuuankouTanki(combination, winningTile, melds, concealedMeldIndices)) {
         yakumanList.push({ name: '四暗刻単騎', han: 26, isYakuman: true, yakumanValue: 2 });
       } else {
         yakumanList.push({ name: '四暗刻', han: 13, isYakuman: true, yakumanValue: 1 });
@@ -518,7 +518,7 @@ class ScoreCalculator {
     }
 
     // 三暗刻（サンアンコー）- 和了形に依存
-    if (this.isSankouWithCombination(combination, isRon, winningTile)) {
+    if (this.isSankouWithCombination(combination, isRon, winningTile, melds, concealedMeldIndices)) {
       yaku.push({ name: '三暗刻', han: 2 });
     }
 
@@ -638,25 +638,34 @@ class ScoreCalculator {
    */
   findAllCombinations(tiles, expectedMeldCount = 4) {
     const combinations = [];
+    const seenPairKeys = new Set();
 
     // 対子（雀頭）候補を探す
     for (let i = 0; i < tiles.length - 1; i++) {
       const tile1 = tiles[i];
+      const pairKey = `${tile1.suit}_${tile1.number}`;
+
+      // 同じ種類の雀頭は一度だけ試す
+      if (seenPairKeys.has(pairKey)) continue;
 
       for (let j = i + 1; j < tiles.length; j++) {
         const tile2 = tiles[j];
 
         // 同じ牌が2枚あれば雀頭候補
         if (tile1.suit === tile2.suit && tile1.number === tile2.number) {
-          // 残りの牌で面子を作る
-          const remaining = tiles.filter((t, idx) => idx !== i && idx !== j);
-          const melds = this.findMelds(remaining);
+          seenPairKeys.add(pairKey);
 
-          if (melds && melds.length === expectedMeldCount) {
-            combinations.push({
-              pair: tile1,
-              melds: melds
-            });
+          // 残りの牌で面子を作る（全ての分解を列挙）
+          const remaining = tiles.filter((t, idx) => idx !== i && idx !== j);
+          const allMeldSets = this.findMelds(remaining);
+
+          for (const melds of allMeldSets) {
+            if (melds.length === expectedMeldCount) {
+              combinations.push({
+                pair: tile1,
+                melds: melds
+              });
+            }
           }
 
           break; // 同じ雀頭で複数回試さない
@@ -668,11 +677,12 @@ class ScoreCalculator {
   }
 
   /**
-   * 残りの牌から面子を作る
+   * 残りの牌から面子を作る（全ての分解を列挙）
+   * @returns {Array<Array<Meld>>} - 分解の一覧（空配列は分解不可脳を意味）
    */
   findMelds(tiles) {
-    if (tiles.length === 0) return [];
-    if (tiles.length % 3 !== 0) return null;
+    if (tiles.length === 0) return [[]];
+    if (tiles.length % 3 !== 0) return [];
 
     // 牌をソート
     const sorted = [...tiles].sort((a, b) => {
@@ -680,15 +690,18 @@ class ScoreCalculator {
       return a.number - b.number;
     });
 
-    return this.findMeldsRecursive(sorted);
+    return this.findAllMeldsRecursive(sorted);
   }
 
   /**
-   * 再帰的に面子を探す
+   * 再帰的に面子の全ての分解を探す
+   * 刻子・順子の両方を試し、全ての有効分解を返す
+   * @returns {Array<Array<Meld>>} - 分解の一覧
    */
-  findMeldsRecursive(tiles) {
-    if (tiles.length === 0) return [];
+  findAllMeldsRecursive(tiles) {
+    if (tiles.length === 0) return [[]];
 
+    const results = [];
     const first = tiles[0];
 
     // パターン1: 刻子を作る
@@ -696,29 +709,38 @@ class ScoreCalculator {
         tiles[1].suit === first.suit && tiles[1].number === first.number &&
         tiles[2].suit === first.suit && tiles[2].number === first.number) {
       const remaining = tiles.slice(3);
-      const rest = this.findMeldsRecursive(remaining);
-      if (rest !== null) {
-        return [[tiles[0], tiles[1], tiles[2]], ...rest];
+      const restResults = this.findAllMeldsRecursive(remaining);
+      for (const rest of restResults) {
+        results.push([[tiles[0], tiles[1], tiles[2]], ...rest]);
       }
     }
 
     // パターン2: 順子を作る
     if (first.suit !== 'honor' && first.number <= 7) {
-      const second = tiles.find(t => t.suit === first.suit && t.number === first.number + 1);
-      const third = tiles.find(t => t.suit === first.suit && t.number === first.number + 2);
-
-      if (second && third) {
-        const remaining = tiles.filter(t =>
-          !(t === first || t === second || t === third)
-        );
-        const rest = this.findMeldsRecursive(remaining);
-        if (rest !== null) {
-          return [[first, second, third], ...rest];
+      const secondIdx = tiles.findIndex((t, idx) => idx > 0 && t.suit === first.suit && t.number === first.number + 1);
+      if (secondIdx >= 0) {
+        const thirdIdx = tiles.findIndex((t, idx) => idx > secondIdx && t.suit === first.suit && t.number === first.number + 2);
+        if (thirdIdx >= 0) {
+          const remaining = tiles.filter((_, idx) => idx !== 0 && idx !== secondIdx && idx !== thirdIdx);
+          const restResults = this.findAllMeldsRecursive(remaining);
+          for (const rest of restResults) {
+            results.push([[first, tiles[secondIdx], tiles[thirdIdx]], ...rest]);
+          }
         }
       }
     }
 
-    return null; // 面子を作れない
+    return results;
+  }
+
+  /**
+   * 再帰的に面子を探す（旧版、互換性のため残す）
+   * 最初に見つかった分解のみ返す<br>
+   * @deprecated findAllMeldsRecursiveを使用のこと
+   */
+  findMeldsRecursive(tiles) {
+    const results = this.findAllMeldsRecursive(tiles);
+    return results.length > 0 ? results[0] : null;
   }
 
   /**
@@ -735,11 +757,12 @@ class ScoreCalculator {
 
   /**
    * 面子の中で和了牌が両面待ちだったか確認
+   * 同じ和了牌を含む順子が複数ある場合、どれか一つでも両面待ちならtrueを返す
    */
   checkRyanmenWaitInMelds(melds, winningTile) {
     if (winningTile.suit === 'honor') return false;
 
-    // 和了牌を含む順子を探す
+    // 和了牌を含む順子を全て確認（複数ありうる）
     for (let meld of melds) {
       if (!this.isSequence(meld)) continue;
 
@@ -747,36 +770,30 @@ class ScoreCalculator {
         t.suit === winningTile.suit && t.number === winningTile.number
       );
 
-      if (hasWinningTile) {
-        const sorted = [...meld].sort((a, b) => a.number - b.number);
-        const nums = sorted.map(t => t.number);
-        const winNum = winningTile.number;
+      if (!hasWinningTile) continue;
 
-        // 和了牌の位置を確認
-        const winIndex = nums.indexOf(winNum);
+      const sorted = [...meld].sort((a, b) => a.number - b.number);
+      const nums = sorted.map(t => t.number);
+      const winNum = winningTile.number;
 
-        if (winIndex === 1) {
-          // 真ん中でアガった → 嵌張待ち
-          return false;
-        }
+      // 和了牌の位置を確認
+      const winIndex = nums.indexOf(winNum);
 
-        // 両端でアガった場合、両面待ちかペンチャン待ちかを判定
-        // ペンチャン（辺張）の判定:
-        // - 1-2 で待ち → 3でアガリ → ペンチャン（1-2-3, winNum=3）
-        // - 8-9 で待ち → 7でアガリ → ペンチャン（7-8-9, winNum=7）
-        // - 2-3 で待ち → 1でアガリ → 両面（4も待てる）
-        // - 7-8 で待ち → 9でアガリ → 両面（6も待てる）
-
-        if (nums[0] === 1 && nums[2] === 3 && winNum === 3) {
-          return false; // ペンチャン（1-2待ちで3をツモ/ロン）
-        }
-        if (nums[0] === 7 && nums[2] === 9 && winNum === 7) {
-          return false; // ペンチャン（8-9待ちで7をツモ/ロン）
-        }
-
-        // それ以外は両面待ち
-        return true;
+      if (winIndex === 1) {
+        // 真ん中でアガった → 嵌張待ち → 次の順子へ
+        continue;
       }
+
+      // 両端でアガった場合、両面待ちかペンチャン待ちかを判定
+      if (nums[0] === 1 && nums[2] === 3 && winNum === 3) {
+        continue; // ペンチャン（1-2待ちで3をツモ/ロン） → 次の順子へ
+      }
+      if (nums[0] === 7 && nums[2] === 9 && winNum === 7) {
+        continue; // ペンチャン（8-9待ちで7をツモ/ロン） → 次の順子へ
+      }
+
+      // 両面待ちの順子を発見
+      return true;
     }
 
     return false;
@@ -888,19 +905,18 @@ class ScoreCalculator {
   isChiitoitsu(hand) {
     if (hand.length !== 14) return false;
 
-    const sorted = [...hand].sort((a, b) => {
-      if (a.suit !== b.suit) return a.suit.localeCompare(b.suit);
-      return a.number - b.number;
-    });
-
-    // 7つの対子をチェック
-    for (let i = 0; i < 14; i += 2) {
-      if (!sorted[i].equals(sorted[i + 1])) {
-        return false;
-      }
+    // 各牌の枚数をカウント
+    const counts = {};
+    for (const tile of hand) {
+      const key = `${tile.suit}_${tile.number}`;
+      counts[key] = (counts[key] || 0) + 1;
     }
 
-    return true;
+    // 7種類の牌がそれぞれちょうど2枚であることを確認
+    // （4枚使い＝同じ牌を2対子として使うのは不可）
+    const entries = Object.values(counts);
+    if (entries.length !== 7) return false;
+    return entries.every(c => c === 2);
   }
 
   /**
@@ -996,11 +1012,13 @@ class ScoreCalculator {
   /**
    * 三暗刻（サンアンコー）判定 - combination版
    * ロン時は和了牌が刻子を完成させた場合、その刻子は明刻扱いのため暗刻カウントから除く。
+   * 暗槓は暗刻としてカウントする。
    */
-  isSankouWithCombination(combination, isRon = false, winningTile = null) {
+  isSankouWithCombination(combination, isRon = false, winningTile = null, melds = [], concealedMeldIndices = new Set()) {
     let ankouCount = 0;
     let winTileUsedInTriplet = false;
 
+    // 手牌の刻子をカウント
     combination.melds.forEach(meld => {
       // 刻子かチェック
       if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
@@ -1009,6 +1027,15 @@ class ScoreCalculator {
         if (isRon && winningTile && meld[0].equals(winningTile) && !winTileUsedInTriplet) {
           winTileUsedInTriplet = true;
         }
+      }
+    });
+
+    // 暗槓も暗刻としてカウント
+    melds.forEach((meld, idx) => {
+      if (meld.length === 4 &&
+          meld[0].equals(meld[1]) && meld[1].equals(meld[2]) && meld[2].equals(meld[3]) &&
+          concealedMeldIndices && concealedMeldIndices.has(idx)) {
+        ankouCount++;
       }
     });
 
@@ -1024,12 +1051,23 @@ class ScoreCalculator {
    * 四暗刻（スーアンコー）判定 - combination版
    * ツモの場合は常に有効。ロンの場合は単騎待ち（和了牌が雀頭）のみ有効。
    * 双碰待ち（和了牌が刻子の一部）のロンは無効。
+   * 暗槓は暗刻としてカウントする。
    */
-  isSuuankouWithCombination(combination, isTsumo, winningTile) {
+  isSuuankouWithCombination(combination, isTsumo, winningTile, melds = [], concealedMeldIndices = new Set()) {
     let ankouCount = 0;
 
+    // 手牌の刻子をカウント
     combination.melds.forEach(meld => {
       if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+        ankouCount++;
+      }
+    });
+
+    // 暗槓も暗刻としてカウント
+    melds.forEach((meld, idx) => {
+      if (meld.length === 4 &&
+          meld[0].equals(meld[1]) && meld[1].equals(meld[2]) && meld[2].equals(meld[3]) &&
+          concealedMeldIndices && concealedMeldIndices.has(idx)) {
         ankouCount++;
       }
     });
@@ -1052,14 +1090,23 @@ class ScoreCalculator {
   /**
    * 四暗刻単騎判定
    * 和了牌が雀頭を完成させた場合（単騎待ち）はダブル役満
+   * 暗槓は暗刻としてカウントする。
    */
-  isSuuankouTanki(combination, winningTile) {
+  isSuuankouTanki(combination, winningTile, melds = [], concealedMeldIndices = new Set()) {
     if (!winningTile || !combination || !combination.pair) return false;
 
-    // 全ての面子が暗刻であること
+    // 全ての面子が暗刻であること（手牌の刻子＋暗槓）
     let ankouCount = 0;
     combination.melds.forEach(meld => {
       if (meld.length === 3 && meld[0].equals(meld[1]) && meld[1].equals(meld[2])) {
+        ankouCount++;
+      }
+    });
+    // 暗槓も暗刻としてカウント
+    melds.forEach((meld, idx) => {
+      if (meld.length === 4 &&
+          meld[0].equals(meld[1]) && meld[1].equals(meld[2]) && meld[2].equals(meld[3]) &&
+          concealedMeldIndices && concealedMeldIndices.has(idx)) {
         ankouCount++;
       }
     });

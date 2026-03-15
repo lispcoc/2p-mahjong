@@ -1530,14 +1530,15 @@ class MahjongLogic {
   isChiitoitsu(hand) {
     if (hand.length === 14) {
       // 完成形チェック（7対子完成）
-      const sorted = hand.slice().sort((a, b) => this.compareTiles(a, b));
-
-      // 7つの対子をチェック
-      for (let i = 0; i < 14; i += 2) {
-        if (!sorted[i].equals(sorted[i + 1])) {
-          return false;
-        }
+      // 各牌の枚数をカウント（4枚使い＝同じ牌を2対子として使うのは不可）
+      const counts = {};
+      for (const tile of hand) {
+        const key = `${tile.suit}_${tile.number}`;
+        counts[key] = (counts[key] || 0) + 1;
       }
+      const entries = Object.values(counts);
+      if (entries.length !== 7) return false;
+      if (!entries.every(c => c === 2)) return false;
 
       return true;
     } else if (hand.length === 13) {
