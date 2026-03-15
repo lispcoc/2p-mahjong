@@ -7,7 +7,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
-const { generateBattleId, saveBattleLog, readBattleLogs, listAvailableMonths } = require('./BattleLogger');
+const { generateBattleId, saveBattleLog, readBattleLogs, listAvailableMonths, updateIPDatabase } = require('./BattleLogger');
 
 // アクティブな対戦ログ情報を管理
 // roomId -> { battleId, startTime, playerIPs: Map<userId, ip>, playerFingerprints: Map<userId, fingerprint> }
@@ -680,6 +680,9 @@ function handleJoin(ws, payload, req = null) {
       battleLogEntry.playerFingerprints.set(userId, fingerprint);
       console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
     }
+
+    // IPデータベース（全ログイン者）を更新
+    updateIPDatabase(playerIP, playerName, fingerprint || null);
 
     // Determine which player this is (1st or 2nd) to assign correct tsumo luck
     const playerIndex = room.getPlayers().length; // 1 or 2

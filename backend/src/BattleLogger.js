@@ -178,6 +178,60 @@ function saveBattleLog(room, battleId, startTime, playerIPs = new Map(), playerF
 }
 
 /**
+ * IPデータベースファイルのパス
+ * battle-logs/ip-database.json
+ */
+const IP_DB_FILE = path.join(LOG_DIR, 'ip-database.json');
+
+/**
+ * IPデータベースを更新する
+ * IPをキーに、そこから使われた名前・fingerprintを配列で蓄積する
+ *
+ * @param {string} ip          - プレイヤーのIPアドレス
+ * @param {string} playerName  - プレイヤー名
+ * @param {string|null} fingerprint - デバイスフィンガープリント (32桁hex) or null
+ */
+function updateIPDatabase(ip, playerName, fingerprint = null) {
+  if (!ip || ip === 'unknown') return;
+
+  try {
+    if (!fs.existsSync(LOG_DIR)) {
+      fs.mkdirSync(LOG_DIR, { recursive: true });
+    }
+
+    let db = {};
+    if (fs.existsSync(IP_DB_FILE)) {
+      try {
+        db = JSON.parse(fs.readFileSync(IP_DB_FILE, 'utf8'));
+      } catch (_) {
+        db = {};
+      }
+    }
+
+    if (!db[ip]) {
+      db[ip] = { names: [], fingerprints: [], firstSeen: new Date().toISOString(), lastSeen: null };
+    }
+
+    const entry = db[ip];
+    entry.lastSeen = new Date().toISOString();
+
+    if (playerName && !entry.names.includes(playerName)) {
+      entry.names.push(playerName);
+    }
+
+    if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
+      if (!entry.fingerprints.includes(fingerprint)) {
+        entry.fingerprints.push(fingerprint);
+      }
+    }
+
+    fs.writeFileSync(IP_DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  } catch (err) {
+    console.error('❌ Failed to update IP database:', err.message);
+  }
+}
+
+/**
  * 月別ログファイルを読み込み、全対戦ログの配列を返す
  * @param {number} year
  * @param {number} month - 1〜12
@@ -222,4 +276,5 @@ module.exports = {
   saveBattleLog,
   readBattleLogs,
   listAvailableMonths,
+  updateIPDatabase,
 };
