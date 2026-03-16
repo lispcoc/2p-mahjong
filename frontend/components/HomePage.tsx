@@ -22,6 +22,7 @@ interface RoomInfo {
   status: string
   playersCount: number
   playerNames: string[]
+  playerIds?: string[]
   createdAt: number
   spectatorCount?: number
 }
@@ -36,6 +37,10 @@ export default function HomePage({
   onRefreshed,
 }: HomePageProps) {
   const { whiteMode, toggleWhiteMode } = useWhiteMode()
+  // 自分のuserId（localStorageから直接読み取り — SSR時は空文字）
+  const [myUserId] = useState(() => {
+    try { return (typeof window !== 'undefined' && localStorage.getItem('mahjong-userId')) || '' } catch { return '' }
+  })
   const defaultInitialScore = 25000
   // wallTiles: 配牌27枚が配られた後、壁に残す牌の枚数
   // 計算: 全牌136枚 - 配牌27枚 - 予約牌22枚 = 最大87枚がツモ可能
@@ -686,7 +691,7 @@ export default function HomePage({
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      {onSpectateRoom && (
+                      {onSpectateRoom && !(myUserId && room.playerIds?.includes(myUserId)) && (
                         <button
                           onClick={() => onSpectateRoom(room.roomId)}
                           className="px-4 py-3 border-2 border-white bg-[#1a4a5a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f3040]"

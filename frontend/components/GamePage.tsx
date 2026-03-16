@@ -993,6 +993,13 @@ export default function GamePage({
           break
         }
 
+        // 自分が参加中のルームを観戦しようとした場合、ホームに戻す
+        if (errorMessage.includes('観戦できません')) {
+          toast.error(errorMessage, { duration: 3000 })
+          setTimeout(() => onBackRef.current(), 1500)
+          break
+        }
+
         toast.error(errorMessage, { duration: 5000 })
         break
       case 'playerReconnected':
@@ -1142,6 +1149,18 @@ export default function GamePage({
         attemptedReconnectUserId.current = savedSession.userId  // Remember we're trying to reconnect
         debugLog(`🔄 Attempting to reconnect with userId=${savedSession.userId}`)
         console.log('🔄 Attempting reconnection with userId:', savedSession.userId)
+      }
+
+      // Always include the persistent userId (generated at login, kept until logout)
+      // This is critical for spectator blocking: server needs to know who we are
+      if (!joinPayload.userId) {
+        try {
+          const persistentUserId = localStorage.getItem('mahjong-userId')
+          if (persistentUserId) {
+            joinPayload.userId = persistentUserId
+            console.log('🪪 Using persistent userId:', persistentUserId)
+          }
+        } catch {}
       }
 
       // Read tsumo luck from sessionStorage (set during room creation) or from saved session

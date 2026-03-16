@@ -11,6 +11,7 @@ type PageState = 'loading' | 'login' | 'home' | 'game' | 'spectate'
 export default function Page() {
   const [pageState, setPageState] = useState<PageState>('loading')
   const [playerName, setPlayerName] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const [roomId, setRoomId] = useState<string>('')
   const [shouldRefreshRooms, setShouldRefreshRooms] = useState(false)
   const sessionCheckDone = useRef(false)
@@ -67,6 +68,7 @@ export default function Page() {
           console.log('✅ Valid session found, restoring...')
           setPlayerName(session.playerName)
           setRoomId(session.roomId)
+          setUserId(localStorage.getItem('mahjong-userId') || '')
           setPageState(session.isSpectator ? 'spectate' : 'game')
           console.log('✅ State updated to', session.isSpectator ? 'spectate' : 'game')
           shouldGoToLogin = false
@@ -95,6 +97,8 @@ export default function Page() {
           }
         } catch {}
         setPlayerName(savedName)
+        const savedUserId = localStorage.getItem('mahjong-userId') || ''
+        setUserId(savedUserId)
         setPageState('home')
         // 再ログイン時もフィンガープリントをサーバーに送信
         sendFingerprintToServer(savedName)
@@ -121,6 +125,7 @@ export default function Page() {
         console.log('🆔 Generated new persistent userId on login')
       }
     } catch {}
+    setUserId(localStorage.getItem('mahjong-userId') || '')
     setPageState('home')
     // ログイン時にフィンガープリントをサーバーに送信（ゲーム入室前でもIP+名前+fpを記録する）
     sendFingerprintToServer(name)
@@ -209,6 +214,8 @@ export default function Page() {
       // Keep session so the user can rejoin the same room from the list
       console.log('ℹ️ Keeping session on back to home')
     }
+    // Refresh userId so spectate-button suppression works correctly
+    setUserId(localStorage.getItem('mahjong-userId') || '')
     setPageState('home')
     setRoomId('')
     setShouldRefreshRooms(true)

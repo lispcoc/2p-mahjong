@@ -914,6 +914,13 @@ function handleJoin(ws, payload, req = null) {
 
 // 見学者用参加処理
 function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
+  // プレイヤーとして参加しているユーザーが観戦しようとするのを拒否
+  if (existingUserId && room.players.has(existingUserId)) {
+    console.log(`❌ Player ${spectatorName} (${existingUserId}) tried to spectate their own room ${roomId}`);
+    ws.send(JSON.stringify({ type: 'error', message: '自分が参加しているルームは観戦できません' }));
+    return;
+  }
+
   let userId = existingUserId;
   let isReconnecting = false;
 
