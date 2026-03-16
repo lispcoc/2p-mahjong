@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import LoginPage from '../components/LoginPage'
 import HomePage from '../components/HomePage'
 import GamePage from '../components/GamePage'
+import { getCachedFingerprint } from '../utils/fingerprint'
 
 type PageState = 'loading' | 'login' | 'home' | 'game' | 'spectate'
 
@@ -13,6 +14,24 @@ export default function Page() {
   const [roomId, setRoomId] = useState<string>('')
   const [shouldRefreshRooms, setShouldRefreshRooms] = useState(false)
   const sessionCheckDone = useRef(false)
+
+  // フィンガープリントをサーバーに送信する共通ヘルパー（ログイン・再ログイン時）
+  const sendFingerprintToServer = async (name: string) => {
+    try {
+      const fp = await getCachedFingerprint()
+      if (!fp || !/^[0-9a-f]{32}$/i.test(fp)) return
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      await fetch(`${backendUrl}/api/fingerprint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName: name, fingerprint: fp }),
+      })
+      console.log('🔏 Fingerprint sent to server for', name)
+    } catch (err) {
+      // フィンガープリント送信失敗は致命的ではない
+      console.warn('⚠️ Failed to send fingerprint:', err)
+    }
+  }
 
   // Check for saved session on mount
   useEffect(() => {
@@ -77,6 +96,8 @@ export default function Page() {
         } catch {}
         setPlayerName(savedName)
         setPageState('home')
+        // 再ログイン時もフィンガープリントをサーバーに送信
+        sendFingerprintToServer(savedName)
       } else {
         console.log('➡️ No valid session, going to login')
         setPageState('login')
@@ -101,6 +122,8 @@ export default function Page() {
       }
     } catch {}
     setPageState('home')
+    // ログイン時にフィンガープリントをサーバーに送信（ゲーム入室前でもIP+名前+fpを記録する）
+    sendFingerprintToServer(name)
   }
 
   const handleCreateRoom = async (newRoomId: string) => {

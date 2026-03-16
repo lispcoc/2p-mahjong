@@ -232,6 +232,21 @@ app.get('/api/ip-database', (req, res) => {
 });
 
 
+// フィンガープリント記録エンドポイント（ログイン時・再ログイン時にゲーム入室前でも記録する）
+app.post('/api/fingerprint', (req, res) => {
+  const { playerName, fingerprint } = req.body || {};
+  if (!playerName || typeof playerName !== 'string') {
+    return res.status(400).json({ error: 'playerName is required' });
+  }
+  if (!fingerprint || typeof fingerprint !== 'string' || !/^[0-9a-f]{32}$/i.test(fingerprint)) {
+    return res.status(400).json({ error: 'Invalid fingerprint (expected 32-char hex)' });
+  }
+  const ip = req.headers['x-forwarded-for']?.split(',').shift().trim() || req.socket?.remoteAddress || 'unknown';
+  updateIPDatabase(ip, playerName, fingerprint);
+  console.log(`🔏 [/api/fingerprint] Recorded for ${playerName}: ${fingerprint} (IP: ${ip})`);
+  res.json({ success: true });
+});
+
 app.get('/api/debug', (req, res) => {
   const roomsInfo = [];
   rooms.forEach((room, roomId) => {
@@ -717,9 +732,15 @@ function handleJoin(ws, payload, req = null) {
   }
   const battleLogEntry = activeBattleLogs.get(roomId);
   battleLogEntry.playerIPs.set(userId, playerIP);
+  // 受信したfingerprintの詳細をログ（デバッグ用）
+  console.log(`🔏 [join] fingerprint received for ${playerName}: type=${typeof fingerprint}, value=${JSON.stringify(fingerprint)}`);
   if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
     battleLogEntry.playerFingerprints?.set(userId, fingerprint);
     console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
+  } else if (fingerprint) {
+    console.warn(`⚠️ Fingerprint rejected for ${playerName} (invalid format): "${fingerprint}" (length=${String(fingerprint).length})`);
+  } else {
+    console.log(`🔏 No fingerprint in join payload for ${playerName} (payload keys: ${Object.keys(payload).join(', ')})`);
   }
 
   // IPデータベース（全接続者）を更新 ─ 新規参加・再接続ともに実行
@@ -1396,6 +1417,7 @@ function handleStartRematch(ws) {
       battleId: rematchBattleId,
       startTime: new Date().toISOString(),
       playerIPs: existingLog?.playerIPs || new Map(),
+      playerFingerprints: existingLog?.playerFingerprints || new Map(),
     });
     console.log(`📊 Rematch battle log initialized: ${rematchBattleId}`);
   }

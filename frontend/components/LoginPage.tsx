@@ -1,7 +1,8 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useWhiteMode } from '../contexts/WhiteModeContext'
+import { prefetchFingerprint } from '../utils/fingerprint'
 
 interface LoginPageProps {
   onLogin: (name: string) => void
@@ -17,6 +18,12 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
   })
   const [error, setError] = useState('')
   const { whiteMode, toggleWhiteMode } = useWhiteMode()
+
+  // ログインページ表示時にフィンガープリントをバックグラウンドで事前生成開始
+  // ホームページやWebSocket接続よりも小さく、入力中にバックグラウンドで完了可能
+  useEffect(() => {
+    prefetchFingerprint()
+  }, [])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

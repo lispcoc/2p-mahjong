@@ -22,6 +22,7 @@ import { IconPickerModal } from './Modals/IconPickerModal'
 
 // Utilities and components are now imported from separate files
 import { debugLog, setDebugLogsEnabled } from '../utils/DebugUtils'
+import { getCachedFingerprint } from '../utils/fingerprint'
 
 const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development'
 
@@ -1125,7 +1126,7 @@ export default function GamePage({
     const ws = new WebSocket(wsUrl)
     connectionAttempted.current = true
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
       toast.dismiss()
@@ -1191,6 +1192,23 @@ export default function GamePage({
       // 見学者モードのときはフラグを追加
       if (isSpectator) {
         joinPayload.spectator = true
+      }
+
+      // デバイスフィンガープリントを付与（ログインページ表示時に事前生成済み）
+      try {
+        const fingerprint = await getCachedFingerprint()
+        if (fingerprint && /^[0-9a-f]{32}$/i.test(fingerprint)) {
+          joinPayload.fingerprint = fingerprint
+          console.log('🔏 Device fingerprint:', fingerprint)
+        }
+      } catch (fpErr) {
+        console.warn('⚠️ Failed to get fingerprint:', fpErr)
+      }
+
+      // await中にWebSocketが切断されている可能性があるため送信前に状態確認
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.warn('⚠️ WebSocket closed during fingerprint retrieval, join message not sent')
+        return
       }
 
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}, spectator=${isSpectator}`)

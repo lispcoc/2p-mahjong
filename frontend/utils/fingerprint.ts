@@ -82,6 +82,15 @@ async function getAudioFingerprint(): Promise<string> {
       window.AudioContext || (window as any).webkitAudioContext
     if (!AudioContext) return 'no-audio'
 
+    // ユーザー操作なしに AudioContext を作ると Chrome 等がコンソールに
+    // "The AudioContext was not allowed to start." を出力する。
+    // navigator.userActivation.hasBeenActive でユーザー操作済みかを確認し、
+    // 未操作の場合は AudioContext を作らずスキップする（コンソールエラーを防ぐ）。
+    const ua: any = (navigator as any).userActivation
+    if (ua && !ua.hasBeenActive) {
+      return 'audio-no-gesture'
+    }
+
     const ctx = new AudioContext()
 
     // AudioContext が suspended 状態（ユーザー操作待ち）の場合は resume を試みる
@@ -236,4 +245,85 @@ export async function generateFingerprint(): Promise<string> {
     .join('||')
 
   return sha256(raw)
+}
+
+// ─── キャッシング ───────────────────────────────────────────────────────────
+
+const LS_KEY = 'mahjong-fingerprint'
+const FP_REGEX = /^[0-9a-f]{32}$/i
+
+/** 生成中の Promise（重複生成を防ぐ） */
+let _fingerprintPromise: Promise<string> | null = null
+
+/** localStorage からキャッシュ済みフィンガープリントを読む（有効な場合のみ） */
+function _readFromStorage(): string | null {
+  try {
+    const v = localStorage.getItem(LS_KEY)
+    if (v && FP_REGEX.test(v)) return v
+  } catch {}
+  return null
+}
+
+/** フィンガープリントを localStorage に保存する */
+function _saveToStorage(fp: string): void {
+  try {
+    localStorage.setItem(LS_KEY, fp)
+  } catch {}
+}
+
+/**
+ * ホームページ（またはログインページ）表示時にバックグラウンドで
+ * フィンガープリントを事前生成しておく。冪等（何度呼んでも重複生成しない）。
+ *
+ * 生成したfpは（AudioContext使用/不使用に関わらず）localStorageに保存する。
+ * Audio無しでも Canvas/WebGL/UA 等のシグナルで十分識別可能なため。
+ */
+export function prefetchFingerprint(): void {
+  if (_fingerprintPromise) return
+  if (_readFromStorage()) return
+
+  _fingerprintPromise = generateFingerprint()
+    .then((fp) => {
+      if (fp && FP_REGEX.test(fp)) {
+        _saveToStorage(fp)
+        console.log('🔏 Fingerprint generated and cached:', fp)
+      } else {
+        console.warn('⚠️ Fingerprint invalid format, not cached:', JSON.stringify(fp))
+      }
+      return fp
+    })
+    .catch((err) => {
+      console.warn('⚠️ Fingerprint pre-fetch failed:', err)
+      _fingerprintPromise = null
+      return ''
+    })
+}
+
+/**
+ * キャッシュ済みフィンガープリントを返す。
+ *   1. localStorage キャッシュを確認（最速・ページリロード後も有効）
+ *   2. 生成中の Promise があればそれを待つ
+ *   3. どちらもなければここで生成を開始する
+ */
+export async function getCachedFingerprint(): Promise<string> {
+  // 1. localStorage キャッシュ（最速パス）
+  const stored = _readFromStorage()
+  if (stored) {
+    console.log('🔏 Fingerprint from localStorage cache:', stored)
+    return stored
+  }
+
+  // 2. 生成中の Promise を待つ
+  if (_fingerprintPromise) {
+    const fp = await _fingerprintPromise
+    console.log('🔏 Fingerprint from in-flight promise:', fp)
+    return fp
+  }
+
+  // 3. prefetch が呼ばれていなかった場合、ここで生成
+  console.log('🔏 Fingerprint not pre-fetched, generating now...')
+  prefetchFingerprint()
+  const fp = await _fingerprintPromise!
+  console.log('🔏 Fingerprint generated on-demand:', fp)
+  return fp
 }

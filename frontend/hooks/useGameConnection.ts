@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { GameState } from '../types/GameTypes'
 import { debugLog } from '../utils/DebugUtils'
-import { generateFingerprint } from '../utils/fingerprint'
+import { getCachedFingerprint } from '../utils/fingerprint'
 
 interface UseGameConnectionProps {
   roomId: string
@@ -342,14 +342,18 @@ export function useGameConnection({
         console.log('🔄 Fallback reconnection with userId:', savedSession.userId)
       }
 
-      // デバイスフィンガープリントを生成して付与（IPが変わっても個人追跡に使用）
-      // 注意: generateFingerprint() は最大200msかかるため、送信前にWebSocketの
-      // 接続状態を必ず確認する（await中に切断される可能性があるため）
+      // デバイスフィンガープリントを付与（ホームページ表示時に事前生成済み）
+      // getCachedFingerprint() はキャッシュがあれば即時返却、なければ生成する
+      // 注意: await中にWebSocketが切断される可能性があるため送信前に状態確認する
       try {
-        const fingerprint = await generateFingerprint()
-        joinPayload.fingerprint = fingerprint
-        debugLog(`🔏 Fingerprint generated: ${fingerprint}`)
-        console.log('🔏 Device fingerprint:', fingerprint)
+        const fingerprint = await getCachedFingerprint()
+        const fpValid = fingerprint && /^[0-9a-f]{32}$/i.test(fingerprint)
+        console.log(`🔏 Device fingerprint: ${JSON.stringify(fingerprint)} (length=${fingerprint?.length}, valid=${fpValid})`)
+        if (fpValid) {
+          joinPayload.fingerprint = fingerprint
+        } else {
+          console.warn('⚠️ Fingerprint is invalid or empty, will not be sent')
+        }
       } catch (fpErr) {
         console.warn('⚠️ Failed to generate fingerprint:', fpErr)
         // フィンガープリント失敗は致命的エラーではないので続行

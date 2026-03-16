@@ -5,6 +5,7 @@ import { useWhiteMode } from '../contexts/WhiteModeContext'
 import { YakuListModal } from './Modals/YakuListModal'
 import { YakumanListModal } from './Modals/YakumanListModal'
 import { IconPickerModal, loadIconLibrary } from './Modals/IconPickerModal'
+import { prefetchFingerprint } from '../utils/fingerprint'
 
 interface HomePageProps {
   playerName: string
@@ -85,6 +86,12 @@ export default function HomePage({
   const [playerIcon, setPlayerIcon] = useState<string | null>(null)
   const [showOpponentIcon, setShowOpponentIcon] = useState(true)
   const [showIconPicker, setShowIconPicker] = useState(false)
+
+  // ホームページ表示時にフィンガープリントをバックグラウンドで事前生成する
+  // WebSocket接続より先に取得しておくことで、join時に即座に送信できる
+  useEffect(() => {
+    prefetchFingerprint()
+  }, [])
 
   useEffect(() => {
     try {
