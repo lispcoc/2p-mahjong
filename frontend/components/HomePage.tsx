@@ -199,6 +199,82 @@ export default function HomePage({
     }
   }
 
+  const handleCreateWithStandardRules = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: defaultWallTiles,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: maxAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: true,
+          aotenjou: false,
+          kiriagemangan: true,
+          dealerSelection: 'random',
+          ronMultiplier: 1,
+          transparentHand: false,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      await onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateWithStandardRulesLong = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: 56,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: maxAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: true,
+          aotenjou: false,
+          kiriagemangan: true,
+          dealerSelection: 'random',
+          ronMultiplier: 1,
+          transparentHand: false,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      await onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   const handleCreateWithQuickRules = async () => {
     setIsCreateMenuOpen(false)
     setIsCreating(true)
@@ -657,22 +733,28 @@ export default function HomePage({
           <div className="w-full max-w-xs border-2 border-white bg-[#2d5016] p-6 shadow-2xl flex flex-col gap-3">
             <h3 className="text-xl font-bold text-white m-0 mb-2">部屋の作成方法</h3>
             <button
-              onClick={handleCreateWithQuickRules}
+              onClick={handleCreateWithStandardRules}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              <div>クイックルールで作成</div>
-              <div className='text-xs'>(待ち時間10秒)</div>
-              <div className='text-xs'>(一局勝負・和了以外の得点変動なし)</div>
+              <div>基本ルールで作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし)</div>
+            </button>
+            <button
+              onClick={handleCreateWithStandardRulesLong}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+            >
+              <div>基本ルール(牌多め)で作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし)</div>
             </button>
             <button
               onClick={handleCreateWithQuickRulesLong}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              <div>クイックルールで作成</div>
-              <div className='text-xs'>(待ち時間60秒)</div>
-              <div className='text-xs'>(一局勝負・和了以外の得点変動なし)</div>
+              <div>簡易ルールで作成</div>
+              <div className='text-xs'>(一局勝負･和了以外の得点変動なし)</div>
             </button>
             <button
               onClick={handleOpenCustomCreate}
