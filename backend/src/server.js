@@ -217,6 +217,20 @@ app.get('/api/battle-logs/:battleId', (req, res) => {
 
 // ---- 対戦ログ API ここまで -----------------------------------------------
 
+// IP データベース取得
+app.get('/api/ip-database', (req, res) => {
+  const filePath = path.join(process.cwd(), 'battle-logs', 'ip-database.json');
+  try {
+    if (!fs.existsSync(filePath)) {
+      return res.json({});
+    }
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read IP database', detail: err.message });
+  }
+});
+
 
 app.get('/api/debug', (req, res) => {
   const roomsInfo = [];
