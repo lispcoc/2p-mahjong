@@ -668,6 +668,7 @@ class GameRoom {
       pendingPungFor: this.gameLogic.getPendingPungFor(),
       pendingDaiminkanFor: this.gameLogic.getPendingDaiminkanFor(),
       ronPossibleFor: this.gameLogic.getRonPossibleFor(), // Add Ron state
+      pendingChankanFor: this.gameLogic.getPendingChankanFor(), // 槍槓待ち中のプレイヤーID
       autoDrawMode: {}, // Add auto-draw mode state for each player
       noMeldMode: {}, // Add no-meld mode state for each player
       canWinFor: null, // Player who can currently win (if any)

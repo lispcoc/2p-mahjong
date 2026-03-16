@@ -54,11 +54,20 @@ export function FuroDisplay({
 
     if (isConcealed) {
       // 暗槓: [裏, 表, 表, 裏]
-      return meld.map((tile, tileIdx) => (
+      // 赤ドラは必ず表になる中央2枚に配置する
+      const redTiles = meld.filter(t => t.isRed)
+      const normalTiles = meld.filter(t => !t.isRed)
+      // 中央スロット（表）: 赤ドラ優先、足りなければ通常牌で補充
+      const innerTiles = [...redTiles]
+      const outerCandidates = [...normalTiles]
+      while (innerTiles.length < 2) innerTiles.push(outerCandidates.shift()!)
+      // arranged: [裏=outer0, 表=inner0, 表=inner1, 裏=outer1]
+      const arranged = [outerCandidates[0], innerTiles[0], innerTiles[1], outerCandidates[1]]
+      return arranged.map((tile, tileIdx) => (
         <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
           <TileImage
             tile={tile}
-            faceDown={tileIdx === 0 || tileIdx === meld.length - 1}
+            faceDown={tileIdx === 0 || tileIdx === 3}
           />
         </div>
       ))

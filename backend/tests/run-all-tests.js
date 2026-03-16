@@ -41,6 +41,7 @@ const testFiles = [
   'test-game-mechanics.js',
   'test-ippatsu-cancellation.js',
   'test-kan-uradora.js',
+  'test-chankan.js',
 
   // AI
   'test-ai-decisions.js',

@@ -35,6 +35,8 @@ class MahjongLogic {
     this.pendingPungFor = null;
     this.ronPossibleFor = null; // Track if Ron is possible for a player
     this.ronTile = null; // The tile that can be claimed for Ron
+    this.pendingChankanFor = null; // 槍槓待ち中のプレイヤーID（加槓/暗槓後に相手が槍槓できる場合）
+    this.pendingKanUserId = null;  // 槍槓待ち中にカンを宣言したプレイヤーID
     this.aotenjou = options.aotenjou || false; // 青天井モード
     this.kiriagemangan = options.kiriagemangan !== false; // 切り上げ満貫（デフォルト有効）
     this.ronMultiplier = [1, 1.5, 2].includes(options.ronMultiplier) ? options.ronMultiplier : 1; // ロン倍率
@@ -867,20 +869,45 @@ class MahjongLogic {
     // If Ron is possible for this player, drawing means they're passing on Ron
     if (this.ronPossibleFor === userId) {
       const player = this.players[userId];
+      const isChankan = this.pendingChankanFor === userId;
 
       // ロンを見逃した場合のフリテン処理
       // 同巡内フリテンを設定
       player.tempFuriten = true;
-      console.log(`[handleDraw] Player ${userId} passed Ron - setting temp furiten`);
+      console.log(`[handleDraw] Player ${userId} passed ${isChankan ? '槍槓' : 'Ron'} - setting temp furiten`);
 
       // リーチ中の場合は永続フリテンも設定
       if (player.riichi) {
         player.riichiPassFuriten = true;
-        console.log(`[handleDraw] Player ${userId} passed Ron during riichi - setting permanent furiten`);
+        console.log(`[handleDraw] Player ${userId} passed ${isChankan ? '槍槓' : 'Ron'} during riichi - setting permanent furiten`);
       }
 
       this.ronPossibleFor = null;
       this.ronTile = null;
+      this.pendingChankanFor = null;
+
+      if (isChankan) {
+        // 槍槓を見逃した: 保留中のカン処理を完了する
+        const kanUserId = this.pendingKanUserId;
+        this.pendingKanUserId = null;
+        if (kanUserId) {
+          const kanDrawnTile = this.drawFromKanningWall();
+          if (kanDrawnTile) {
+            this.players[kanUserId].hand.push(kanDrawnTile);
+            this.players[kanUserId].drawnTile = kanDrawnTile;
+            this.players[kanUserId].drawnTileIndex = this.players[kanUserId].hand.length - 1;
+            this.players[kanUserId].drawnFromKanningWall = true;
+          }
+          this.addNewDora();
+          // ターンをカン宣言者に戻す
+          this.currentTurnIndex = this.playerIds.indexOf(kanUserId);
+        }
+        this.pendingPungFor = null;
+        this.lastDiscard = null;
+        this.lastDiscardBy = null;
+        return { success: true, chankanPassed: true };
+      }
+
       // Now check if they can pung instead
       if (this.pendingPungFor !== userId && this.lastDiscard && this.canPlayerPung(userId, this.lastDiscard)) {
         this.pendingPungFor = userId;
@@ -1068,6 +1095,26 @@ class MahjongLogic {
         // 暗槓でも巡目が中断するので全プレイヤーの一発を無効化
         this.cancelAllIppatsu();
 
+        // 暗槓の槍槓チェック（国士無双のみ例外的に暗槓に対して槍槓可能）
+        const otherPlayerIdConcealed = this.getOtherPlayerId(userId);
+        if (otherPlayerIdConcealed && this.canKokushiWinWithTile(otherPlayerIdConcealed, kanTiles[0])) {
+          // 国士無双槍槓可能: 嶺上牌ドロー・ドラ追加は行わず、ロン待ちを設定
+          this.ronPossibleFor = otherPlayerIdConcealed;
+          this.ronTile = kanTiles[0];
+          this.lastDiscard = kanTiles[0];
+          this.lastDiscardBy = userId;
+          this.pendingChankanFor = otherPlayerIdConcealed;
+          this.pendingKanUserId = userId;
+          this.pendingPungFor = null;
+          console.log(`[handleKong] Concealed kan by ${userId}: ${kanTiles[0].toString()}×4 - kokushi chankan possible for ${otherPlayerIdConcealed}`);
+          return {
+            success: true,
+            message: `暗カン: ${kanTiles[0].toString()}×4`,
+            kanType: 'concealed',
+            pendingChankan: true,
+          };
+        }
+
         // Draw a tile from the kanning wall to restore hand size
         const drawnTile = this.drawFromKanningWall();
         if (drawnTile) {
@@ -1131,6 +1178,26 @@ class MahjongLogic {
 
           // 加槓でも巡目が中断するので全プレイヤーの一発を無効化
           this.cancelAllIppatsu();
+
+          // 槍槓チェック: 相手が加牌牌でロン可能かどうかチェック
+          const otherPlayerIdAdded = this.getOtherPlayerId(userId);
+          if (otherPlayerIdAdded && this.canWinWithTile(otherPlayerIdAdded, matchingTile, true)) {
+            // 槍槓可能: 嶺上牌ドロー・ドラ追加は行わず、ロン待ちを設定
+            this.ronPossibleFor = otherPlayerIdAdded;
+            this.ronTile = matchingTile;
+            this.lastDiscard = matchingTile;
+            this.lastDiscardBy = userId;
+            this.pendingChankanFor = otherPlayerIdAdded;
+            this.pendingKanUserId = userId;
+            this.pendingPungFor = null;
+            console.log(`[handleKong] Added kan by ${userId}: ${meldTile.toString()}×4 - chankan possible for ${otherPlayerIdAdded}`);
+            return {
+              success: true,
+              message: `加カン: ${meldTile.toString()}×4`,
+              kanType: 'added',
+              pendingChankan: true,
+            };
+          }
 
           // Draw a tile from the kanning wall to restore hand size
           const drawnTile = this.drawFromKanningWall();
@@ -1420,14 +1487,18 @@ class MahjongLogic {
     this.finished = true;
     this.winner = userId;
 
-    // Clear Ron state
+    // Clear Ron/Chankan state
+    const wasChankan = this.pendingChankanFor === userId;
     this.ronPossibleFor = null;
     this.ronTile = null;
+    this.pendingChankanFor = null;
+    this.pendingKanUserId = null;
 
     return {
       success: true,
       finished: true,
-      message: 'ロン!',
+      message: wasChankan ? '槍槓!' : 'ロン!',
+      isChankan: wasChankan,
       scoreResult: scoreResult
     };
   }
@@ -1489,6 +1560,26 @@ class MahjongLogic {
 
     // Check if this hand is winning
     return this.checkValidMeldStructure(hand);
+  }
+
+  /**
+   * 国士無双での槍槓チェック
+   * 暗槓牌で国士無双を和了できるかどうか確認する（フリテンチェック含む）
+   * @param {string} userId - チェック対象のプレイヤーID
+   * @param {Object} tile - 暗槓された牌
+   * @returns {boolean} - 国士無双槍槓可能ならtrue
+   */
+  canKokushiWinWithTile(userId, tile) {
+    const player = this.players[userId];
+    const melds = player.melds;
+    // 国士無双は門前のみ（暗槓は面前扱いだが、ここでは相手のこと）
+    if (melds.length > 0) return false;
+    // フリテンチェック
+    if (this.isFuriten(userId, tile)) return false;
+    // 手牌に加えて国士無双が成立するかチェック
+    const tempHand = player.hand.slice();
+    tempHand.push(tile);
+    return this.isKokushi(tempHand);
   }
 
   isWinningHand(userId) {
@@ -2293,6 +2384,10 @@ class MahjongLogic {
 
   getRonPossibleFor() {
     return this.ronPossibleFor;
+  }
+
+  getPendingChankanFor() {
+    return this.pendingChankanFor;
   }
 
   getReservedCount() {
