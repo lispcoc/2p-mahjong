@@ -232,6 +232,81 @@ app.get('/api/ip-database', (req, res) => {
 });
 
 
+// ユーザーデータベース（IP・フィンガープリントを連鎖的に追跡）
+app.get('/api/user-database', (req, res) => {
+  const filePath = path.join(process.cwd(), 'battle-logs', 'ip-database.json');
+  try {
+    if (!fs.existsSync(filePath)) {
+      return res.json([]);
+    }
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    // raw: { [ip]: { names: string[], fingerprints: string[], firstSeen, lastSeen } }
+    const ips = Object.keys(raw);
+    if (ips.length === 0) return res.json([]);
+
+    // Union-Find
+    const parent = {};
+    const rank = {};
+    const find = (x) => {
+      if (parent[x] === undefined) { parent[x] = x; rank[x] = 0; }
+      if (parent[x] !== x) parent[x] = find(parent[x]);
+      return parent[x];
+    };
+    const union = (a, b) => {
+      a = find(a); b = find(b);
+      if (a === b) return;
+      if ((rank[a] || 0) < (rank[b] || 0)) [a, b] = [b, a];
+      parent[b] = a;
+      if (rank[a] === rank[b]) rank[a] = (rank[a] || 0) + 1;
+    };
+
+    // 各IPを初期化
+    ips.forEach(ip => find(ip));
+
+    // fingerprintが一致するIPを同一グループに統合
+    const fpToIps = {};
+    ips.forEach(ip => {
+      (raw[ip].fingerprints || []).forEach(fp => {
+        if (!fpToIps[fp]) fpToIps[fp] = [];
+        fpToIps[fp].push(ip);
+      });
+    });
+    Object.values(fpToIps).forEach(ipList => {
+      for (let i = 1; i < ipList.length; i++) union(ipList[0], ipList[i]);
+    });
+
+    // グループに集約
+    const groups = {};
+    ips.forEach(ip => {
+      const root = find(ip);
+      if (!groups[root]) groups[root] = { ips: new Set(), fingerprints: new Set(), names: new Set(), firstSeen: null, lastSeen: null };
+      const g = groups[root];
+      g.ips.add(ip);
+      (raw[ip].fingerprints || []).forEach(fp => g.fingerprints.add(fp));
+      (raw[ip].names || []).forEach(n => g.names.add(n));
+      const fs_ = raw[ip].firstSeen;
+      const ls_ = raw[ip].lastSeen;
+      if (fs_ && (!g.firstSeen || fs_ < g.firstSeen)) g.firstSeen = fs_;
+      if (ls_ && (!g.lastSeen || ls_ > g.lastSeen)) g.lastSeen = ls_;
+    });
+
+    const result = Object.values(groups).map(g => ({
+      ips: [...g.ips],
+      fingerprints: [...g.fingerprints],
+      names: [...g.names],
+      firstSeen: g.firstSeen,
+      lastSeen: g.lastSeen,
+    }));
+
+    // lastSeenの新しい順にソート
+    result.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to build user database', detail: err.message });
+  }
+});
+
 // フィンガープリント記録エンドポイント（ログイン時・再ログイン時にゲーム入室前でも記録する）
 app.post('/api/fingerprint', (req, res) => {
   const { playerName, fingerprint } = req.body || {};
@@ -384,6 +459,7 @@ app.get('/api/rooms', (req, res) => {
         status,
         playersCount: connectedCount,
         playerNames: players.map(p => p.playerName),
+        playerIds: players.map(p => p.userId),
         createdAt: room.createdAt,
         spectatorCount: room.getSpectatorCount(),
       });
