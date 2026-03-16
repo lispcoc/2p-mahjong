@@ -2121,7 +2121,7 @@ export default function GamePage({
                       {/* 手出し時の歯抜け表示: 該当位置に空きスペースを挿入 */}
                       {opponentTedashiGapIdx === originalIdx && (
                         <div
-                          className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
+                          className="inline-block w-[33px] h-[47px]"
                         />
                       )}
                       <div className="inline-block">
@@ -2139,7 +2139,7 @@ export default function GamePage({
                   {/* 手出し時の歯抜けが手牌末尾だった場合 */}
                   {opponentTedashiGapIdx >= 0 && opponentTedashiGapIdx >= otherHand.length && (
                     <div
-                      className="inline-block w-[33px] h-[47px] sm:w-[45px] sm:h-[64px]"
+                      className="inline-block w-[33px] h-[47px]"
                     />
                   )}
                 </div>
