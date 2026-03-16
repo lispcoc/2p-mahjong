@@ -677,7 +677,7 @@ function handleJoin(ws, payload, req = null) {
     const battleLogEntry = activeBattleLogs.get(roomId);
     battleLogEntry.playerIPs.set(userId, playerIP);
     if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
-      battleLogEntry.playerFingerprints.set(userId, fingerprint);
+      battleLogEntry.playerFingerprints?.set(userId, fingerprint);
       console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
     }
 
@@ -781,8 +781,8 @@ function handleJoin(ws, payload, req = null) {
     if (!hasCPUForLog) {
       const battleId = generateBattleId(roomId);
       const startTime = new Date().toISOString();
-      const existing = activeBattleLogs.get(roomId) || { playerIPs: new Map() };
-      activeBattleLogs.set(roomId, { battleId, startTime, playerIPs: existing.playerIPs });
+      const existing = activeBattleLogs.get(roomId) || { playerIPs: new Map(), playerFingerprints: new Map() };
+      activeBattleLogs.set(roomId, { battleId, startTime, playerIPs: existing.playerIPs, playerFingerprints: existing.playerFingerprints });
       console.log(`📊 Battle log initialized: ${battleId}`);
     }
     const gameStartedPayload = room.getGameState();

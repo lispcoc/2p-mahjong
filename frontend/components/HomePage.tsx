@@ -8,8 +8,8 @@ import { IconPickerModal, loadIconLibrary } from './Modals/IconPickerModal'
 
 interface HomePageProps {
   playerName: string
-  onCreateRoom: (roomId: string) => void
-  onJoinRoom: (roomId: string) => void
+  onCreateRoom: (roomId: string) => Promise<void>
+  onJoinRoom: (roomId: string) => Promise<void>
   onSpectateRoom?: (roomId: string) => void
   onLogout: () => void
   shouldRefresh?: boolean
@@ -184,7 +184,7 @@ export default function HomePage({
       const data = await response.json()
       sessionStorage.setItem('mahjong-myTsumoLuck', '0')
       sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
-      onCreateRoom(data.roomId)
+      await onCreateRoom(data.roomId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
     } finally {
@@ -222,7 +222,7 @@ export default function HomePage({
       const data = await response.json()
       sessionStorage.setItem('mahjong-myTsumoLuck', '0')
       sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
-      onCreateRoom(data.roomId)
+      await onCreateRoom(data.roomId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
     } finally {
@@ -260,7 +260,7 @@ export default function HomePage({
       const data = await response.json()
       sessionStorage.setItem('mahjong-myTsumoLuck', '0')
       sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
-      onCreateRoom(data.roomId)
+      await onCreateRoom(data.roomId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
     } finally {
@@ -346,7 +346,7 @@ export default function HomePage({
         console.error('Failed to save room settings:', e)
       }
       setIsRuleModalOpen(false)
-      onCreateRoom(data.roomId)
+      await onCreateRoom(data.roomId)
     } catch (err) {
       setError(
         err instanceof Error
@@ -398,7 +398,7 @@ export default function HomePage({
         throw new Error('ルームが見つかりません')
       }
 
-      onJoinRoom(trimmedRoomId)
+      await onJoinRoom(trimmedRoomId)
     } catch (err) {
       setError(
         err instanceof Error
@@ -410,7 +410,7 @@ export default function HomePage({
 
   const handleJoinFromList = async (roomId: string) => {
     setError('')
-    onJoinRoom(roomId)
+    await onJoinRoom(roomId)
   }
 
   const canJoinRoom = (room: RoomInfo): boolean => {

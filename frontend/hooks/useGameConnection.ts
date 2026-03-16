@@ -343,6 +343,8 @@ export function useGameConnection({
       }
 
       // デバイスフィンガープリントを生成して付与（IPが変わっても個人追跡に使用）
+      // 注意: generateFingerprint() は最大200msかかるため、送信前にWebSocketの
+      // 接続状態を必ず確認する（await中に切断される可能性があるため）
       try {
         const fingerprint = await generateFingerprint()
         joinPayload.fingerprint = fingerprint
@@ -350,16 +352,27 @@ export function useGameConnection({
         console.log('🔏 Device fingerprint:', fingerprint)
       } catch (fpErr) {
         console.warn('⚠️ Failed to generate fingerprint:', fpErr)
+        // フィンガープリント失敗は致命的エラーではないので続行
+      }
+
+      // await中にWebSocketが切断されている可能性があるため送信前に状態確認
+      if (ws.readyState !== WebSocket.OPEN) {
+        console.warn('⚠️ WebSocket closed during fingerprint generation, join message not sent')
+        return
       }
 
       debugLog(`📤 Sending join message: roomId=${roomId}, playerName=${playerName}`)
       console.log('📤 Sending join message:', joinPayload)
-      ws.send(
-        JSON.stringify({
-          type: 'join',
-          payload: joinPayload,
-        })
-      )
+      try {
+        ws.send(
+          JSON.stringify({
+            type: 'join',
+            payload: joinPayload,
+          })
+        )
+      } catch (sendErr) {
+        console.error('❌ Failed to send join message:', sendErr)
+      }
     }
 
     ws.onmessage = (event) => {

@@ -83,6 +83,26 @@ async function getAudioFingerprint(): Promise<string> {
     if (!AudioContext) return 'no-audio'
 
     const ctx = new AudioContext()
+
+    // AudioContext が suspended 状態（ユーザー操作待ち）の場合は resume を試みる
+    // 失敗してもフォールバックするので問題なし
+    if (ctx.state === 'suspended') {
+      try { await ctx.resume() } catch {}
+    }
+
+    // resume しても suspended のままなら諦める（ブラウザ制限）
+    if (ctx.state === 'suspended') {
+      try { ctx.close() } catch {}
+      return 'audio-suspended'
+    }
+
+    // createScriptProcessor は非推奨だが互換性のため使用
+    // 利用不可の場合はフォールバック
+    if (typeof ctx.createScriptProcessor !== 'function') {
+      try { ctx.close() } catch {}
+      return 'no-script-processor'
+    }
+
     const oscillator = ctx.createOscillator()
     const analyser = ctx.createAnalyser()
     const gain = ctx.createGain()
@@ -118,14 +138,14 @@ async function getAudioFingerprint(): Promise<string> {
       }
 
       oscillator.start(0)
-      // 200ms タイムアウト
+      // 150ms タイムアウト（接続遅延を最小化）
       setTimeout(() => {
         if (!resolved) {
           resolved = true
           try { oscillator.stop(); ctx.close() } catch {}
           resolve('audio-timeout')
         }
-      }, 200)
+      }, 150)
     })
   } catch {
     return 'audio-error'
