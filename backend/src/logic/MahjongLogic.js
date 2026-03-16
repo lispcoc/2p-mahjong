@@ -1407,7 +1407,9 @@ class MahjongLogic {
       // 供託点を和了者が取得
       if (this.riichiDeposits > 0) {
         this.players[userId].score += this.riichiDeposits;
-        scoreResult.riichiDeposits = this.riichiDeposits;
+        // 表示用：自分が出した供託点は差し引いて相手からの供託点のみ表示
+        const winnerOwnDeposit = (this.players[userId].riichi && this.riichiDepositRequired) ? settings.game.riichiDeposit : 0;
+        scoreResult.riichiDeposits = this.riichiDeposits - winnerOwnDeposit;
         this.riichiDeposits = 0;
       }
 
@@ -1479,7 +1481,9 @@ class MahjongLogic {
     // 供託点を和了者が取得
     if (this.riichiDeposits > 0) {
       this.players[userId].score += this.riichiDeposits;
-      scoreResult.riichiDeposits = this.riichiDeposits;
+      // 表示用：自分が出した供託点は差し引いて相手からの供託点のみ表示
+      const winnerOwnDeposit = (this.players[userId].riichi && this.riichiDepositRequired) ? settings.game.riichiDeposit : 0;
+      scoreResult.riichiDeposits = this.riichiDeposits - winnerOwnDeposit;
       this.riichiDeposits = 0;
     }
 
