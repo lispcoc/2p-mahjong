@@ -1,0 +1,10 @@
+{
+  "watch": ["src"],
+  "ext": "js",
+  "ignore": [
+    "battle-logs/**",
+    "player-names.csv",
+    "yakuman-records.json",
+    "tasks.json"
+  ]
+}
