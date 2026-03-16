@@ -683,21 +683,6 @@ function handleJoin(ws, payload, req = null) {
       return;
     }
 
-    // プレイヤーのIPアドレスおよびデバイスフィンガープリントを対戦ログ用に記録
-    const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
-    if (!activeBattleLogs.has(roomId)) {
-      activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map(), playerFingerprints: new Map() });
-    }
-    const battleLogEntry = activeBattleLogs.get(roomId);
-    battleLogEntry.playerIPs.set(userId, playerIP);
-    if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
-      battleLogEntry.playerFingerprints?.set(userId, fingerprint);
-      console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
-    }
-
-    // IPデータベース（全ログイン者）を更新
-    updateIPDatabase(playerIP, playerName, fingerprint || null);
-
     // Determine which player this is (1st or 2nd) to assign correct tsumo luck
     const playerIndex = room.getPlayers().length; // 1 or 2
     let assignedTsumoLuck = 1; // default
@@ -723,6 +708,22 @@ function handleJoin(ws, payload, req = null) {
 
     room.setTsumoLuck(userId, assignedTsumoLuck);
   }
+
+  // プレイヤーのIPアドレスおよびデバイスフィンガープリントを対戦ログ用に記録
+  // 再接続時も更新することで、IP変更やフィンガープリントの最新情報を保持する
+  const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
+  if (!activeBattleLogs.has(roomId)) {
+    activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map(), playerFingerprints: new Map() });
+  }
+  const battleLogEntry = activeBattleLogs.get(roomId);
+  battleLogEntry.playerIPs.set(userId, playerIP);
+  if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
+    battleLogEntry.playerFingerprints?.set(userId, fingerprint);
+    console.log(`🔏 Fingerprint recorded for ${playerName}: ${fingerprint}`);
+  }
+
+  // IPデータベース（全接続者）を更新 ─ 新規参加・再接続ともに実行
+  updateIPDatabase(playerIP, playerName, fingerprint || null);
 
   connections.set(ws, { userId, roomId, playerName });
 
