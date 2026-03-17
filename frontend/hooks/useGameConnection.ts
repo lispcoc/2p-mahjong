@@ -235,7 +235,12 @@ export function useGameConnection({
       case 'error':
         debugLog(`❌ Server error: ${payload.message}`)
         console.error('❌ Server error:', payload.message)
-        setError(payload.message || 'エラーが発生しました')
+        if (payload.message?.startsWith('banned:')) {
+          const reason = payload.message.slice('banned:'.length)
+          setError(`⛔ 利用禁止: ${reason}`)
+        } else {
+          setError(payload.message || 'エラーが発生しました')
+        }
 
         // If room not found or reconnection failed, clear the saved session
         if (payload.message && (payload.message.includes('Room not found') || payload.message.includes('found'))) {

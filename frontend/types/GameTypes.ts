@@ -11,6 +11,7 @@ export interface GamePageProps {
   roomId: string
   onBack: () => void
   isSpectator?: boolean
+  onBanned?: (reason: string) => void
 }
 
 export interface GameState {

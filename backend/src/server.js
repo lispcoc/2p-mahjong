@@ -4,6 +4,7 @@ const http = require('http');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
@@ -83,6 +84,238 @@ const port = process.env.PORT || settings.server.port;
 
 app.use(cors());
 app.use(express.json());
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 管理者認証 (Admin Authentication)
+// ─────────────────────────────────────────────────────────────────────────────
+const ADMIN_CONFIG_FILE = path.join(process.cwd(), 'admin-config.json');
+const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8時間
+const adminSessions = new Map(); // token -> { createdAt }
+
+function loadAdminConfig() {
+  try {
+    if (!fs.existsSync(ADMIN_CONFIG_FILE)) {
+      // デフォルト設定を作成（パスワード: admin）
+      const defaultConfig = { passwordHash: hashPassword('admin') };
+      fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(defaultConfig, null, 2), 'utf8');
+      return defaultConfig;
+    }
+    return JSON.parse(fs.readFileSync(ADMIN_CONFIG_FILE, 'utf8'));
+  } catch (err) {
+    console.error('❌ Failed to load admin config:', err.message);
+    return { passwordHash: hashPassword('admin') };
+  }
+}
+
+function saveAdminConfig(config) {
+  fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+}
+
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function isValidAdminSession(token) {
+  const session = adminSessions.get(token);
+  if (!session) return false;
+  if (Date.now() - session.createdAt > ADMIN_SESSION_TTL_MS) {
+    adminSessions.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function requireAdmin(req, res, next) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (!token || !isValidAdminSession(token)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// 管理者パネル静的ファイルを /admin で配信
+app.use('/admin', express.static(path.join(__dirname, 'admin')));
+
+// ---- 管理者認証 API --------------------------------------------------------
+
+// ログイン
+app.post('/admin/api/login', (req, res) => {
+  const { password } = req.body || {};
+  if (!password || typeof password !== 'string') {
+    return res.status(400).json({ error: 'パスワードが必要です' });
+  }
+  const config = loadAdminConfig();
+  if (hashPassword(password) !== config.passwordHash) {
+    console.warn(`🔐 [admin] Login failed from ${req.socket?.remoteAddress}`);
+    return res.status(403).json({ error: 'パスワードが正しくありません' });
+  }
+  const token = uuidv4();
+  adminSessions.set(token, { createdAt: Date.now() });
+  console.log(`🔐 [admin] Login success from ${req.socket?.remoteAddress}`);
+  res.json({ success: true, token, expiresIn: ADMIN_SESSION_TTL_MS });
+});
+
+// ログアウト
+app.post('/admin/api/logout', (req, res) => {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if (token) adminSessions.delete(token);
+  res.json({ success: true });
+});
+
+// セッション確認
+app.get('/admin/api/me', requireAdmin, (req, res) => {
+  res.json({ authenticated: true });
+});
+
+// パスワード変更
+app.post('/admin/api/change-password', requireAdmin, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: '現在のパスワードと新しいパスワードが必要です' });
+  }
+  if (newPassword.length < 4) {
+    return res.status(400).json({ error: 'パスワードは4文字以上にしてください' });
+  }
+  const config = loadAdminConfig();
+  if (hashPassword(currentPassword) !== config.passwordHash) {
+    return res.status(403).json({ error: '現在のパスワードが正しくありません' });
+  }
+  config.passwordHash = hashPassword(newPassword);
+  saveAdminConfig(config);
+  // 全セッションを無効化（再ログインを要求）
+  adminSessions.clear();
+  console.log('🔐 [admin] Password changed, all sessions invalidated');
+  res.json({ success: true });
+});
+
+// サーバー統計
+app.get('/admin/api/stats', requireAdmin, (req, res) => {
+  const activeRooms = [];
+  rooms.forEach((room, roomId) => {
+    const players = room.getPlayers();
+    const connectedCount = room.getConnectedPlayersCount();
+    if (connectedCount > 0 || room.getStatus() === 'playing') {
+      activeRooms.push({
+        roomId,
+        status: room.getStatus(),
+        players: players.map(p => p.playerName),
+        connectedCount,
+        spectatorCount: room.getSpectatorCount(),
+        createdAt: room.createdAt,
+      });
+    }
+  });
+  res.json({
+    totalRooms: rooms.size,
+    activeRooms,
+    totalConnections: connections.size,
+    adminSessions: adminSessions.size,
+  });
+});
+
+// ---- 管理者 BANリスト API (認証保護) ----------------------------------------
+
+app.get('/admin/api/ban-list', requireAdmin, (req, res) => {
+  res.json(loadBanList());
+});
+
+app.post('/admin/api/ban-list', requireAdmin, (req, res) => {
+  const { ip, fingerprint, reason } = req.body || {};
+  if (!ip && !fingerprint) {
+    return res.status(400).json({ error: 'ip または fingerprint のいずれかが必要です' });
+  }
+  const banList = loadBanList();
+  const entry = {
+    id: uuidv4(),
+    ip: ip || null,
+    fingerprint: fingerprint || null,
+    reason: reason || '',
+    createdAt: new Date().toISOString(),
+  };
+  banList.push(entry);
+  saveBanList(banList);
+  console.log(`🚫 [admin] Ban added: ip=${entry.ip}, fp=${entry.fingerprint}, reason=${entry.reason}`);
+  res.json({ success: true, entry });
+});
+
+app.delete('/admin/api/ban-list/:id', requireAdmin, (req, res) => {
+  const { id } = req.params;
+  let banList = loadBanList();
+  const before = banList.length;
+  banList = banList.filter(e => e.id !== id);
+  if (banList.length === before) {
+    return res.status(404).json({ error: 'Ban entry not found' });
+  }
+  saveBanList(banList);
+  console.log(`✅ [admin] Ban removed: ${id}`);
+  res.json({ success: true });
+});
+
+// ---- 管理者 ユーザーDB API (認証保護) ----------------------------------------
+
+app.get('/admin/api/user-database', requireAdmin, (req, res) => {
+  // /api/user-database と同じロジックを再利用
+  const filePath = path.join(process.cwd(), 'battle-logs', 'ip-database.json');
+  try {
+    if (!fs.existsSync(filePath)) return res.json([]);
+    const raw = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const ips = Object.keys(raw);
+    if (ips.length === 0) return res.json([]);
+    const parent = {};
+    const rank = {};
+    const find = (x) => {
+      if (parent[x] === undefined) { parent[x] = x; rank[x] = 0; }
+      if (parent[x] !== x) parent[x] = find(parent[x]);
+      return parent[x];
+    };
+    const union = (a, b) => {
+      a = find(a); b = find(b);
+      if (a === b) return;
+      if ((rank[a] || 0) < (rank[b] || 0)) [a, b] = [b, a];
+      parent[b] = a;
+      if (rank[a] === rank[b]) rank[a] = (rank[a] || 0) + 1;
+    };
+    ips.forEach(ip => find(ip));
+    const fpToIps = {};
+    ips.forEach(ip => {
+      (raw[ip].fingerprints || []).forEach(fp => {
+        if (!fpToIps[fp]) fpToIps[fp] = [];
+        fpToIps[fp].push(ip);
+      });
+    });
+    Object.values(fpToIps).forEach(ipList => {
+      for (let i = 1; i < ipList.length; i++) union(ipList[0], ipList[i]);
+    });
+    const groups = {};
+    ips.forEach(ip => {
+      const root = find(ip);
+      if (!groups[root]) groups[root] = { ips: new Set(), fingerprints: new Set(), names: new Set(), firstSeen: null, lastSeen: null };
+      const g = groups[root];
+      g.ips.add(ip);
+      (raw[ip].fingerprints || []).forEach(fp => g.fingerprints.add(fp));
+      (raw[ip].names || []).forEach(n => g.names.add(n));
+      const fs_ = raw[ip].firstSeen;
+      const ls_ = raw[ip].lastSeen;
+      if (fs_ && (!g.firstSeen || fs_ < g.firstSeen)) g.firstSeen = fs_;
+      if (ls_ && (!g.lastSeen || ls_ > g.lastSeen)) g.lastSeen = ls_;
+    });
+    const result = Object.values(groups).map(g => ({
+      ips: [...g.ips],
+      fingerprints: [...g.fingerprints],
+      names: [...g.names],
+      firstSeen: g.firstSeen,
+      lastSeen: g.lastSeen,
+    }));
+    result.sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to build user database', detail: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
@@ -307,6 +540,64 @@ app.get('/api/user-database', (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BANリスト管理
+// ─────────────────────────────────────────────────────────────────────────────
+const BAN_LIST_FILE = path.join(process.cwd(), 'battle-logs', 'ban-list.json');
+
+function loadBanList() {
+  try {
+    if (!fs.existsSync(BAN_LIST_FILE)) return [];
+    return JSON.parse(fs.readFileSync(BAN_LIST_FILE, 'utf8'));
+  } catch (err) {
+    console.error('❌ Failed to load ban list:', err.message);
+    return [];
+  }
+}
+
+function saveBanList(list) {
+  try {
+    fs.writeFileSync(BAN_LIST_FILE, JSON.stringify(list, null, 2), 'utf8');
+  } catch (err) {
+    console.error('❌ Failed to save ban list:', err.message);
+  }
+}
+
+/**
+ * ワイルドカードパターンマッチング（* は任意の文字列にマッチ）
+ */
+function matchesPattern(value, pattern) {
+  if (!pattern || !value) return false;
+  const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+  const regexStr = '^' + escaped.replace(/\*/g, '.*') + '$';
+  return new RegExp(regexStr, 'i').test(value);
+}
+
+/**
+ * IPまたはフィンガープリントがBANリストに一致するか確認する。
+ * 一致するエントリを返す（なければ null）。
+ * エントリに ip と fingerprint が両方ある場合は AND 条件、
+ * どちらか一方のみの場合はその値でマッチ。
+ */
+function findBanEntry(ip, fingerprint) {
+  const banList = loadBanList();
+  for (const entry of banList) {
+    const hasIp = !!entry.ip;
+    const hasFp = !!entry.fingerprint;
+    if (hasIp && hasFp) {
+      if (matchesPattern(ip, entry.ip) && matchesPattern(fingerprint, entry.fingerprint)) return entry;
+    } else if (hasIp) {
+      if (matchesPattern(ip, entry.ip)) return entry;
+    } else if (hasFp) {
+      if (matchesPattern(fingerprint, entry.fingerprint)) return entry;
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 旧 /api/ban-list エンドポイントは /admin/api/ban-list へ移行済み
+
 // フィンガープリント記録エンドポイント（ログイン時・再ログイン時にゲーム入室前でも記録する）
 app.post('/api/fingerprint', (req, res) => {
   const { playerName, fingerprint } = req.body || {};
@@ -317,6 +608,14 @@ app.post('/api/fingerprint', (req, res) => {
     return res.status(400).json({ error: 'Invalid fingerprint (expected 32-char hex)' });
   }
   const ip = req.headers['x-forwarded-for']?.split(',').shift().trim() || req.socket?.remoteAddress || 'unknown';
+
+  // BANチェック
+  const banEntry = findBanEntry(ip, fingerprint);
+  if (banEntry) {
+    console.warn(`🚫 [/api/fingerprint] Banned user blocked: ${playerName} (IP: ${ip}, FP: ${fingerprint}), reason: ${banEntry.reason}`);
+    return res.status(403).json({ error: 'banned', reason: banEntry.reason || '利用が禁止されています' });
+  }
+
   updateIPDatabase(ip, playerName, fingerprint);
   console.log(`🔏 [/api/fingerprint] Recorded for ${playerName}: ${fingerprint} (IP: ${ip})`);
   res.json({ success: true });
@@ -803,6 +1102,17 @@ function handleJoin(ws, payload, req = null) {
   // プレイヤーのIPアドレスおよびデバイスフィンガープリントを対戦ログ用に記録
   // 再接続時も更新することで、IP変更やフィンガープリントの最新情報を保持する
   const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
+
+  // BANチェック：IP・フィンガープリントのどちらかがBANリストに一致する場合は接続を拒否
+  const banEntry = findBanEntry(playerIP, fingerprint || null);
+  if (banEntry) {
+    const reason = banEntry.reason || '利用が禁止されています';
+    console.warn(`🚫 [handleJoin] Banned user blocked: ${playerName} (IP: ${playerIP}, FP: ${fingerprint}), reason: ${reason}`);
+    ws.send(JSON.stringify({ type: 'error', message: `banned:${reason}` }));
+    ws.close();
+    return;
+  }
+
   if (!activeBattleLogs.has(roomId)) {
     activeBattleLogs.set(roomId, { battleId: null, startTime: null, playerIPs: new Map(), playerFingerprints: new Map() });
   }

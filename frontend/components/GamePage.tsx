@@ -72,6 +72,7 @@ export default function GamePage({
   roomId,
   onBack,
   isSpectator = false,
+  onBanned,
 }: GamePageProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   // Toast notifications via react-hot-toast (no local state needed)
@@ -976,11 +977,24 @@ export default function GamePage({
           // toast.success(payload.message || 'リーチ宣言しました！', { duration: 5000 })
         }
         break
-      case 'error':
+      case 'error': {
         // Handle both {type, payload: {message}} and {type, message} formats
         const errorMessage = payload?.message || data.message || 'エラーが発生しました'
         debugLog(`❌ Server error: ${errorMessage}`)
         console.error('❌ Server error:', errorMessage, 'Full data:', data)
+
+        // BAN処理: banned:<理由> 形式のメッセージ
+        if (errorMessage.startsWith('banned:')) {
+          const reason = errorMessage.slice('banned:'.length) || '管理者により利用が禁止されています'
+          console.warn(`🚫 Banned via WebSocket: ${reason}`)
+          if (onBanned) {
+            onBanned(reason)
+          } else {
+            toast.error(`⛔ 利用禁止: ${reason}`, { duration: 0 })
+          }
+          break
+        }
+
         const isInvalidSessionError =
           errorMessage.includes('Room not found') ||
           errorMessage.includes('Invalid reconnection') ||
@@ -1002,6 +1016,7 @@ export default function GamePage({
 
         toast.error(errorMessage, { duration: 5000 })
         break
+      }
       case 'playerReconnected':
         debugLog(`🔄 Player reconnected: ${payload.playerName}`)
         console.log('🔄 Player reconnected:', payload)

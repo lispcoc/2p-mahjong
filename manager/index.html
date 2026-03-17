@@ -54,8 +54,13 @@
       </button>
     </div>
 
+    <!-- Log tab -->
+    <div class="tab-bar">
+      <button id="tab-log" class="tab-btn active" onclick="switchTabLog()">📋 ログ</button>
+    </div>
+
     <!-- Log Area -->
-    <div class="log-section">
+    <div id="panel-log" class="log-section">
       <div class="log-header">
         <span>Log</span>
         <div class="log-filters">
@@ -71,6 +76,9 @@
     <div class="footer">
       <button id="btn-browser" class="btn btn-browser" title="Open game in browser">
         🌐 Open http://localhost:3000
+      </button>
+      <button class="btn btn-browser" onclick="openAdmin()" title="Open admin panel">
+        🔐 Admin Panel
       </button>
       <span class="api-info">API: http://localhost:3001</span>
     </div>

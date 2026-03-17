@@ -9,8 +9,8 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約10,387行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約6,965行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約10,697行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約6,980行）
 - **テスト**: 20ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -92,8 +92,8 @@ npm run task:generate  # タスク生成
 <!-- AUTO:FRONTEND_STRUCTURE:START -->
 | パス | 行数 |
 |------|------|
-| `frontend/types/GameTypes.ts` | 63 |
-| `frontend/hooks/useGameConnection.ts` | 442 |
+| `frontend/types/GameTypes.ts` | 64 |
+| `frontend/hooks/useGameConnection.ts` | 447 |
 | `frontend/utils/DebugUtils.ts` | 34 |
 | `frontend/utils/fingerprint.ts` | 330 |
 | `frontend/utils/TenpaiChecker.ts` | 449 |
@@ -107,7 +107,7 @@ npm run task:generate  # タスク生成
 | `frontend/components/GameBoard/GameInfo.tsx` | 111 |
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 49 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 41 |
-| `frontend/components/GamePage.tsx` | 3,055 |
+| `frontend/components/GamePage.tsx` | 3,070 |
 | `frontend/components/HomePage.tsx` | 1,145 |
 | `frontend/components/LoginPage.tsx` | 83 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |

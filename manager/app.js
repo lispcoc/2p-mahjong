@@ -346,6 +346,15 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ──────────── Tab Switching (log only) ────────────
+function switchTabLog() {
+  // ログタブのみ（BAN管理はバックエンド管理パネルへ移行）
+}
+
+function openAdmin() {
+  nw.Shell.openExternal('http://localhost:3001/admin/');
+}
+
 // ──────────── Event Bindings ────────────
 btnStart.addEventListener('click', () => startServers());
 btnStop.addEventListener('click', () => stopServers());

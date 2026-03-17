@@ -2,3 +2,4 @@
 /battle-logs/
 *.csv
 yakuman-records.json
+admin-config.json

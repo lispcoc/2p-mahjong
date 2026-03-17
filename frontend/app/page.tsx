@@ -14,24 +14,34 @@ export default function Page() {
   const [userId, setUserId] = useState<string>('')
   const [roomId, setRoomId] = useState<string>('')
   const [shouldRefreshRooms, setShouldRefreshRooms] = useState(false)
+  const [banReason, setBanReason] = useState<string | null>(null)
   const sessionCheckDone = useRef(false)
 
   // フィンガープリントをサーバーに送信する共通ヘルパー（ログイン・再ログイン時）
-  const sendFingerprintToServer = async (name: string) => {
+  // BANされている場合は banReason をセットして true を返す
+  const sendFingerprintToServer = async (name: string): Promise<boolean> => {
     try {
       const fp = await getCachedFingerprint()
-      if (!fp || !/^[0-9a-f]{32}$/i.test(fp)) return
+      if (!fp || !/^[0-9a-f]{32}$/i.test(fp)) return false
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-      await fetch(`${backendUrl}/api/fingerprint`, {
+      const res = await fetch(`${backendUrl}/api/fingerprint`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerName: name, fingerprint: fp }),
       })
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}))
+        const reason = body.reason || '管理者により利用が禁止されています'
+        console.warn('🚫 Banned user detected:', reason)
+        setBanReason(reason)
+        return true
+      }
       console.log('🔏 Fingerprint sent to server for', name)
     } catch (err) {
       // フィンガープリント送信失敗は致命的ではない
       console.warn('⚠️ Failed to send fingerprint:', err)
     }
+    return false
   }
 
   // Check for saved session on mount
@@ -99,9 +109,10 @@ export default function Page() {
         setPlayerName(savedName)
         const savedUserId = localStorage.getItem('mahjong-userId') || ''
         setUserId(savedUserId)
-        setPageState('home')
-        // 再ログイン時もフィンガープリントをサーバーに送信
-        sendFingerprintToServer(savedName)
+        // 再ログイン時もフィンガープリントをサーバーに送信（BAN確認後にhomeへ遷移）
+        sendFingerprintToServer(savedName).then(isBanned => {
+          if (!isBanned) setPageState('home')
+        })
       } else {
         console.log('➡️ No valid session, going to login')
         setPageState('login')
@@ -126,9 +137,10 @@ export default function Page() {
       }
     } catch {}
     setUserId(localStorage.getItem('mahjong-userId') || '')
-    setPageState('home')
     // ログイン時にフィンガープリントをサーバーに送信（ゲーム入室前でもIP+名前+fpを記録する）
-    sendFingerprintToServer(name)
+    sendFingerprintToServer(name).then(isBanned => {
+      if (!isBanned) setPageState('home')
+    })
   }
 
   const handleCreateRoom = async (newRoomId: string) => {
@@ -240,6 +252,18 @@ export default function Page() {
     setRoomId('')
   }
 
+  // BANされている場合は最優先で専用画面を表示（loading中でも上書き）
+  if (banReason) {
+    return (
+      <div className="flex flex-col justify-center items-center h-[100vh] h-[100dvh] gap-6 bg-[#1a1a2e] text-white">
+        <div className="text-5xl">🚫</div>
+        <h1 className="text-2xl font-bold text-[#ff6b6b]">利用禁止</h1>
+        <p className="text-center text-[#c9d1d9] max-w-sm px-4">{banReason}</p>
+        <p className="text-sm text-[#606070]">管理者にお問い合わせください。</p>
+      </div>
+    )
+  }
+
   // Show loading state while checking for saved session
   if (pageState === 'loading') {
     return (
@@ -268,6 +292,7 @@ export default function Page() {
           playerName={playerName}
           roomId={roomId}
           onBack={handleBackToHome}
+          onBanned={setBanReason}
         />
       )}
       {pageState === 'spectate' && (
@@ -276,6 +301,7 @@ export default function Page() {
           roomId={roomId}
           onBack={handleBackToHome}
           isSpectator={true}
+          onBanned={setBanReason}
         />
       )}
     </div>
