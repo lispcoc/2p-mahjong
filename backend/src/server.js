@@ -134,13 +134,13 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-// 管理者パネル静的ファイルを /admin で配信
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
+// 管理者パネル静的ファイルを /mjadmin で配信
+app.use('/mjadmin', express.static(path.join(__dirname, 'admin')));
 
 // ---- 管理者認証 API --------------------------------------------------------
 
 // ログイン
-app.post('/admin/api/login', (req, res) => {
+app.post('/mjadmin/api/login', (req, res) => {
   const { password } = req.body || {};
   if (!password || typeof password !== 'string') {
     return res.status(400).json({ error: 'パスワードが必要です' });
@@ -157,7 +157,7 @@ app.post('/admin/api/login', (req, res) => {
 });
 
 // ログアウト
-app.post('/admin/api/logout', (req, res) => {
+app.post('/mjadmin/api/logout', (req, res) => {
   const auth = req.headers['authorization'] || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (token) adminSessions.delete(token);
@@ -165,12 +165,12 @@ app.post('/admin/api/logout', (req, res) => {
 });
 
 // セッション確認
-app.get('/admin/api/me', requireAdmin, (req, res) => {
+app.get('/mjadmin/api/me', requireAdmin, (req, res) => {
   res.json({ authenticated: true });
 });
 
 // パスワード変更
-app.post('/admin/api/change-password', requireAdmin, (req, res) => {
+app.post('/mjadmin/api/change-password', requireAdmin, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: '現在のパスワードと新しいパスワードが必要です' });
@@ -191,7 +191,7 @@ app.post('/admin/api/change-password', requireAdmin, (req, res) => {
 });
 
 // サーバー統計
-app.get('/admin/api/stats', requireAdmin, (req, res) => {
+app.get('/mjadmin/api/stats', requireAdmin, (req, res) => {
   const activeRooms = [];
   rooms.forEach((room, roomId) => {
     const players = room.getPlayers();
@@ -217,11 +217,11 @@ app.get('/admin/api/stats', requireAdmin, (req, res) => {
 
 // ---- 管理者 BANリスト API (認証保護) ----------------------------------------
 
-app.get('/admin/api/ban-list', requireAdmin, (req, res) => {
+app.get('/mjadmin/api/ban-list', requireAdmin, (req, res) => {
   res.json(loadBanList());
 });
 
-app.post('/admin/api/ban-list', requireAdmin, (req, res) => {
+app.post('/mjadmin/api/ban-list', requireAdmin, (req, res) => {
   const { ip, fingerprint, reason } = req.body || {};
   if (!ip && !fingerprint) {
     return res.status(400).json({ error: 'ip または fingerprint のいずれかが必要です' });
@@ -240,7 +240,7 @@ app.post('/admin/api/ban-list', requireAdmin, (req, res) => {
   res.json({ success: true, entry });
 });
 
-app.delete('/admin/api/ban-list/:id', requireAdmin, (req, res) => {
+app.delete('/mjadmin/api/ban-list/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   let banList = loadBanList();
   const before = banList.length;
@@ -255,7 +255,7 @@ app.delete('/admin/api/ban-list/:id', requireAdmin, (req, res) => {
 
 // ---- 管理者 ユーザーDB API (認証保護) ----------------------------------------
 
-app.get('/admin/api/user-database', requireAdmin, (req, res) => {
+app.get('/mjadmin/api/user-database', requireAdmin, (req, res) => {
   // /api/user-database と同じロジックを再利用
   const filePath = path.join(process.cwd(), 'battle-logs', 'ip-database.json');
   try {
