@@ -352,7 +352,7 @@ function switchTabLog() {
 }
 
 function openAdmin() {
-  nw.Shell.openExternal('http://localhost:3001/admin/');
+  nw.Shell.openExternal('http://localhost:3001/mjadmin/');
 }
 
 // ──────────── Event Bindings ────────────

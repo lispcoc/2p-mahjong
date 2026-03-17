@@ -596,7 +596,7 @@ function findBanEntry(ip, fingerprint) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 旧 /api/ban-list エンドポイントは /admin/api/ban-list へ移行済み
+// 旧 /api/ban-list エンドポイントは /mjadmin/api/ban-list へ移行済み
 
 // フィンガープリント記録エンドポイント（ログイン時・再ログイン時にゲーム入室前でも記録する）
 app.post('/api/fingerprint', (req, res) => {
