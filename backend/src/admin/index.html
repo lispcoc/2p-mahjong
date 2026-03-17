@@ -629,7 +629,7 @@ async function fetchJSON(method, path, body) {
     headers: { 'Content-Type': 'application/json' },
   };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
+  const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
@@ -641,7 +641,7 @@ async function apiFetch(method, path, body) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
   };
   if (body !== undefined) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
+  const res = await fetch(path, opts);
   if (res.status === 401) {
     sessionStorage.removeItem('admin-token');
     sessionStorage.removeItem('admin-token-ts');
