@@ -528,7 +528,10 @@
 'use strict';
 
 // ── Config ──────────────────────────────────────────────────────────────────
-const API = ''; // Same origin
+// 現在のURLからベースパスを自動検出する。
+// 例: /mjadmin/   → API = ''
+// 例: /mj/mjadmin/ → API = '/mj'（nginxで/mj/プレフィックスを付けた場合）
+const API = window.location.pathname.replace(/\/mjadmin\/?.*$/, '');
 
 // ── State ───────────────────────────────────────────────────────────────────
 let token = sessionStorage.getItem('admin-token') || null;
@@ -539,7 +542,7 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 (async () => {
   if (token && Date.now() - tokenCreatedAt < SESSION_TTL_MS) {
     try {
-      const r = await apiFetch('GET', '/mjadmin/api/me');
+      const r = await apiFetch('GET', `${API}/mjadmin/api/me`);
       if (r.authenticated) { showMain(); return; }
     } catch {}
   }
@@ -557,7 +560,7 @@ async function doLogin() {
   btn.disabled = true;
   btn.textContent = '…';
   try {
-    const res = await fetchJSON('POST', '/mjadmin/api/login', { password: pw });
+    const res = await fetchJSON('POST', `${API}/mjadmin/api/login`, { password: pw });
     token = res.token;
     tokenCreatedAt = Date.now();
     sessionStorage.setItem('admin-token', token);
@@ -572,7 +575,7 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  try { await apiFetch('POST', '/mjadmin/api/logout'); } catch {}
+  try { await apiFetch('POST', `${API}/mjadmin/api/logout`); } catch {}
   sessionStorage.removeItem('admin-token');
   sessionStorage.removeItem('admin-token-ts');
   token = null;
@@ -666,7 +669,7 @@ function fmtDate(iso) {
 async function loadBanList() {
   const container = document.getElementById('ban-list-container');
   try {
-    const list = await apiFetch('GET', '/mjadmin/api/ban-list');
+    const list = await apiFetch('GET', `${API}/mjadmin/api/ban-list`);
     if (!Array.isArray(list) || list.length === 0) {
       container.innerHTML = '<div class="empty">BANリストは空です</div>';
       return;
@@ -715,7 +718,7 @@ async function addBan() {
     return;
   }
   try {
-    await apiFetch('POST', '/mjadmin/api/ban-list', { ip: ip || null, fingerprint: fp || null, reason });
+    await apiFetch('POST', `${API}/mjadmin/api/ban-list`, { ip: ip || null, fingerprint: fp || null, reason });
     document.getElementById('ban-ip').value = '';
     document.getElementById('ban-fp').value = '';
     document.getElementById('ban-reason').value = '';
@@ -728,7 +731,7 @@ async function addBan() {
 async function deleteBan(id) {
   if (!confirm('このBANエントリを削除しますか？')) return;
   try {
-    await apiFetch('DELETE', `/mjadmin/api/ban-list/${id}`);
+    await apiFetch('DELETE', `${API}/mjadmin/api/ban-list/${id}`);
     await loadBanList();
   } catch (err) {
     alert(`削除失敗: ${err.message}`);
@@ -740,7 +743,7 @@ async function loadUserDB() {
   const container = document.getElementById('user-db-container');
   container.innerHTML = '<div class="empty">読み込み中…</div>';
   try {
-    const list = await apiFetch('GET', '/mjadmin/api/user-database');
+    const list = await apiFetch('GET', `${API}/mjadmin/api/user-database`);
     if (!Array.isArray(list) || list.length === 0) {
       container.innerHTML = '<div class="empty">データなし</div>';
       return;
@@ -786,7 +789,7 @@ async function quickBan(ip, fp, names) {
   const reason = prompt(`BAN理由を入力（ユーザー名: ${names}）`, '') ?? '';
   if (reason === null) return; // cancel
   try {
-    await apiFetch('POST', '/mjadmin/api/ban-list', {
+    await apiFetch('POST', `${API}/mjadmin/api/ban-list`, {
       ip: ip || null,
       fingerprint: fp || null,
       reason,
@@ -803,7 +806,7 @@ async function loadStats() {
   const container = document.getElementById('stats-container');
   container.innerHTML = '<div class="empty">読み込み中…</div>';
   try {
-    const s = await apiFetch('GET', '/mjadmin/api/stats');
+    const s = await apiFetch('GET', `${API}/mjadmin/api/stats`);
 
     let activeRoomsHtml = '';
     if (s.activeRooms && s.activeRooms.length > 0) {
@@ -894,7 +897,7 @@ async function changePassword() {
   }
 
   try {
-    await apiFetch('POST', '/mjadmin/api/change-password', { currentPassword: cur, newPassword: nw });
+    await apiFetch('POST', `${API}/mjadmin/api/change-password`, { currentPassword: cur, newPassword: nw });
     showMsg(msg, 'success', 'パスワードを変更しました。再ログインしてください。');
     document.getElementById('pw-current').value = '';
     document.getElementById('pw-new').value = '';
