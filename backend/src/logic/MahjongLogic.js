@@ -569,6 +569,11 @@ class MahjongLogic {
     const hand = this.players[userId].hand;
     const melds = this.players[userId].melds;
 
+    // リーチ中は待ちが変わらない暗槓のみ許可
+    if (this.players[userId].riichi) {
+      return this.canRiichiAnkan(userId);
+    }
+
     // Check for concealed kan (4 identical tiles in hand)
     const tileGroups = {};
     hand.forEach((tile) => {
@@ -602,6 +607,62 @@ class MahjongLogic {
     }
 
     return false;
+  }
+
+  /**
+   * リーチ中に暗槓が可能かチェック（待ちが変わらない場合のみ許可）
+   */
+  canRiichiAnkan(userId) {
+    const player = this.players[userId];
+    if (!player || !player.drawnTile) return false;
+
+    const hand = player.hand;
+    const tileGroups = {};
+    hand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!tileGroups[key]) tileGroups[key] = [];
+      tileGroups[key].push(tile);
+    });
+
+    for (const key in tileGroups) {
+      if (tileGroups[key].length === 4 && this.riichiAnkanKeepsWait(userId, tileGroups[key])) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * リーチ後の暗槓で待ちが変わらないかチェック
+   * @param {string} userId
+   * @param {Array} kanTiles - 槓にする4枚の牌（手牌内の参照）
+   * @returns {boolean} 待ちが変わらなければtrue
+   */
+  riichiAnkanKeepsWait(userId, kanTiles) {
+    const player = this.players[userId];
+    const hand = player.hand;
+    const melds = player.melds;
+    const drawnTile = player.drawnTile;
+
+    // 現在のリーチ手牌（ツモ牌を除いた13枚）の待ち牌一覧
+    const handWithoutDrawn = hand.filter((t) => t !== drawnTile);
+    const currentWaits = TenpaiChecker.getWinningTiles(handWithoutDrawn, melds);
+
+    // 暗槓後の仮想手牌（4枚除去）と副露の待ち牌一覧
+    const kanTileRefs = new Set(kanTiles);
+    const simulatedHand = hand.filter((t) => !kanTileRefs.has(t));
+    const simulatedMelds = [...melds, kanTiles];
+    const postKanWaits = TenpaiChecker.getWinningTiles(simulatedHand, simulatedMelds);
+
+    // 待ち牌セットが同一かどうかを比較
+    const currentKeys = new Set(currentWaits.map((t) => `${t.suit}_${t.number}`));
+    const postKeys = new Set(postKanWaits.map((t) => `${t.suit}_${t.number}`));
+
+    if (currentKeys.size !== postKeys.size) return false;
+    for (const k of currentKeys) {
+      if (!postKeys.has(k)) return false;
+    }
+    return true;
   }
 
   /**
@@ -1024,7 +1085,12 @@ class MahjongLogic {
 
     // Check basic conditions
     if (this.players[userId].riichi) {
-      return { success: false, message: 'リーチ中はカンできません' };
+      // リーチ中は待ちが変わらない暗槓のみ許可
+      if (!this.canRiichiAnkan(userId)) {
+        return { success: false, message: 'リーチ中はカンできません（待ちが変わるため暗槓不可）' };
+      }
+      // 待ちが変わらない暗槓のみ実行（加槓・大明槓は不可）
+      return this.attemptConcealedKan(userId);
     }
 
     if (this.isPlayerInNoMeldMode(userId)) {

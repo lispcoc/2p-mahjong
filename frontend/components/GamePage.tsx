@@ -1904,20 +1904,53 @@ export default function GamePage({
   const canKan = (() => {
     // 大明槓は別ボタンで表示するのでここでは除外
     if (canDaiminkan) return false;
-    if (!isYourTurn || isRiichi || isNoMeldMode || drawnTileIndex < 0) {
+    if (!isYourTurn || isNoMeldMode || drawnTileIndex < 0) {
+      return false;
+    }
+
+    // Group hand tiles by suit+number
+    const tileGroups: Record<string, Tile[]> = {};
+    fullHand.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!tileGroups[key]) tileGroups[key] = [];
+      tileGroups[key].push(tile);
+    });
+
+    if (isRiichi) {
+      // リーチ中は「待ちが変わらない暗槓」のみ許可
+      for (const tiles of Object.values(tileGroups)) {
+        if (tiles.length !== 4) continue;
+        // ツモ牌を除いた13枚の手牌でリーチ時の待ちを取得
+        const handWithoutDrawn = fullHand.filter((_, i) => i !== drawnTileIndex);
+        const currentWaits = TenpaiChecker.getWinningTiles(handWithoutDrawn, melds);
+        // 暗槓後の仮想手牌（4枚除去）と副露で待ちを取得
+        const kanSuit = tiles[0].suit;
+        const kanNumber = tiles[0].number;
+        let removed = 0;
+        const simulatedHand = fullHand.filter((t) => {
+          if (t.suit === kanSuit && t.number === kanNumber && removed < 4) {
+            removed++;
+            return false;
+          }
+          return true;
+        });
+        const simulatedMelds = [...melds, tiles];
+        const postKanWaits = TenpaiChecker.getWinningTiles(simulatedHand, simulatedMelds);
+        // 待ちが同一かチェック
+        const currentKeys = new Set(currentWaits.map((t) => `${t.suit}_${t.number}`));
+        const postKeys = new Set(postKanWaits.map((t) => `${t.suit}_${t.number}`));
+        const waitsSame =
+          currentKeys.size === postKeys.size &&
+          [...currentKeys].every((k) => postKeys.has(k));
+        if (waitsSame) return true;
+      }
       return false;
     }
 
     // Check for concealed kan (4 identical tiles in hand)
-    const tileGroups: Record<string, number> = {};
-    fullHand.forEach((tile) => {
-      const key = `${tile.suit}-${tile.number}`;
-      tileGroups[key] = (tileGroups[key] || 0) + 1;
-    });
-
     // Check if any tile group has 4 identical tiles
-    for (const count of Object.values(tileGroups)) {
-      if (count === 4) {
+    for (const tiles of Object.values(tileGroups)) {
+      if (tiles.length === 4) {
         return true;
       }
     }

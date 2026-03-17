@@ -1400,6 +1400,26 @@ class GameRoom {
     };
 
     // AIPlayerにカンすべきか判定させる
+    if (isRiichi) {
+      // リーチ中は「待ちが変わらない暗槓」のみ許可（AI判断）
+      if (this.gameLogic.canRiichiAnkan(userId)) {
+        console.log('🤖 CPU will riichi-ankan (待ち不変)');
+        const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
+        if (!kanResult.success) {
+          console.log('🤖 CPU riichi-ankan failed:', kanResult.message);
+          if (callback) callback();
+        } else {
+          console.log('🤖 CPU リーチ後暗槓 成功');
+          const kanDelay = this.testMode ? 0 : settings.cpuDelays.kanDelayMs;
+          setTimeout(() => { if (callback) callback(); }, kanDelay);
+        }
+      } else {
+        console.log('🤖 CPU will not riichi-ankan (待ちが変わる or 暗槓牌なし)');
+        if (callback) callback();
+      }
+      return;
+    }
+
     if (aiPlayer.shouldKan(hand, melds, isRiichi, kanGameState)) {
       console.log('🤖 CPU will kan');
       const kanResult = this.handlePlayerAction(userId, { type: 'kong' });
