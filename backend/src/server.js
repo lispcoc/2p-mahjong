@@ -731,7 +731,13 @@ app.post('/api/rooms', (req, res) => {
   // 透明手牌ルール: 同種3枚保有で透けて見える
   const transparentHand = req.body?.transparentHand === true;
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection, transparentHand });
+  // ===== イカサマインフラ =====
+  const cheatingEnabled = req.body?.cheatingEnabled === true;
+  const fixedDrawOrder = req.body?.fixedDrawOrder === true;
+  const rawWallSeed = Number(req.body?.wallSeed);
+  const wallSeed = Number.isFinite(rawWallSeed) ? Math.floor(rawWallSeed) : null;
+
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection, transparentHand, cheatingEnabled, fixedDrawOrder, wallSeed });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
@@ -1555,9 +1561,9 @@ async function handleAction(ws, payload) {
       // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
       room.lastFinishedPayload = finishedPayload;
 
-      // 役満の場合は記録を保存（CPU対戦は除く）
+      // 役満の場合は記録を保存（CPU対戦・イカサマ有効時は除く）
       const hasCPUPlayer = Array.from(room.players.values()).some(p => p.isCPU);
-      if (!hasCPUPlayer && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
+      if (!hasCPUPlayer && !room.cheatingEnabled && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
         const winnerName = finishedPayload.winner
           ? (room.players.get(finishedPayload.winner)?.playerName || finishedPayload.winner)
           : null;
@@ -1570,8 +1576,8 @@ async function handleAction(ws, payload) {
         }
       }
 
-      // gameOver時に対戦ログを保存（CPU対戦は除く）
-      if (!hasCPUPlayer && result.gameOver) {
+      // gameOver時に対戦ログを保存（CPU対戦・イカサマ有効時は除く）
+      if (!hasCPUPlayer && !room.cheatingEnabled && result.gameOver) {
         const battleLogInfo = activeBattleLogs.get(roomId);
         if (battleLogInfo?.battleId) {
           saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs, battleLogInfo.playerFingerprints || new Map());
@@ -1980,9 +1986,9 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
     // 観戦者が局間に参加したときに前局の結果を表示できるよう保存
     room.lastFinishedPayload = finishedPayload;
 
-    // 役満の場合は記録を保存（CPU対戦は除く）
+    // 役満の場合は記録を保存（CPU対戦・イカサマ有効時は除く）
     const hasCPUPlayer = Array.from(room.players.values()).some(p => p.isCPU);
-    if (!hasCPUPlayer && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
+    if (!hasCPUPlayer && !room.cheatingEnabled && scoreResult && scoreResult.scoreType && scoreResult.scoreType.includes('役満')) {
       const winnerPlayerId = finishedPayload.winner;
       const winnerPlayerName = winnerPlayerId
         ? (room.players.get(winnerPlayerId)?.playerName || winnerPlayerId)
@@ -1996,8 +2002,8 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
       }
     }
 
-    // gameOver時に対戦ログを保存（CPU対戦は除く）
-    if (!hasCPUPlayer && finishedPayload?.gameOver) {
+    // gameOver時に対戦ログを保存（CPU対戦・イカサマ有効時は除く）
+    if (!hasCPUPlayer && !room.cheatingEnabled && finishedPayload?.gameOver) {
       const battleLogInfo = activeBattleLogs.get(roomId);
       if (battleLogInfo?.battleId) {
         saveBattleLog(room, battleLogInfo.battleId, battleLogInfo.startTime, battleLogInfo.playerIPs, battleLogInfo.playerFingerprints || new Map());

@@ -49,6 +49,9 @@ const testFiles = [
   // ツモ運
   'test-tsumo-luck-combined.js',
   'test-adaptive-luck.js',
+
+  // イカサマインフラ
+  'test-cheating-infra.js',
 ];
 
 const results = [];

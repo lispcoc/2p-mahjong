@@ -9,9 +9,9 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約10,814行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約11,069行）
 - **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約7,017行）
-- **テスト**: 20ファイル
+- **テスト**: 21ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
 
@@ -80,8 +80,8 @@ npm run task:generate  # タスク生成
 | ファイル | 行数 |
 |----------|------|
 | `AIPlayer.js` | 1,254 |
-| `GameRoom.js` | 1,544 |
-| `MahjongLogic.js` | 3,103 |
+| `GameRoom.js` | 1,552 |
+| `MahjongLogic.js` | 3,344 |
 | `ScoreCalculator.js` | 2,249 |
 | `TenpaiChecker.js` | 445 |
 | `Tile.js` | 67 |
@@ -138,6 +138,7 @@ npm run task:generate  # タスク生成
 | `timers` | 自動アクション、ルーム削除、切断猶予（10分） |
 | `cpuDelays` | AIの思考遅延、ポン/カン後遅延 |
 | `tsumoLuck` | 配牌運のレベル別試行回数・選択確率 |
+| `cheating` | イカサマ機能のデフォルト設定（有効フラグ、ツモ順固定、記録スキップ） |
 
 ### 環境変数
 
@@ -281,6 +282,9 @@ if (result === expected) {
 | `notenPenalty` | boolean | false | ノーテン罰符 |
 | `tsumoLuckSettings` | object | - | ツモ運バイアス |
 | `testMode` | boolean | false | テストモード |
+| `cheatingEnabled` | boolean | false | イカサマ機能有効フラグ |
+| `fixedDrawOrder` | boolean | false | ツモ順固定（壁牌シャッフル後の順序でツモ） |
+| `wallSeed` | number \| null | null | 壁牌シャッフル用シード（再現性確保） |
 
 数値パラメータは`Number.isFinite()` + `Math.min/max/floor`でバリデーション。
 
@@ -378,6 +382,7 @@ if (result === expected) {
 - **手牌枚数**: 通常13枚、ツモ後14枚。槓後は嶺上ツモで14枚に戻る
 - **フリテンは3種類**: 捨て牌フリテン、同巡フリテン、リーチ後見逃しフリテン（永続）
 - **GameRoom.jsのクリーンアップ**: 非アクティブルームは5分で自動削除される
+- **イカサマインフラ**: `cheatingEnabled=true`で壁牌操作メソッド群（`peekWall`/`stackWall`/`swapHandTile`/`peekHand`等）が使用可能。`false`だと例外をスローするガード付き。イカサマ有効時は役満記録・対戦ログの保存をスキップする
 - **データベースなし**: すべての状態はインメモリ（Mapオブジェクト）。サーバー再起動で全ゲームが消える
 - **package-lock.jsonはgitignore対象**: 依存関係のバージョンロックなし。`npm install`の結果が環境により変わりうる
 - **バックエンドにlint設定なし**: フロントエンドのみESLint（`next/core-web-vitals`）

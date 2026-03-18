@@ -63,6 +63,10 @@ class GameRoom {
     this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
     this.transparentHand = options.transparentHand || false; // 透明手牌ルール（同種3枚保有・赤ドラは透けて見える）
+    // ===== イカサマインフラ =====
+    this.cheatingEnabled = options.cheatingEnabled || false;     // イカサマ機能有効フラグ（デフォルト無効）
+    this.fixedDrawOrder = options.fixedDrawOrder || false;       // ツモ順固定（壁牌シャッフル後の順序でツモ）
+    this.wallSeed = options.wallSeed || null;                    // 壁牌シャッフル用シード（再現性確保）
     this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
   }
 
@@ -349,6 +353,10 @@ class GameRoom {
         ronMultiplier: this.ronMultiplier,
         riichiDepositRequired: this.riichiDepositRequired,
         transparentHand: this.transparentHand,
+        // イカサマインフラ
+        cheatingEnabled: this.cheatingEnabled,
+        fixedDrawOrder: this.fixedDrawOrder,
+        wallSeed: this.wallSeed,
       }
     );
     if (this.riichiDepositsCarryover > 0) {

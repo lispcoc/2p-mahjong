@@ -94,6 +94,33 @@
 | `candidateDoraTiles` | ドラ牌候補 | 上記に対応するドラ牌 |
 | `candidateUraDoraIndicators` | 裏ドラ表示牌候補 | カン後の裏ドラ候補 |
 | `candidateUraDoraTiles` | 裏ドラ牌候補 | 上記に対応する裏ドラ牌 |
+| `drawPointer` | ツモポインタ | ツモ順固定時の次のツモ位置 |
+
+---
+
+## 4.5. イカサマインフラ（Cheating Infrastructure）
+
+`MahjongLogic` のイカサマ関連フィールドとメソッド。すべて `cheatingEnabled: true` の場合のみ動作。
+
+### フィールド
+
+| フィールド | 日本語 | 説明 |
+|-----------|--------|------|
+| `cheatingEnabled` | イカサマ有効フラグ | `true`で壁牌操作メソッド群が使用可能 |
+| `fixedDrawOrder` | ツモ順固定 | `true`で壁牌末尾から順序通りにツモ（ランダム抽選なし） |
+| `wallSeed` | 壁牌シード | 壁牌シャッフルの再現性確保用シード値（xorshift32） |
+| `drawPointer` | ツモポインタ | 固定順ツモ時の次のツモ位置 |
+
+### メソッド
+
+| メソッド | 日本語（イカサマ名） | 説明 |
+|---------|--------|------|
+| `peekWall(count?)` | 覗き見（のぞき） | 壁牌の次にツモされる牌を覚く |
+| `stackWall(tileSpecs)` | 積み込み（つみこみ） | 指定した牌を壁の先頭（次のツモ位置）に移動 |
+| `swapHandTile(userId, from, to)` | すり替え（すりかえ） | 手牌の牌を壁の牌と交換 |
+| `swapWallTiles(idxA, idxB)` | 壁操作 | 壁内の任意2枚を入れ替え |
+| `peekHand(userId)` | 手牌覗き見 | 相手の手牌を取得 |
+| `getCheatingState()` | イカサマ状態取得 | デバッグ用サマリー |
 
 ---
 
@@ -342,6 +369,9 @@ WebSocket プロトコルおよびゲームロジック内のアクション名�
 | `autoActionTimerSeconds` | 自動アクション秒数 | 無操作時の自動行動までの秒数 |
 | `nextRoundReady` | 次局準備完了セット | 次局進行を承認したプレイヤーIDの集合 |
 | `rematchReady` | 再戦準備完了セット | 再戦を承認したプレイヤーIDの集合 |
+| `cheatingEnabled` | イカサマ有効フラグ | `true`で壁牌操作メソッド群が使用可能 |
+| `fixedDrawOrder` | ツモ順固定フラグ | `true`で壁牌の順序通りにツモ（ランダム抽選なし） |
+| `wallSeed` | 壁牌シード | 壁牌シャッフルの再現性確保用シード値 |
 
 ---
 

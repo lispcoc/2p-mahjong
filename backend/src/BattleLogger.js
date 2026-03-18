@@ -53,6 +53,8 @@ function extractRules(room) {
     ronMultiplier: room.ronMultiplier || 1,
     dealerSelection: room.dealerSelection || 'random',
     transparentHand: room.transparentHand || false,
+    cheatingEnabled: room.cheatingEnabled || false,
+    fixedDrawOrder: room.fixedDrawOrder || false,
   };
 }
 

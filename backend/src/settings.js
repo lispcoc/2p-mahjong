@@ -60,6 +60,14 @@ module.exports = {
     showHandsByDefault: false, // 観戦時にプレイヤーの手牌をデフォルトで表示するか
   },
 
+  // ===== イカサマ（チート）設定 =====
+  cheating: {
+    enabled: false,                 // イカサマ機能有効フラグ（デフォルト無効）
+    fixedDrawOrder: false,          // ツモ順固定（true: 壁牌シャッフル後の順序でツモ, false: 従来のランダム抽選）
+    skipYakumanRecord: true,        // イカサマ有効時に役満記録をスキップするか
+    skipBattleLog: true,            // イカサマ有効時に対戦ログをスキップするか
+  },
+
   // ===== 配牌運（ツモ運）設定 =====
   tsumoLuck: {
     maxLevel: 3,                      // ツモ運最大レベル

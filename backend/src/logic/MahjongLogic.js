@@ -56,6 +56,12 @@ class MahjongLogic {
     // Tsumo luck settings: userId -> luck level (0=none, 1=light, 2=heavy)
     this.tsumoLuckSettings = options.tsumoLuckSettings || {};
 
+    // ===== イカサマインフラ =====
+    this.cheatingEnabled = options.cheatingEnabled || false;     // イカサマ機能有効フラグ
+    this.fixedDrawOrder = options.fixedDrawOrder || false;       // ツモ順固定（壁牌の順序でツモ）
+    this.wallSeed = options.wallSeed || null;                    // 壁牌シャッフル用シード（再現性確保用）
+    this.drawPointer = 0;                                       // ツモ順固定時の次のツモ位置
+
     // Initialize players
     playerIds.forEach((id) => {
       this.players[id] = {
@@ -275,10 +281,27 @@ class MahjongLogic {
   }
 
   shuffleWall() {
+    const rng = this.wallSeed !== null ? this._createSeededRng(this.wallSeed) : Math.random;
     for (let i = this.wall.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [this.wall[i], this.wall[j]] = [this.wall[j], this.wall[i]];
     }
+  }
+
+  /**
+   * シード値から擬似乱数生成器を作成（再現性確保用）
+   * xorshift32 アルゴリズムを使用
+   * @param {number} seed - シード値
+   * @returns {function} 0-1の擬似乱数を返す関数
+   */
+  _createSeededRng(seed) {
+    let state = seed | 0 || 1; // 0は避ける
+    return function() {
+      state ^= state << 13;
+      state ^= state >> 17;
+      state ^= state << 5;
+      return (state >>> 0) / 4294967296;
+    };
   }
 
   /**
@@ -2248,6 +2271,7 @@ class MahjongLogic {
 
   /**
    * ツモを実行（ツモ運を考慮した選別、手牌分析を含む）
+   * fixedDrawOrder が有効な場合は壁牌の順序通りに引く（イカサマインフラ）
    * @param {string} userId プレイヤーID
    * @returns {Tile|null} 引いた牌、または null
    */
@@ -2261,6 +2285,23 @@ class MahjongLogic {
       ...this.candidateUraDoraIndicators,
       ...this.candidateUraDoraTiles,
     ]);
+
+    // === ツモ順固定モード ===
+    // 壁牌の末尾から順番にツモる（除外牌はスキップ）
+    if (this.fixedDrawOrder) {
+      for (let i = this.wall.length - 1; i >= 0; i--) {
+        const tile = this.wall[i];
+        if (!excludedTileObjects.has(tile)) {
+          this.wall.splice(i, 1);
+          console.log(`[drawTile:fixedOrder] Player ${userId} drew ${tile.toString()} (wall.length=${this.wall.length})`);
+          return tile;
+        }
+      }
+      console.log(`[drawTile:fixedOrder] ⚠️ No playable tiles found in wall`);
+      return null;
+    }
+
+    // === 従来モード: ランダム抽選 ===
 
     // 引けるすべての牌を取得
     const playableTiles = [];
@@ -3095,6 +3136,206 @@ class MahjongLogic {
         display: tile.toString(),
         isRed: tile.isRed || false,
       })),
+    };
+  }
+
+  // ============================================================
+  //  イカサマインフラ: 壁牌・手牌操作メソッド群
+  //  （cheatingEnabled が true のときのみ動作する）
+  // ============================================================
+
+  /**
+   * イカサマが有効かチェック（無効な場合は例外をスロー）
+   * @private
+   */
+  _assertCheatingEnabled(methodName) {
+    if (!this.cheatingEnabled) {
+      throw new Error(`[${methodName}] cheatingEnabled が false のため操作できません`);
+    }
+  }
+
+  /**
+   * 壁牌の内容を取得（覗き見 / のぞき）
+   * @param {number} [count] - 先頭から取得する枚数（省略時は全件）
+   * @returns {Array<{index: number, suit: string, number: number, display: string, isRed: boolean}>}
+   */
+  peekWall(count) {
+    this._assertCheatingEnabled('peekWall');
+    const excludedTileObjects = new Set([
+      ...this.kanningWall,
+      ...this.kanningWallSupply,
+      ...this.candidateDoraIndicators,
+      ...this.candidateDoraTiles,
+      ...this.candidateUraDoraIndicators,
+      ...this.candidateUraDoraTiles,
+    ]);
+    const playable = [];
+    // 壁牌末尾（ツモされる順）から列挙
+    for (let i = this.wall.length - 1; i >= 0; i--) {
+      const tile = this.wall[i];
+      if (!excludedTileObjects.has(tile)) {
+        playable.push({
+          index: i,
+          suit: tile.suit,
+          number: tile.number,
+          display: tile.toString(),
+          isRed: tile.isRed || false,
+        });
+      }
+    }
+    return count !== undefined ? playable.slice(0, count) : playable;
+  }
+
+  /**
+   * 壁牌の順序を操作する（積み込み / つみこみ）
+   * 指定した牌を壁の先頭（次にツモされる位置）に移動する
+   * @param {Array<{suit: string, number: number}>} tileSpecs - 先頭に積みたい牌の配列（先にツモされる順）
+   * @returns {{ success: boolean, moved: number, message?: string }}
+   */
+  stackWall(tileSpecs) {
+    this._assertCheatingEnabled('stackWall');
+    if (!Array.isArray(tileSpecs) || tileSpecs.length === 0) {
+      return { success: false, moved: 0, message: 'tileSpecs must be a non-empty array' };
+    }
+
+    const excludedTileObjects = new Set([
+      ...this.kanningWall,
+      ...this.kanningWallSupply,
+      ...this.candidateDoraIndicators,
+      ...this.candidateDoraTiles,
+      ...this.candidateUraDoraIndicators,
+      ...this.candidateUraDoraTiles,
+    ]);
+
+    let moved = 0;
+    // tileSpecs を逆順に処理（最後に push した牌が壁末尾＝次のツモになるため）
+    for (let si = tileSpecs.length - 1; si >= 0; si--) {
+      const spec = tileSpecs[si];
+      // 壁内で最初に見つかる一致牌を探す（除外牌は対象外）
+      let foundIdx = -1;
+      for (let i = 0; i < this.wall.length; i++) {
+        const tile = this.wall[i];
+        if (!excludedTileObjects.has(tile) && tile.suit === spec.suit && tile.number === spec.number) {
+          // 赤ドラ指定がある場合はそれも一致させる
+          if (spec.isRed !== undefined && (tile.isRed || false) !== spec.isRed) continue;
+          foundIdx = i;
+          break;
+        }
+      }
+      if (foundIdx !== -1) {
+        // 見つかった牌を壁末尾に移動
+        const [tile] = this.wall.splice(foundIdx, 1);
+        this.wall.push(tile);
+        moved++;
+      }
+    }
+
+    console.log(`[stackWall] Moved ${moved}/${tileSpecs.length} tiles to top of wall`);
+    return { success: true, moved, message: `${moved}/${tileSpecs.length} tiles stacked` };
+  }
+
+  /**
+   * プレイヤーの手牌の特定の牌を別の牌にすり替える（すり替え / すりかえ）
+   * 壁牌内の指定牌と手牌内の指定牌を交換する
+   * @param {string} userId - 対象プレイヤーID
+   * @param {{suit: string, number: number}} fromSpec - 手牌から外す牌
+   * @param {{suit: string, number: number}} toSpec - 手牌に入れる牌（壁から取得）
+   * @returns {{ success: boolean, message?: string }}
+   */
+  swapHandTile(userId, fromSpec, toSpec) {
+    this._assertCheatingEnabled('swapHandTile');
+    const player = this.players[userId];
+    if (!player) return { success: false, message: `Player ${userId} not found` };
+
+    // 手牌から fromSpec に一致する牌を探す
+    const handIdx = player.hand.findIndex(t =>
+      t.suit === fromSpec.suit && t.number === fromSpec.number &&
+      (fromSpec.isRed === undefined || (t.isRed || false) === fromSpec.isRed)
+    );
+    if (handIdx === -1) return { success: false, message: 'Tile not found in hand' };
+
+    // 壁から toSpec に一致する牌を探す（除外牌以外）
+    const excludedTileObjects = new Set([
+      ...this.kanningWall,
+      ...this.kanningWallSupply,
+      ...this.candidateDoraIndicators,
+      ...this.candidateDoraTiles,
+      ...this.candidateUraDoraIndicators,
+      ...this.candidateUraDoraTiles,
+    ]);
+
+    let wallIdx = -1;
+    for (let i = 0; i < this.wall.length; i++) {
+      const tile = this.wall[i];
+      if (!excludedTileObjects.has(tile) && tile.suit === toSpec.suit && tile.number === toSpec.number) {
+        if (toSpec.isRed !== undefined && (tile.isRed || false) !== toSpec.isRed) continue;
+        wallIdx = i;
+        break;
+      }
+    }
+    if (wallIdx === -1) return { success: false, message: 'Target tile not found in wall' };
+
+    // 交換実行
+    const handTile = player.hand[handIdx];
+    const wallTile = this.wall[wallIdx];
+    player.hand[handIdx] = wallTile;
+    this.wall[wallIdx] = handTile;
+
+    // drawnTile 参照の更新
+    if (player.drawnTile === handTile) {
+      player.drawnTile = wallTile;
+    }
+
+    console.log(`[swapHandTile] ${userId}: ${handTile.toString()} → ${wallTile.toString()}`);
+    return { success: true, message: `Swapped ${handTile.toString()} with ${wallTile.toString()}` };
+  }
+
+  /**
+   * 壁牌の任意の2枚を入れ替える
+   * @param {number} indexA - 壁内のインデックスA
+   * @param {number} indexB - 壁内のインデックスB
+   * @returns {{ success: boolean, message?: string }}
+   */
+  swapWallTiles(indexA, indexB) {
+    this._assertCheatingEnabled('swapWallTiles');
+    if (indexA < 0 || indexA >= this.wall.length || indexB < 0 || indexB >= this.wall.length) {
+      return { success: false, message: 'Index out of range' };
+    }
+    [this.wall[indexA], this.wall[indexB]] = [this.wall[indexB], this.wall[indexA]];
+    console.log(`[swapWallTiles] Swapped wall[${indexA}] and wall[${indexB}]`);
+    return { success: true };
+  }
+
+  /**
+   * 相手の手牌を覗き見する（のぞき見）
+   * @param {string} userId - 覗き見対象のプレイヤーID
+   * @returns {Array<{suit: string, number: number, display: string, isRed: boolean}>}
+   */
+  peekHand(userId) {
+    this._assertCheatingEnabled('peekHand');
+    const player = this.players[userId];
+    if (!player) return [];
+    return player.hand.map(tile => ({
+      suit: tile.suit,
+      number: tile.number,
+      display: tile.toString(),
+      isRed: tile.isRed || false,
+    }));
+  }
+
+  /**
+   * イカサマ状態のサマリーを取得（デバッグ・テスト用）
+   * @returns {object}
+   */
+  getCheatingState() {
+    return {
+      cheatingEnabled: this.cheatingEnabled,
+      fixedDrawOrder: this.fixedDrawOrder,
+      wallSeed: this.wallSeed,
+      wallLength: this.wall.length,
+      playableCount: this.peekWall !== undefined && this.cheatingEnabled
+        ? this.peekWall().length
+        : null,
     };
   }
 }
