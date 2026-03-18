@@ -1256,12 +1256,14 @@ function handleJoin(ws, payload, req = null) {
   }
 
   // Send join confirmation
+  const rawGameState = room.getGameState();
+  const filteredGameState = filterGameStateForTransparent(rawGameState, userId);
   const joinedPayload = {
     userId,
     playerName,
     roomId,
     players: room.getPlayers(),
-    gameState: room.getGameState(),
+    gameState: filteredGameState,
     isReconnecting,
     hostId: room.getHostId(),
   };
@@ -1369,8 +1371,9 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
 
   connections.set(ws, { userId, roomId, playerName: spectatorName, isSpectator: true });
 
-  // 現在のゲーム状態（全牌公開）を送信
-  const gameState = room.getGameState();
+  // 現在のゲーム状態（見学者向けに透明牌フィルタ適用）を送信
+  const rawGameState = room.getGameState();
+  const filteredForSpectator = filterGameStateForTransparent(rawGameState, null);
   // 局間（playing以外）に参加した観戦者には前局の結果も送信する
   const lastFinishedPayload = room.status !== 'playing' ? (room.lastFinishedPayload || null) : null;
 
@@ -1390,7 +1393,7 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     roomId,
     players: room.getPlayers(),
     spectators: room.getSpectators(),
-    gameState: { ...gameState, isSpectatorView: true },
+    gameState: { ...filteredForSpectator, isSpectatorView: true },
     isSpectator: true,
     isReconnecting,
     spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
@@ -1981,6 +1984,38 @@ function handleDeleteRoom(ws) {
   console.log(`🗑️ Room ${roomId} deleted successfully`);
 }
 
+/**
+ * 透明手牌ルール用: ゲーム状態から相手の非透明牌をマスクする
+ * @param {object} state - ゲーム状態オブジェクト
+ * @param {string|null} viewerUserId - 閲覧者のuserId（nullの場合は全員の非透明牌をマスク＝見学者用）
+ * @returns {object} マスク済みゲーム状態
+ */
+function filterGameStateForTransparent(state, viewerUserId) {
+  if (!state || !state.transparentHand || !state.tiles) return state;
+
+  const filteredTiles = {};
+  for (const [pid, tileData] of Object.entries(state.tiles)) {
+    if (viewerUserId && pid === viewerUserId) {
+      // 自分の手牌はそのまま（全情報を送信）
+      filteredTiles[pid] = tileData;
+      continue;
+    }
+
+    // 相手（または見学者から見た両プレイヤー）の非透明牌をマスク
+    const transparentSet = new Set(tileData.transparentIndices || []);
+    filteredTiles[pid] = {
+      ...tileData,
+      hand: (tileData.hand || []).map((tile, idx) => {
+        if (transparentSet.has(idx)) return tile;
+        // 非透明牌は牌情報を隠す（裏向き相当）
+        return { suit: 'unknown', number: 0, display: '?', isRed: false, isTransparent: false };
+      }),
+    };
+  }
+
+  return { ...state, tiles: filteredTiles };
+}
+
 function broadcastToRoom(roomId, message, excludeWs = null) {
   const room = rooms.get(roomId);
   if (!room) {
@@ -1992,6 +2027,10 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
   console.log(`📡 Broadcasting ${message.type} to room ${roomId} with ${room.players.size} players, ${room.spectators.size} spectators`);
   let broadcastCount = 0;
 
+  // 透明手牌ルール時はプレイヤーごとにフィルタリングが必要
+  const isGameStateMsg = message.type === 'gameStateUpdate' || message.type === 'gameStarted' || message.type === 'rematchStart';
+  const needsFiltering = isGameStateMsg && message.payload?.transparentHand;
+
   room.players.forEach((player) => {
     console.log(`  - Checking player: ${player.playerName} (${player.userId}) - isCPU: ${player.isCPU} - ws ready: ${player.ws?.readyState === 1}`);
     // CPUプレイヤーはスキップ
@@ -2001,7 +2040,12 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
     }
     if (player.ws && player.ws !== excludeWs && player.ws.readyState === 1) {
       console.log(`    ✅ Broadcasting to ${player.playerName}`);
-      player.ws.send(JSON.stringify(message));
+      if (needsFiltering) {
+        const filtered = filterGameStateForTransparent(message.payload, player.userId);
+        player.ws.send(JSON.stringify({ ...message, payload: filtered }));
+      } else {
+        player.ws.send(JSON.stringify(message));
+      }
       broadcastCount++;
     } else {
       console.log(`    ❌ Skipped (ws: ${!!player.ws}, ready: ${player.ws?.readyState})`);
@@ -2011,8 +2055,12 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
   // 見学者にも送信
   room.spectators.forEach((spectator) => {
     if (spectator.ws && spectator.ws !== excludeWs && spectator.ws.readyState === 1) {
-      // 見学者向けにもゲーム状態を送信（手牌は全員分公開）
-      const spectatorMessage = buildSpectatorMessage(message);
+      // 見学者向けにもゲーム状態を送信
+      let spectatorMessage = buildSpectatorMessage(message);
+      if (needsFiltering) {
+        // 見学者には両プレイヤーの非透明牌をマスク
+        spectatorMessage = { ...spectatorMessage, payload: filterGameStateForTransparent(spectatorMessage.payload, null) };
+      }
       spectator.ws.send(JSON.stringify(spectatorMessage));
       broadcastCount++;
     }

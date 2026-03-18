@@ -135,13 +135,13 @@ class MahjongLogic {
       this.applyRedDora();
     }
 
-    // 透明手牌ルール: 壁牌生成直後に各種牌4枚のうち3枚を透明として確定する
-    if (this.transparentHand) {
-      this.applyTransparentHand();
-    }
-
     if (this.wallTiles < this.wall.length) {
       this.wall = this.wall.slice(0, this.wallTiles);
+    }
+
+    // 透明手牌ルール: 壁牌カット後に適用（カット前に適用すると3/4の不変量が崩れる）
+    if (this.transparentHand) {
+      this.applyTransparentHand();
     }
 
     console.log(`[wall] initialize: wallTiles=${this.wallTiles}, wall.length=${this.wall.length}`);
@@ -269,6 +269,13 @@ class MahjongLogic {
     } else {
       console.log(`[dealTiles] ⚠️ Not enough tiles in wall (${this.wall.length}) to set up dora candidates`);
     }
+
+    // 透明手牌ルール: 配牌運による再分配後に透明フラグを再適用
+    // 初回の applyTransparentHand は壁のみに適用されるため、
+    // 配牌運で手牌と壁が混ざった後に全牌（手牌+壁+予約牌）に対して再度適用する
+    if (this.transparentHand) {
+      this.reapplyTransparentHand();
+    }
   }
 
   /**
@@ -338,6 +345,60 @@ class MahjongLogic {
     }
 
     console.log('[applyTransparentHand] Transparent flags applied to wall tiles');
+  }
+
+  /**
+   * 透明手牌ルール再適用: 配牌運適用後に全牌（手牌+壁+予約牌）に対して透明フラグを再計算
+   * 配牌運で手牌と壁が再分配された後、各種牌4枚のうち3枚が透明になるよう再計算する
+   */
+  reapplyTransparentHand() {
+    // 全牌を収集
+    const allTiles = [...this.wall];
+    this.playerIds.forEach((pid) => {
+      allTiles.push(...this.players[pid].hand);
+    });
+    allTiles.push(...this.kanningWall);
+    allTiles.push(...this.kanningWallSupply);
+    allTiles.push(...this.candidateDoraIndicators);
+    allTiles.push(...this.candidateDoraTiles);
+    allTiles.push(...this.candidateUraDoraIndicators);
+    allTiles.push(...this.candidateUraDoraTiles);
+
+    // 既存フラグをクリア
+    allTiles.forEach((t) => { t.isTransparent = false; });
+
+    // suit+number でグループ化
+    const groups = {};
+    allTiles.forEach((tile) => {
+      const key = `${tile.suit}-${tile.number}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(tile);
+    });
+
+    for (const tiles of Object.values(groups)) {
+      // 赤ドラは必ず透明
+      tiles.forEach((tile) => {
+        if (tile.isRed) tile.isTransparent = true;
+      });
+
+      const redTransparentCount = tiles.filter((t) => t.isRed).length;
+      const stillNeeded = Math.max(0, 3 - redTransparentCount);
+
+      // 非赤ドラをシャッフルして偏りを防止
+      const nonRedTiles = tiles.filter((t) => !t.isRed);
+      for (let i = nonRedTiles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [nonRedTiles[i], nonRedTiles[j]] = [nonRedTiles[j], nonRedTiles[i]];
+      }
+
+      let marked = 0;
+      nonRedTiles.forEach((tile) => {
+        tile.isTransparent = marked < stillNeeded;
+        marked++;
+      });
+    }
+
+    console.log('[reapplyTransparentHand] Transparent flags reapplied to all in-play tiles');
   }
 
   /**
@@ -2494,6 +2555,7 @@ class MahjongLogic {
         number: tile.number,
         display: tile.toString(),
         isRed: tile.isRed || false,
+        isTransparent: tile.isTransparent || false,
       }))
     );
   }
@@ -2582,6 +2644,7 @@ class MahjongLogic {
         number: tile.number,
         display: tile.toString(),
         isRed: tile.isRed || false,
+        isTransparent: tile.isTransparent || false,
         isTsumogiri: this.players[playerId].discardFlags?.[i]?.isTsumogiri || false,
       }));
       riichiDiscards[playerId] = this.players[playerId].riichiDiscardIndex;
