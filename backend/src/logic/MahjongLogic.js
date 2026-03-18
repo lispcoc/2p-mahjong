@@ -1007,7 +1007,10 @@ class MahjongLogic {
       }
 
       // Now check if they can pung instead
-      if (this.pendingPungFor !== userId && this.lastDiscard && this.canPlayerPung(userId, this.lastDiscard)) {
+      // リーチ中・鳴き無効モード中はポン不可
+      if (this.pendingPungFor !== userId && this.lastDiscard &&
+          !player.riichi && !this.isPlayerInNoMeldMode(userId) &&
+          this.canPlayerPung(userId, this.lastDiscard)) {
         this.pendingPungFor = userId;
         return { success: true, message: 'Ron passed, pung available' };
       }
