@@ -2009,6 +2009,11 @@ class MahjongLogic {
           console.log(`[drawForTurn] Both players in riichi - deferring auto-discard for ${userId} to caller`);
           return { success: true, bothRiichiAutoPlay: true };
         }
+        // リーチ後暗槓が可能な場合はプレイヤーの操作を待つ（自動ツモ切りを行わない）
+        if (this.canRiichiAnkan(userId)) {
+          console.log(`[drawForTurn] Player ${userId} can riichi-ankan - waiting for player action, skipping auto-discard`);
+          return { success: true, riichiAnkanPossible: true };
+        }
         // 呼び出し側が遅延処理を要求している場合は自動ツモ切りを委譲（間を置くため）
         if (deferRiichiAutoDiscard) {
           console.log(`[drawForTurn] Riichi auto-discard deferred for ${userId} (caller requested delay)`);

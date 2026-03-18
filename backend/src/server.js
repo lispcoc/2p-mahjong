@@ -2108,7 +2108,8 @@ function executeCPUTurnIfNeeded(room) {
     cp && !cp.isCPU && !cp.autoPlay &&
     room.gameLogic.isPlayerRiichi(ct) &&
     room.gameLogic.getDrawnTileIndex(ct) >= 0 &&
-    !room.gameLogic.isWinningHand(ct)
+    !room.gameLogic.isWinningHand(ct) &&
+    !room.gameLogic.canRiichiAnkan(ct) // リーチ後暗槓が可能な場合はプレイヤーの操作を待つ
   ) {
     const roomId = room.roomId;
     console.log(`🔴 [executeCPUTurnIfNeeded] Human ${cp.playerName} in riichi with drawn tile - triggering tsumo-giri in ${settings.cpuDelays.riichiAutoDiscardDelayMs}ms`);
