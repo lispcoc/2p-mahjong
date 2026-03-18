@@ -139,8 +139,9 @@ export function ScoreResultModal({
               </div>
             )}
 
-            {/* 裏ドラ表示 */}
-            {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 && (
+            {/* 裏ドラ表示 (リーチ和了時のみ) */}
+            {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 &&
+              scoreResult.yaku?.some((y: any) => ['リーチ', '立直', 'ダブルリーチ', 'W立直', 'ダブル立直'].includes(y.name)) && (
               <div className="w-full flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
                 <div className="text-xs text-gray-600 font-bold w-[65px]">
                   裏ドラ
