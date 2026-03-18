@@ -178,8 +178,18 @@ class GameRoom {
     }
 
     // Check if player with same name already exists
-    for (const player of this.players.values()) {
+    for (const [existingId, player] of this.players.entries()) {
       if (player.playerName === playerName) {
+        // 切断状態（ws=nullかつ非CPU）の場合は古いエントリを削除して参加を許可
+        if (!player.isCPU && player.ws === null) {
+          console.log(`🔄 Removing stale disconnected player with same name: ${playerName} (${existingId})`);
+          if (player.disconnectTimerId) {
+            clearTimeout(player.disconnectTimerId);
+          }
+          this.players.delete(existingId);
+          this.aiPlayers.delete(existingId);
+          break;
+        }
         return { success: false, message: 'Player with this name already exists in the room' };
       }
     }
