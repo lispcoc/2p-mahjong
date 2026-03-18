@@ -1707,23 +1707,24 @@ export default function GamePage({
       pendingPungIntervalRef.current = null;
     }
 
-    // Auto-discard if auto-draw mode is enabled and we have a drawn tile
-    if (autoDrawMode && isYourTurn && drawnTileIndex >= 0 && canDiscard) {
+    // Auto-discard if auto-draw mode is enabled and we have a drawn tile (or post-pon state)
+    if (autoDrawMode && isYourTurn && canDiscard) {
+      // ポン後（drawnTileIndex < 0）でも自動打牌対象
+      const autoDiscardTile = drawnTileIndex >= 0 ? fullHand[drawnTileIndex] : fullHand[fullHand.length - 1];
       setAutoDiscardTimeLeft(null); // No countdown in auto mode
       if (autoDiscardIntervalRef.current !== null) {
         clearInterval(autoDiscardIntervalRef.current);
         autoDiscardIntervalRef.current = null;
       }
-      const drawnTile = fullHand[drawnTileIndex];
-      const autoDiscardKey = drawnTile ? `${getTileId(drawnTile)}_${drawnTileIndex}` : null;
+      const autoDiscardKey = autoDiscardTile ? `${getTileId(autoDiscardTile)}_${drawnTileIndex}_${fullHand.length}` : null;
       if (autoDiscardKey && autoDiscardKeyRef.current !== autoDiscardKey) {
         if (autoDiscardTimeoutRef.current !== null) {
           clearTimeout(autoDiscardTimeoutRef.current);
         }
         autoDiscardKeyRef.current = autoDiscardKey;
         autoDiscardTimeoutRef.current = window.setTimeout(() => {
-          if (drawnTile) {
-            sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
+          if (autoDiscardTile) {
+            sendAction({ type: 'discard', tileId: getTileId(autoDiscardTile) });
           }
         }, 500); // 500ms delay for auto-discard
       }
@@ -1736,7 +1737,20 @@ export default function GamePage({
     }
 
     // Set timer if player needs to discard (N second fallback)
-    if (!autoDrawMode && canDiscard && drawnTileIndex >= 0) {
+    // ポン後（drawnTileIndex < 0）でもタイマーを発動させる
+    // リーチ中カン可能な場合はタイマーを発動しない（プレイヤーの操作を待つ）
+    const isRiichiLocal = gameState.riichi?.[userId] === true;
+    const hasRiichiAnkanPossibility = (() => {
+      if (!isRiichiLocal || drawnTileIndex < 0) return false;
+      // 手牌に4枚同種がある場合はリーチ後暗槓の可能性がある
+      const counts: Record<string, number> = {};
+      fullHand.forEach(t => {
+        const key = `${t.suit}-${t.number}`;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      return Object.values(counts).some(c => c >= 4);
+    })();
+    if (!autoDrawMode && canDiscard && !hasRiichiAnkanPossibility && (drawnTileIndex >= 0 || (isYourTurn && fullHand.length % 3 === 2 && drawnTileIndex < 0))) {
       // 一時停止後の復帰時は残り秒数から、初回は全秒数から開始
       const initialDiscard = pausedAutoDiscardTimeLeft.current ?? autoActionTimerSeconds;
       pausedAutoDiscardTimeLeft.current = null;
@@ -1753,10 +1767,10 @@ export default function GamePage({
       autoDiscardIntervalRef.current = interval;
 
       const timer = setTimeout(() => {
-        // Auto-discard the drawn tile after N seconds
-        const drawnTile = fullHand[drawnTileIndex];
-        if (drawnTile) {
-          sendAction({ type: 'discard', tileId: getTileId(drawnTile) });
+        // Auto-discard after N seconds (drawn tile or last tile after pon)
+        const discardTile = drawnTileIndex >= 0 ? fullHand[drawnTileIndex] : fullHand[fullHand.length - 1];
+        if (discardTile) {
+          sendAction({ type: 'discard', tileId: getTileId(discardTile) });
         }
         setAutoDiscardTimeLeft(null);
         autoDiscardDeadlineRef.current = null;
