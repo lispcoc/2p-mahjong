@@ -1993,6 +1993,9 @@ function handleDeleteRoom(ws) {
 function filterGameStateForTransparent(state, viewerUserId) {
   if (!state || !state.transparentHand || !state.tiles) return state;
 
+  // 和了・ゲーム終了時は全牌を公開する
+  if (state.status === 'finished' || state.status === 'gameOver') return state;
+
   const filteredTiles = {};
   for (const [pid, tileData] of Object.entries(state.tiles)) {
     if (viewerUserId && pid === viewerUserId) {
