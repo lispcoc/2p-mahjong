@@ -2161,7 +2161,7 @@ export default function GamePage({
                     {((gameState?.scores?.[effectiveUserId]) ?? 25000)?.toLocaleString()}
                   </span>
                   /
-                  <span className="text-xs text-gray-600">相手 ({displayOtherPlayer?.playerName || '---'}) : </span>
+                  <span className="text-xs text-gray-600">{isSpectator ? (displayOtherPlayer?.playerName ?? '---') : `相手 (${displayOtherPlayer?.playerName || '---'})`} : </span>
                   <span className="text-red-500">
                     {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                   </span>
@@ -2302,7 +2302,7 @@ export default function GamePage({
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-600">相手 ({displayOtherPlayer?.playerName || '---'})</div>
+                    <div className="text-xs text-gray-600">{isSpectator ? (displayOtherPlayer?.playerName ?? '---') : `相手 (${displayOtherPlayer?.playerName || '---'})`}</div>
                     <div className="text-red-500">
                       {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                     </div>
@@ -2518,11 +2518,15 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
+                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : (isTransparentHandRule && isSpectator) ? 'opacity-90' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
-                        faceDown={isSpectator && (!spectatorHandsAllowed || !spectatorShowHands)}
+                        faceDown={
+                          isTransparentHandRule && isSpectator
+                            ? !myTransparentSet.has(idx)
+                            : (isSpectator && (!spectatorHandsAllowed || !spectatorShowHands))
+                        }
                         onClick={() => {
                           // リーチ中は手牌をクリックできない
                           if (isRiichi) {

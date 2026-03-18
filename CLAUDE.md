@@ -10,7 +10,7 @@
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
 - **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約10,814行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約7,013行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約7,017行）
 - **テスト**: 20ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -107,7 +107,7 @@ npm run task:generate  # タスク生成
 | `frontend/components/GameBoard/GameInfo.tsx` | 111 |
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 49 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 41 |
-| `frontend/components/GamePage.tsx` | 3,103 |
+| `frontend/components/GamePage.tsx` | 3,107 |
 | `frontend/components/HomePage.tsx` | 1,145 |
 | `frontend/components/LoginPage.tsx` | 83 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |
