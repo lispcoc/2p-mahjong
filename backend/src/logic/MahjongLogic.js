@@ -1149,6 +1149,7 @@ class MahjongLogic {
 
     // Remove the discard from opponent's discard pile
     const discardPile = this.players[otherPlayerId].discards;
+    const discardFlagsPile = this.players[otherPlayerId].discardFlags;
     let discardIndex = -1;
     for (let i = discardPile.length - 1; i >= 0; i--) {
       if (discardPile[i].equals(lastDiscard)) {
@@ -1158,6 +1159,12 @@ class MahjongLogic {
     }
     if (discardIndex >= 0) {
       discardPile.splice(discardIndex, 1);
+      // discardFlags も同期して削除（ズレを防ぐ）
+      if (discardFlagsPile.length > discardIndex) {
+        discardFlagsPile.splice(discardIndex, 1);
+      }
+      // リーチ宣言牌が鳴かれた場合、riichiDiscardIndex はそのまま保持する。
+      // 次にこのインデックスへ捨て牌が追加されたとき、自動的に横向き表示される。
     }
 
     // ポン後、前のツモ情報をリセット（新しいツモを準備）
@@ -1453,6 +1460,7 @@ class MahjongLogic {
     // Remove the discard from opponent's discard pile
     if (otherPlayerId) {
       const discardPile = this.players[otherPlayerId].discards;
+      const discardFlagsPile = this.players[otherPlayerId].discardFlags;
       let discardIndex = -1;
       for (let i = discardPile.length - 1; i >= 0; i--) {
         if (discardPile[i].equals(lastDiscard)) {
@@ -1462,6 +1470,12 @@ class MahjongLogic {
       }
       if (discardIndex >= 0) {
         discardPile.splice(discardIndex, 1);
+        // discardFlags も同期して削除（ズレを防ぐ）
+        if (discardFlagsPile.length > discardIndex) {
+          discardFlagsPile.splice(discardIndex, 1);
+        }
+        // リーチ宣言牌が鳴かれた場合、riichiDiscardIndex はそのまま保持する。
+        // 次にこのインデックスへ捨て牌が追加されたとき、自動的に横向き表示される。
       }
     }
 
