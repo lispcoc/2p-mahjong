@@ -1086,11 +1086,12 @@ export default function HomePage({
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-gray-300 text-xs">透明牌</label>
+                <label className="text-gray-300 text-xs">透明牌(調整中)</label>
                 <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
+                      disabled={true}
                       checked={transparentHand}
                       onChange={(e) => setTransparentHand(e.target.checked)}
                       className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
