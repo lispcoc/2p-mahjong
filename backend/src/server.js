@@ -956,6 +956,12 @@ async function handleMessage(ws, data, req = null) {
     case 'shareIcon':
       handleShareIcon(ws, payload);
       break;
+    case 'cheat':
+      handleCheat(ws, payload);
+      break;
+    case 'accuseCheat':
+      handleAccuseCheat(ws);
+      break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));
   }
@@ -991,6 +997,109 @@ function handleShareIcon(ws, payload) {
       }));
     }
   });
+}
+
+// ===== イカサマアクション処理 =====
+
+/**
+ * イカサマアクションを処理する
+ */
+function handleCheat(ws, payload) {
+  const conn = connections.get(ws);
+  if (!conn) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+  const { userId, roomId, isSpectator } = conn;
+  if (isSpectator) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Spectators cannot use cheats' }));
+    return;
+  }
+  const room = rooms.get(roomId);
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  const result = room.handleCheatAction(userId, payload);
+
+  // イカサマ結果を実行者にのみ送信（相手には見せない）
+  ws.send(JSON.stringify({
+    type: 'cheatResult',
+    payload: result,
+  }));
+
+  // ゲーム状態を全員にブロードキャスト（イカサマ有効数が変わるため）
+  if (result.success) {
+    broadcastToRoom(roomId, { type: 'gameStateUpdate', payload: room.getGameState() });
+  }
+}
+
+/**
+ * イカサマ指摘を処理する
+ */
+function handleAccuseCheat(ws) {
+  const conn = connections.get(ws);
+  if (!conn) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+  const { userId, roomId, isSpectator } = conn;
+  if (isSpectator) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Spectators cannot accuse cheats' }));
+    return;
+  }
+  const room = rooms.get(roomId);
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  const result = room.handleCheatAccusation(userId);
+
+  // 指摘結果を全プレイヤーにブロードキャスト
+  broadcastToRoom(roomId, {
+    type: 'cheatAccusationResult',
+    payload: result,
+  });
+
+  // ゲームが終了した場合、gameFinished を送信
+  if (result.success && room.isFinished()) {
+    const scores = {};
+    room.players.forEach((player, uid) => {
+      scores[uid] = player.score;
+    });
+
+    const finishedPayload = {
+      scoreResult: {
+        valid: true,
+        cheatAccusation: true,
+        caught: result.caught,
+        cheatType: result.cheatType,
+        penalty: result.penalty,
+        accuserId: result.accuserId,
+        penalizedId: result.penalizedId,
+        message: result.message,
+      },
+      scores,
+      players: room.getPlayers(),
+      tiles: {},
+    };
+
+    // 手牌情報を含める
+    if (room.gameLogic) {
+      room.getPlayers().forEach((p) => {
+        try {
+          finishedPayload.tiles[p.userId] = {
+            hand: room.gameLogic.getPlayerHand(p.userId),
+            melds: room.gameLogic.getPlayerMelds(p.userId),
+          };
+        } catch (e) {}
+      });
+    }
+
+    broadcastToRoom(roomId, { type: 'gameFinished', payload: finishedPayload });
+  }
 }
 
 function handleJoin(ws, payload, req = null) {

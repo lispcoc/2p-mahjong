@@ -61,4 +61,54 @@ export interface GameState {
   hostId?: string
   rematchReadyUserIds?: string[]
   transparentHand?: boolean
+  cheating?: CheatingState | null
 }
+
+// イカサマ種類
+export type CheatType = 'peek' | 'stack' | 'swap' | 'wallSwap' | 'peekHand'
+
+// イカサマ種類の定義
+export interface CheatDefinition {
+  type: CheatType
+  name: string
+  description: string
+  icon: string
+}
+
+// イカサマ状態（サーバーから送信される）
+export interface CheatingState {
+  cheatingEnabled: boolean
+  globalTurnCount: number
+  cheatGraceTurns: Record<CheatType, number>
+  activeCheatCounts: Record<string, number>
+}
+
+// イカサマ実行結果
+export interface CheatResult {
+  success: boolean
+  message?: string
+  data?: {
+    tiles?: Tile[]
+    message?: string
+  }
+}
+
+// イカサマ指摘結果
+export interface CheatAccusationResult {
+  success: boolean
+  caught: boolean
+  message: string
+  penalty?: number
+  cheatType?: CheatType
+  accuserId?: string
+  penalizedId?: string
+}
+
+// イカサマ種類一覧
+export const CHEAT_DEFINITIONS: CheatDefinition[] = [
+  { type: 'peek', name: '覗き見', description: '壁牌の次にツモされる牌を覗く', icon: '👁️' },
+  { type: 'stack', name: '積み込み', description: '指定した牌を壁の先頭に移動', icon: '📦' },
+  { type: 'swap', name: 'すり替え', description: '手牌の牌を壁の牌と交換', icon: '🔄' },
+  { type: 'wallSwap', name: '壁操作', description: '壁内の任意2枚を入れ替え', icon: '🧱' },
+  { type: 'peekHand', name: '手牌覗き見', description: '相手の手牌を取得', icon: '🔍' },
+]

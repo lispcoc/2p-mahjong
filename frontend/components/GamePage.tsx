@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
 import { TenpaiChecker } from '../utils/TenpaiChecker'
-import { Tile, GamePageProps, GameState } from '../types/GameTypes'
+import { Tile, GamePageProps, GameState, CheatType, CheatResult, CheatAccusationResult } from '../types/GameTypes'
 import { normalizeTile, getTileId } from '../utils/TileUtils'
 import { getTileImageUrl } from '../utils/tileData'
 import { TileImage } from './TileImage'
@@ -17,6 +17,7 @@ import { FinalResultModal } from './Modals/FinalResultModal'
 import { HandEditorModal } from './Modals/HandEditorModal'
 import { MatchHistoryModal } from './Modals/MatchHistoryModal'
 import { IconPickerModal } from './Modals/IconPickerModal'
+import { CheatPanel } from './CheatPanel'
 
 // Types are now imported from '../types/GameTypes'
 
@@ -129,6 +130,11 @@ export default function GamePage({
   const [iconPanelWidth, setIconPanelWidth] = useState(0)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const playerIconRef = React.useRef<string | null>(null)
+
+  // ===== イカサマ関連のstate =====
+  const [isCheatPanelOpen, setIsCheatPanelOpen] = useState(false)
+  const [lastCheatResult, setLastCheatResult] = useState<CheatResult | null>(null)
+  const [lastAccusationResult, setLastAccusationResult] = useState<CheatAccusationResult | null>(null)
 
   useEffect(() => {
     try {
@@ -599,6 +605,9 @@ export default function GamePage({
         tilesRef.current = {}  // tiles キャッシュをリセット
         setRiichiMode(false)
         setTenpaiInfoMap({})
+        setLastCheatResult(null)
+        setLastAccusationResult(null)
+        setIsCheatPanelOpen(false)
         if (opponentResultDelayRef.current !== null) {
           clearTimeout(opponentResultDelayRef.current)
           opponentResultDelayRef.current = null
@@ -1068,6 +1077,26 @@ export default function GamePage({
         console.log('🗑️ Room deleted:', payload)
         toast('部屋が削除されました', { icon: '🗑️', duration: 4000 })
         setTimeout(() => onBackRef.current(), 1500)
+        break
+      case 'cheatResult':
+        // イカサマ結果（実行者にのみ送信される）
+        console.log('🃏 Cheat result:', payload)
+        setLastCheatResult(payload)
+        if (payload?.success) {
+          toast('イカサマ実行', { icon: '🃏', duration: 2000 })
+        } else {
+          toast.error(payload?.message || 'イカサマ失敗', { duration: 2000 })
+        }
+        break
+      case 'cheatAccusationResult':
+        // イカサマ指摘結果（全プレイヤーに送信される）
+        console.log('🚨 Cheat accusation result:', payload)
+        setLastAccusationResult(payload)
+        if (payload?.caught) {
+          toast(payload.message, { icon: '🚨', duration: 5000 })
+        } else {
+          toast(payload.message, { icon: '❌', duration: 5000 })
+        }
         break
       default:
         debugLog(`⚠️ Unknown message type: ${type}`)
@@ -2971,6 +3000,14 @@ export default function GamePage({
           >
             打牌確認: {confirmDiscardMode ? 'ON' : 'OFF'}
           </button>
+          {gameState?.cheating?.cheatingEnabled && (
+            <button
+              onClick={() => setIsCheatPanelOpen(true)}
+              className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${isCheatPanelOpen ? 'bg-yellow-500 text-black border-yellow-600' : 'bg-gray-800 text-yellow-400 border-yellow-500 hover:bg-gray-700'}`}
+            >
+              🃏
+            </button>
+          )}
           <div className="text-center bg-white rounded-lg border border-gray-300 min-w-24 min-h-8 justify-center">
             {pendingPungTimeLeft !== null && pendingPungTimeLeft > 0 ? (
               <>
@@ -3099,6 +3136,36 @@ export default function GamePage({
           activeIcon={playerIcon}
           onSelect={handleIconSelectInGame}
           onClose={() => setShowIconPicker(false)}
+        />
+      )}
+
+      {/* イカサマパネル */}
+      {gameState?.cheating?.cheatingEnabled && (
+        <CheatPanel
+          isOpen={isCheatPanelOpen}
+          onClose={() => setIsCheatPanelOpen(false)}
+          onCheat={(cheatType, params) => {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({
+                type: 'cheat',
+                payload: { cheatType, ...params },
+              }))
+            }
+          }}
+          onAccuse={() => {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'accuseCheat' }))
+            }
+          }}
+          opponentActiveCheatCount={(() => {
+            const cheating = gameState?.cheating
+            if (!cheating?.activeCheatCounts) return 0
+            const otherPlayer = gameState?.players?.find(p => p.userId !== userId)
+            return otherPlayer ? (cheating.activeCheatCounts[otherPlayer.userId] || 0) : 0
+          })()}
+          lastCheatResult={lastCheatResult}
+          lastAccusationResult={lastAccusationResult}
+          isPlaying={gameState?.status === 'playing'}
         />
       )}
     </div>

@@ -67,6 +67,19 @@ class GameRoom {
     this.cheatingEnabled = options.cheatingEnabled || false;     // イカサマ機能有効フラグ（デフォルト無効）
     this.fixedDrawOrder = options.fixedDrawOrder || false;       // ツモ順固定（壁牌シャッフル後の順序でツモ）
     this.wallSeed = options.wallSeed || null;                    // 壁牌シャッフル用シード（再現性確保）
+    // イカサマ履歴: userId -> [{ type, turnNumber, graceTurns }]
+    // 各イカサマには猶予ターン数があり、猶予内に指摘されると満貫払い
+    this.cheatHistory = new Map();
+    // イカサマ種類ごとの猶予ターン数
+    this.cheatGraceTurns = {
+      peek: 0,       // 覗き見: 即時のみ（使用ターン中に指摘）
+      stack: 2,      // 積み込み: 2ターン以内
+      swap: 2,       // すり替え: 2ターン以内
+      wallSwap: 3,   // 壁操作: 3ターン以内
+      peekHand: 1,   // 手牌覗き見: 1ターン以内
+    };
+    // グローバルターンカウンター（両プレイヤーのターンを合算）
+    this.globalTurnCount = 0;
     this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
   }
 
@@ -122,6 +135,8 @@ class GameRoom {
     this.playerOrder = [];
     this.lastResult = null;
     this.riichiDepositsCarryover = 0;
+    this.cheatHistory.clear();
+    this.globalTurnCount = 0;
     this.clearAutoReadyTimer();
     this.clearGameOverTimer();
 
@@ -480,6 +495,11 @@ class GameRoom {
 
     const result = this.gameLogic.processAction(userId, action);
 
+    // イカサマ指摘用: draw/discard アクション時にグローバルターンカウンターをインクリメント
+    if (this.cheatingEnabled && (action.type === 'draw' || action.type === 'discard')) {
+      this.incrementGlobalTurn();
+    }
+
     if (result.finished) {
       console.log(`[GameRoom.handlePlayerAction] 🏁 Game finished detected, message: "${result.message}"`);
       this.status = 'finished';
@@ -700,6 +720,7 @@ class GameRoom {
       hostId: this.hostId, // 部屋作成者のuserId
       rematchReadyUserIds: Array.from(this.rematchReady), // 再戦準備完了プレイヤー一覧
       transparentHand: this.transparentHand, // 透明手牌ルール
+      cheating: this.getCheatingGameState(), // イカサマ関連情報
     };
 
     // Send each player their own hand and public information
@@ -1545,6 +1566,257 @@ class GameRoom {
     const currentTurn = this.gameLogic.getCurrentTurn();
     const currentPlayer = this.players.get(currentTurn);
     return currentPlayer && (currentPlayer.isCPU || currentPlayer.autoPlay);
+  }
+
+  // ===== イカサマアクション処理 =====
+
+  /**
+   * グローバルターンカウンターをインクリメント
+   * 各プレイヤーがdraw/discard するたびに呼ばれる
+   */
+  incrementGlobalTurn() {
+    this.globalTurnCount++;
+  }
+
+  /**
+   * イカサマアクションを実行する
+   * @param {string} userId - イカサマを行うプレイヤーID
+   * @param {object} cheatAction - { cheatType, ... } イカサマの種類と追加パラメータ
+   * @returns {{ success: boolean, message?: string, data?: any }}
+   */
+  handleCheatAction(userId, cheatAction) {
+    if (!this.cheatingEnabled) {
+      return { success: false, message: 'イカサマ機能が無効です' };
+    }
+    if (this.status !== 'playing' || !this.gameLogic) {
+      return { success: false, message: 'ゲームが進行中ではありません' };
+    }
+    if (!this.players.has(userId)) {
+      return { success: false, message: 'プレイヤーが見つかりません' };
+    }
+
+    const { cheatType } = cheatAction;
+    const graceTurns = this.cheatGraceTurns[cheatType];
+    if (graceTurns === undefined) {
+      return { success: false, message: `不明なイカサマ種類: ${cheatType}` };
+    }
+
+    let result;
+    switch (cheatType) {
+      case 'peek': {
+        // 覗き見: 壁牌の次にツモされる牌を覗く
+        const count = cheatAction.count || 1;
+        const tiles = this.gameLogic.peekWall(count);
+        result = { success: true, data: { tiles } };
+        break;
+      }
+      case 'stack': {
+        // 積み込み: 指定した牌を壁の先頭に移動
+        // TODO: 実際のUI連携後に tileSpecs を受け取る
+        result = { success: true, data: { message: '積み込み（未実装）' } };
+        break;
+      }
+      case 'swap': {
+        // すり替え: 手牌の牌を壁の牌と交換
+        // TODO: fromSpec, toSpec を受け取る
+        result = { success: true, data: { message: 'すり替え（未実装）' } };
+        break;
+      }
+      case 'wallSwap': {
+        // 壁操作: 壁内の任意2枚を入れ替え
+        // TODO: indexA, indexB を受け取る
+        result = { success: true, data: { message: '壁操作（未実装）' } };
+        break;
+      }
+      case 'peekHand': {
+        // 手牌覗き見: 相手の手牌を取得
+        const otherUserId = this.gameLogic.getOtherPlayerId(userId);
+        if (!otherUserId) {
+          result = { success: false, message: '相手プレイヤーが見つかりません' };
+        } else {
+          const tiles = this.gameLogic.peekHand(otherUserId);
+          result = { success: true, data: { tiles } };
+        }
+        break;
+      }
+      default:
+        result = { success: false, message: `不明なイカサマ種類: ${cheatType}` };
+    }
+
+    if (result.success) {
+      // イカサマ履歴に記録
+      const record = {
+        type: cheatType,
+        turnNumber: this.globalTurnCount,
+        graceTurns: graceTurns,
+        expiresAtTurn: this.globalTurnCount + graceTurns,
+        timestamp: Date.now(),
+      };
+      if (!this.cheatHistory.has(userId)) {
+        this.cheatHistory.set(userId, []);
+      }
+      this.cheatHistory.get(userId).push(record);
+      console.log(`🃏 [Cheat] ${userId} used "${cheatType}" at turn ${this.globalTurnCount} (grace: ${graceTurns} turns)`);
+    }
+
+    return result;
+  }
+
+  /**
+   * イカサマ指摘を処理する
+   * 猶予ターン内に正しく指摘した場合、指摘者の勝利（満貫払い）
+   * @param {string} accuserId - 指摘するプレイヤーID
+   * @returns {{ success: boolean, caught: boolean, message: string, penalty?: number }}
+   */
+  handleCheatAccusation(accuserId) {
+    if (!this.cheatingEnabled) {
+      return { success: false, caught: false, message: 'イカサマ機能が無効です' };
+    }
+    if (this.status !== 'playing' || !this.gameLogic) {
+      return { success: false, caught: false, message: 'ゲームが進行中ではありません' };
+    }
+    if (!this.players.has(accuserId)) {
+      return { success: false, caught: false, message: 'プレイヤーが見つかりません' };
+    }
+
+    // 相手のイカサマ履歴を確認
+    const opponentId = this.gameLogic.getOtherPlayerId(accuserId);
+    if (!opponentId) {
+      return { success: false, caught: false, message: '相手プレイヤーが見つかりません' };
+    }
+
+    const opponentHistory = this.cheatHistory.get(opponentId) || [];
+    const currentTurn = this.globalTurnCount;
+
+    // 猶予ターン内の有効なイカサマがあるか確認
+    const validCheats = opponentHistory.filter(record => currentTurn <= record.expiresAtTurn);
+
+    if (validCheats.length > 0) {
+      // イカサマ指摘成功！満貫払い
+      const penalty = 8000; // 満貫相当
+      const caughtCheat = validCheats[0]; // 最初に見つかったイカサマ
+
+      // スコア変更
+      const accuserPlayer = this.players.get(accuserId);
+      const opponentPlayer = this.players.get(opponentId);
+      if (accuserPlayer) accuserPlayer.score += penalty;
+      if (opponentPlayer) opponentPlayer.score -= penalty;
+
+      // MahjongLogic側のスコアも更新
+      if (this.gameLogic.players[accuserId]) {
+        this.gameLogic.players[accuserId].score += penalty;
+      }
+      if (this.gameLogic.players[opponentId]) {
+        this.gameLogic.players[opponentId].score -= penalty;
+      }
+
+      // 指摘されたイカサマを履歴から削除（消費済み）
+      const idx = opponentHistory.indexOf(caughtCheat);
+      if (idx >= 0) opponentHistory.splice(idx, 1);
+
+      console.log(`🚨 [Cheat Caught!] ${accuserId} caught ${opponentId}'s "${caughtCheat.type}" cheat! Penalty: ${penalty}`);
+
+      // ゲーム終了（指摘成功で局終了）
+      this.status = 'finished';
+      this.lastResult = {
+        success: true,
+        finished: true,
+        message: `イカサマ指摘成功！${this.players.get(accuserId)?.playerName || accuserId}の勝利`,
+        cheatCaught: true,
+        cheatType: caughtCheat.type,
+        accuserId,
+        penalizedId: opponentId,
+        penalty,
+      };
+
+      return {
+        success: true,
+        caught: true,
+        message: `イカサマ「${this.getCheatTypeName(caughtCheat.type)}」を指摘しました！満貫（${penalty}点）の罰則`,
+        penalty,
+        cheatType: caughtCheat.type,
+        accuserId,
+        penalizedId: opponentId,
+      };
+    }
+
+    // 指摘失敗（相手にイカサマがないか猶予ターンが過ぎている）
+    // 誤指摘のペナルティ: 自分が満貫払い
+    const falsePenalty = 8000;
+    const accuserPlayer = this.players.get(accuserId);
+    const opponentPlayer = this.players.get(opponentId);
+    if (accuserPlayer) accuserPlayer.score -= falsePenalty;
+    if (opponentPlayer) opponentPlayer.score += falsePenalty;
+
+    if (this.gameLogic.players[accuserId]) {
+      this.gameLogic.players[accuserId].score -= falsePenalty;
+    }
+    if (this.gameLogic.players[opponentId]) {
+      this.gameLogic.players[opponentId].score += falsePenalty;
+    }
+
+    console.log(`❌ [False Accusation] ${accuserId} falsely accused ${opponentId}! Penalty: ${falsePenalty}`);
+
+    // 誤指摘でもゲーム終了
+    this.status = 'finished';
+    this.lastResult = {
+      success: true,
+      finished: true,
+      message: `イカサマ指摘失敗！${this.players.get(opponentId)?.playerName || opponentId}の勝利`,
+      falseAccusation: true,
+      accuserId,
+      penalizedId: accuserId,
+      penalty: falsePenalty,
+    };
+
+    return {
+      success: true,
+      caught: false,
+      message: `イカサマ指摘失敗！誤指摘の罰則: 満貫（${falsePenalty}点）`,
+      penalty: falsePenalty,
+      accuserId,
+      penalizedId: accuserId,
+    };
+  }
+
+  /**
+   * イカサマ種類の日本語名を返す
+   */
+  getCheatTypeName(cheatType) {
+    const names = {
+      peek: '覗き見',
+      stack: '積み込み',
+      swap: 'すり替え',
+      wallSwap: '壁操作',
+      peekHand: '手牌覗き見',
+    };
+    return names[cheatType] || cheatType;
+  }
+
+  /**
+   * 指定プレイヤーの有効なイカサマ数を取得（猶予ターン内のもの）
+   */
+  getActiveCheatCount(userId) {
+    const history = this.cheatHistory.get(userId) || [];
+    return history.filter(record => this.globalTurnCount <= record.expiresAtTurn).length;
+  }
+
+  /**
+   * getGameState に含めるイカサマ関連情報を構築
+   */
+  getCheatingGameState() {
+    if (!this.cheatingEnabled) return null;
+    const state = {
+      cheatingEnabled: true,
+      globalTurnCount: this.globalTurnCount,
+      cheatGraceTurns: this.cheatGraceTurns,
+    };
+    // 各プレイヤーの有効イカサマ数（相手から見える指摘可能回数として）
+    state.activeCheatCounts = {};
+    this.players.forEach((_, uid) => {
+      state.activeCheatCounts[uid] = this.getActiveCheatCount(uid);
+    });
+    return state;
   }
 }
 

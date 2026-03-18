@@ -83,6 +83,7 @@ export default function HomePage({
   const [dealerSelection, setDealerSelection] = useState(savedSettings?.dealerSelection ?? 'random')
   const [ronMultiplier, setRonMultiplier] = useState<number>(savedSettings?.ronMultiplier ?? 1)
   const [transparentHand, setTransparentHand] = useState(savedSettings?.transparentHand ?? false)
+  const [cheatingEnabled, setCheatingEnabled] = useState(savedSettings?.cheatingEnabled ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
@@ -401,6 +402,7 @@ export default function HomePage({
           dealerSelection: dealerSelection,
           ronMultiplier: ronMultiplier,
           transparentHand: transparentHand,
+          cheatingEnabled: cheatingEnabled,
         }),
       })
 
@@ -429,6 +431,7 @@ export default function HomePage({
           dealerSelection,
           ronMultiplier,
           transparentHand,
+          cheatingEnabled,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -461,6 +464,7 @@ export default function HomePage({
     setDealerSelection('random')
     setRonMultiplier(1)
     setTransparentHand(false)
+    setCheatingEnabled(false)
   }
 
   const handleCancelCreateRoom = () => {
@@ -1099,6 +1103,28 @@ export default function HomePage({
                     <div>・同種4牌のうち3牌は相手から透けて見えます</div>
                     <div>・赤ドラは常に透けて見えます</div>
                     <div>・相手の手牌表示は透けて見える牌が左側、通常牌が右側に並びます</div>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">イカサマ(未実装)</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cheatingEnabled}
+                      onChange={(e) => setCheatingEnabled(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">イカサマあり</span>
+                  </label>
+                </div>
+                {cheatingEnabled && (
+                  <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 rounded">
+                    <div>・両プレイヤーがイカサマを使用できます</div>
+                    <div>・覗き見 / 積み込み / すり替え / 壁操作 / 手牌覗き見</div>
+                    <div>・相手のイカサマを一定ターン以内に指摘すると満貫獲得</div>
+                    <div>・誤指摘の場合は自分が満貫支払い</div>
                   </div>
                 )}
               </div>
