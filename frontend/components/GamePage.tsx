@@ -3005,7 +3005,7 @@ export default function GamePage({
               onClick={() => setIsCheatPanelOpen(true)}
               className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${isCheatPanelOpen ? 'bg-yellow-500 text-black border-yellow-600' : 'bg-gray-800 text-yellow-400 border-yellow-500 hover:bg-gray-700'}`}
             >
-              🃏
+              イカサマ
             </button>
           )}
           <div className="text-center bg-white rounded-lg border border-gray-300 min-w-24 min-h-8 justify-center">
@@ -3163,6 +3163,10 @@ export default function GamePage({
             const otherPlayer = gameState?.players?.find(p => p.userId !== userId)
             return otherPlayer ? (cheating.activeCheatCounts[otherPlayer.userId] || 0) : 0
           })()}
+          myCheatCount={gameState?.cheating?.cheatExecutionCounts?.[userId ?? ''] ?? 0}
+          myAccusationCount={gameState?.cheating?.accusationCounts?.[userId ?? ''] ?? 0}
+          maxCheats={gameState?.cheating?.maxCheatsPerGame ?? 3}
+          maxAccusations={gameState?.cheating?.maxAccusationsPerGame ?? 3}
           lastCheatResult={lastCheatResult}
           lastAccusationResult={lastAccusationResult}
           isPlaying={gameState?.status === 'playing'}

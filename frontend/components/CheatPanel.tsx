@@ -16,8 +16,14 @@ interface CheatPanelProps {
   /** 最後の指摘結果 */
   lastAccusationResult: CheatAccusationResult | null
   /** ゲーム進行中か */
-  isPlaying: boolean
-}
+  isPlaying: boolean  /** 自分の今局イカサマ実行済み回数 */
+  myCheatCount?: number
+  /** 自分の今局指摘済み回数 */
+  myAccusationCount?: number
+  /** 1ゲームあたりのイカサマ実行上限 */
+  maxCheats?: number
+  /** 1ゲームあたりの指摘上限 */
+  maxAccusations?: number}
 
 export function CheatPanel({
   isOpen,
@@ -28,6 +34,10 @@ export function CheatPanel({
   lastCheatResult,
   lastAccusationResult,
   isPlaying,
+  myCheatCount = 0,
+  myAccusationCount = 0,
+  maxCheats = 3,
+  maxAccusations = 3,
 }: CheatPanelProps) {
   const [showResult, setShowResult] = useState(false)
 
@@ -52,7 +62,7 @@ export function CheatPanel({
         {/* ヘッダー */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-yellow-400 font-bold text-sm flex items-center gap-2">
-            🃏 イカサマ
+            イカサマ
           </h2>
           <button
             onClick={onClose}
@@ -64,24 +74,30 @@ export function CheatPanel({
 
         {/* イカサマ選択ボタン */}
         <div className="flex flex-col gap-2 mb-3">
-          {CHEAT_DEFINITIONS.map((cheat) => (
-            <button
-              key={cheat.type}
-              onClick={() => handleCheat(cheat.type)}
-              disabled={!isPlaying}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all
-                ${isPlaying
-                  ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 hover:border-yellow-500 cursor-pointer'
-                  : 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed'
-                }`}
-            >
-              <span className="text-lg">{cheat.icon}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-white text-xs font-bold">{cheat.name}</div>
-                <div className="text-gray-400 text-[10px]">{cheat.description}</div>
-              </div>
-            </button>
-          ))}
+          <div className="text-gray-500 text-[10px] text-right">
+            イカサマ実行: 残り{maxCheats - myCheatCount}回
+          </div>
+          {CHEAT_DEFINITIONS.map((cheat) => {
+            const cheatLimitReached = myCheatCount >= maxCheats
+            return (
+              <button
+                key={cheat.type}
+                onClick={() => handleCheat(cheat.type)}
+                disabled={!isPlaying || cheatLimitReached}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all
+                  ${isPlaying && !cheatLimitReached
+                    ? 'bg-gray-800 border-gray-600 hover:bg-gray-700 hover:border-yellow-500 cursor-pointer'
+                    : 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed'
+                  }`}
+              >
+                <span className="text-lg">{cheat.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-xs font-bold">{cheat.name}</div>
+                  <div className="text-gray-400 text-[10px]">{cheat.description}</div>
+                </div>
+              </button>
+            )
+          })}
         </div>
 
         {/* イカサマ結果表示 */}
@@ -93,7 +109,7 @@ export function CheatPanel({
           }`}>
             {lastCheatResult.success ? (
               <>
-                <div className="font-bold mb-1">✅ イカサマ成功</div>
+                <div className="font-bold mb-1">イカサマ成功</div>
                 {lastCheatResult.data?.tiles && lastCheatResult.data.tiles.length > 0 && (
                   <div>
                     <div className="text-gray-300 mb-1">結果:</div>
@@ -131,9 +147,9 @@ export function CheatPanel({
         {/* イカサマ指摘ボタン */}
         <button
           onClick={handleAccuse}
-          disabled={!isPlaying}
+          disabled={!isPlaying || myAccusationCount >= maxAccusations}
           className={`w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border font-bold text-sm transition-all
-            ${isPlaying
+            ${isPlaying && myAccusationCount < maxAccusations
               ? 'bg-red-900 border-red-500 text-red-200 hover:bg-red-800 cursor-pointer'
               : 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed'
             }`}
@@ -146,7 +162,7 @@ export function CheatPanel({
           )}
         </button>
         <div className="text-gray-500 text-[10px] text-center mt-1">
-          成功: 相手が満貫払い / 失敗: 自分が満貫払い
+          成功: 相手が満貫払い — 残り{maxAccusations - myAccusationCount}回
         </div>
       </div>
     </div>

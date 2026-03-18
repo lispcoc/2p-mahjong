@@ -80,6 +80,11 @@ class GameRoom {
     };
     // グローバルターンカウンター（両プレイヤーのターンを合算）
     this.globalTurnCount = 0;
+    // 1ゲームあたりの指摘・実行回数制限
+    this.maxAccusationsPerGame = 3;           // 最大イカサマ指摘回数/ゲーム
+    this.maxCheatsPerGame = 3;                // 最大イカサマ実行回数/ゲーム
+    this.accusationCounts = new Map();        // userId -> 今局の指摘回数
+    this.cheatExecutionCounts = new Map();    // userId -> 今局の実行回数
     this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
   }
 
@@ -137,6 +142,8 @@ class GameRoom {
     this.riichiDepositsCarryover = 0;
     this.cheatHistory.clear();
     this.globalTurnCount = 0;
+    this.accusationCounts.clear();
+    this.cheatExecutionCounts.clear();
     this.clearAutoReadyTimer();
     this.clearGameOverTimer();
 
@@ -1601,6 +1608,12 @@ class GameRoom {
       return { success: false, message: `不明なイカサマ種類: ${cheatType}` };
     }
 
+    // イカサマ実行回数制限チェック
+    const execCount = this.cheatExecutionCounts.get(userId) || 0;
+    if (execCount >= this.maxCheatsPerGame) {
+      return { success: false, message: `イカサマ実行回数の上限（${this.maxCheatsPerGame}回/ゲーム）に達しました` };
+    }
+
     let result;
     switch (cheatType) {
       case 'peek': {
@@ -1644,6 +1657,8 @@ class GameRoom {
     }
 
     if (result.success) {
+      // イカサマ実行回数をインクリメント
+      this.cheatExecutionCounts.set(userId, execCount + 1);
       // イカサマ履歴に記録
       const record = {
         type: cheatType,
@@ -1684,6 +1699,14 @@ class GameRoom {
     if (!opponentId) {
       return { success: false, caught: false, message: '相手プレイヤーが見つかりません' };
     }
+
+    // 指摘回数制限チェック
+    const accuseCount = this.accusationCounts.get(accuserId) || 0;
+    if (accuseCount >= this.maxAccusationsPerGame) {
+      return { success: false, caught: false, message: `指摘回数の上限（${this.maxAccusationsPerGame}回/ゲーム）に達しました` };
+    }
+    // 指摘回数をインクリメント（成否に関わらず消費）
+    this.accusationCounts.set(accuserId, accuseCount + 1);
 
     const opponentHistory = this.cheatHistory.get(opponentId) || [];
     const currentTurn = this.globalTurnCount;
@@ -1740,42 +1763,15 @@ class GameRoom {
       };
     }
 
-    // 指摘失敗（相手にイカサマがないか猶予ターンが過ぎている）
-    // 誤指摘のペナルティ: 自分が満貫払い
-    const falsePenalty = 8000;
-    const accuserPlayer = this.players.get(accuserId);
-    const opponentPlayer = this.players.get(opponentId);
-    if (accuserPlayer) accuserPlayer.score -= falsePenalty;
-    if (opponentPlayer) opponentPlayer.score += falsePenalty;
-
-    if (this.gameLogic.players[accuserId]) {
-      this.gameLogic.players[accuserId].score -= falsePenalty;
-    }
-    if (this.gameLogic.players[opponentId]) {
-      this.gameLogic.players[opponentId].score += falsePenalty;
-    }
-
-    console.log(`❌ [False Accusation] ${accuserId} falsely accused ${opponentId}! Penalty: ${falsePenalty}`);
-
-    // 誤指摘でもゲーム終了
-    this.status = 'finished';
-    this.lastResult = {
-      success: true,
-      finished: true,
-      message: `イカサマ指摘失敗！${this.players.get(opponentId)?.playerName || opponentId}の勝利`,
-      falseAccusation: true,
-      accuserId,
-      penalizedId: accuserId,
-      penalty: falsePenalty,
-    };
+    // 指摘失敗（相手にイカサマがないか猶予ターンが過ぎている）- ペナルティなし・ゲーム継続
+    const remaining = this.maxAccusationsPerGame - (this.accusationCounts.get(accuserId) || 0);
+    console.log(`❌ [False Accusation] ${accuserId} falsely accused ${opponentId}! (no penalty, ${remaining} accusations left)`);
 
     return {
       success: true,
       caught: false,
-      message: `イカサマ指摘失敗！誤指摘の罰則: 満貫（${falsePenalty}点）`,
-      penalty: falsePenalty,
+      message: `イカサマ指摘失敗（ペナルティなし）残り${remaining}回`,
       accuserId,
-      penalizedId: accuserId,
     };
   }
 
@@ -1813,8 +1809,14 @@ class GameRoom {
     };
     // 各プレイヤーの有効イカサマ数（相手から見える指摘可能回数として）
     state.activeCheatCounts = {};
+    state.accusationCounts = {};
+    state.cheatExecutionCounts = {};
+    state.maxAccusationsPerGame = this.maxAccusationsPerGame;
+    state.maxCheatsPerGame = this.maxCheatsPerGame;
     this.players.forEach((_, uid) => {
       state.activeCheatCounts[uid] = this.getActiveCheatCount(uid);
+      state.accusationCounts[uid] = this.accusationCounts.get(uid) || 0;
+      state.cheatExecutionCounts[uid] = this.cheatExecutionCounts.get(uid) || 0;
     });
     return state;
   }

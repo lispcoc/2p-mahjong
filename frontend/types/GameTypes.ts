@@ -81,6 +81,10 @@ export interface CheatingState {
   globalTurnCount: number
   cheatGraceTurns: Record<CheatType, number>
   activeCheatCounts: Record<string, number>
+  accusationCounts: Record<string, number>
+  cheatExecutionCounts: Record<string, number>
+  maxAccusationsPerGame: number
+  maxCheatsPerGame: number
 }
 
 // イカサマ実行結果
