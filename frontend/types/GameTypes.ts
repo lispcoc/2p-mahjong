@@ -3,6 +3,7 @@ export interface Tile {
   number: number
   display: string
   isRed?: boolean
+  isTransparent?: boolean
   isTsumogiri?: boolean
 }
 

@@ -19,6 +19,8 @@ class CPUBattleTest {
     this.concurrency = options.concurrency || Math.max(2, Math.floor(os.cpus().length / 2)); // 並列度（デフォルトはCPUコア数の半分）
     this.luck1 = options.luck1 !== undefined ? options.luck1 : null; // CPU-1のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
     this.luck2 = options.luck2 !== undefined ? options.luck2 : null; // CPU-2のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
+    this.transparentHand = options.transparentHand || false; // 透明手牌ルール
+    this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     this.room = null;
     this.turnCount = 0;
     this.errors = [];
@@ -97,7 +99,11 @@ class CPUBattleTest {
       this.log('========================================\n');
     }
 
-    this.room = new GameRoom('cpuBattle', { testMode: true });
+    this.room = new GameRoom('cpuBattle', {
+      testMode: true,
+      transparentHand: this.transparentHand,
+      useRedDora: this.useRedDora,
+    });
     this.turnCount = 0;
     this.errors = [];
     this.warnings = [];
@@ -185,6 +191,13 @@ class CPUBattleTest {
         this.errors.push(error);
         console.error(`❌ ${error}`);
       }
+    }
+
+    // 同種牌の枚数チェック（全プレイヤーの手牌＋副露＋捨牌＋壁牌で各種4枚以下）
+    const tileIntegrityErrors = CPUBattleTest.checkTileIntegrity(this.room, this.turnCount);
+    for (const err of tileIntegrityErrors) {
+      this.errors.push(err);
+      console.error(`❌ ${err}`);
     }
   }
 
@@ -443,6 +456,76 @@ class CPUBattleTest {
     process.stdout.write('\r' + progressStr);
   }
 
+  /**
+   * 牌の整合性チェック（静的メソッド）
+   * 全プレイヤーの手牌＋副露＋捨牌＋壁牌を集計し、各種牌が4枚以下であることを検証する。
+   * 5枚以上の同種牌が検出された場合はエラーメッセージを返す。
+   * @param {GameRoom} room - ゲームルーム
+   * @param {number} turnCount - 現在のターン数
+   * @returns {string[]} エラーメッセージの配列（問題なければ空配列）
+   */
+  static checkTileIntegrity(room, turnCount) {
+    const errors = [];
+    if (!room || !room.gameLogic) return errors;
+
+    const gl = room.gameLogic;
+    const tileCounts = {}; // "suit-number" -> count
+
+    const countTile = (tile) => {
+      if (!tile) return;
+      const key = `${tile.suit}-${tile.number}`;
+      tileCounts[key] = (tileCounts[key] || 0) + 1;
+    };
+
+    // 壁牌
+    if (gl.wall) {
+      gl.wall.forEach(countTile);
+    }
+
+    // 嶺上牌・補充用（壁牌と重複してカウントされないよう、壁からは除外済みの分だけ加算）
+    // 注: 修正後の drawFromKanningWall は wall からも削除するので、kanningWall 内の牌は壁には含まれない前提
+    // ただし修正前のコードでは重複していた可能性がある。ここでは全ソースを個別にカウントする。
+    // → 壁は上でカウント済み。kanningWall 等は壁からの参照なのでカウントしない
+    //   （壁に残っているものは壁のカウントに含まれ、pop済みのものは手牌等に含まれている）
+
+    // 各プレイヤーの手牌・副露・捨牌
+    const playerIds = gl.playerIds || [];
+    for (const pid of playerIds) {
+      const player = gl.players[pid];
+      if (!player) continue;
+
+      // 手牌
+      if (player.hand) {
+        player.hand.forEach(countTile);
+      }
+
+      // 副露
+      if (player.melds) {
+        player.melds.forEach(meld => {
+          if (Array.isArray(meld)) {
+            meld.forEach(countTile);
+          }
+        });
+      }
+
+      // 捨牌
+      if (player.discards) {
+        player.discards.forEach(countTile);
+      }
+    }
+
+    // 各種牌の枚数を検査（4枚を超えるものがあればエラー）
+    for (const [key, count] of Object.entries(tileCounts)) {
+      if (count > 4) {
+        const [suit, number] = key.split('-');
+        const suitName = { man: '萬子', pin: '筒子', sou: '索子', honor: '字牌' }[suit] || suit;
+        errors.push(`牌の重複検出: ${suitName}${number} が ${count} 枚存在 (最大4枚, Turn: ${turnCount})`);
+      }
+    }
+
+    return errors;
+  }
+
   // 単一のゲームを実行（独立した状態で実行）
   async runSingleGame(gameIndex) {
     if (!this.summaryOnly && !this.progress) {
@@ -450,7 +533,11 @@ class CPUBattleTest {
     }
 
     // 各ゲーム実行のための局所的な状態を作成
-    const localRoom = new GameRoom(`cpuBattle_${gameIndex}`, { testMode: true });
+    const localRoom = new GameRoom(`cpuBattle_${gameIndex}`, {
+      testMode: true,
+      transparentHand: this.transparentHand,
+      useRedDora: this.useRedDora,
+    });
     const localTurnCount = { value: 0 };
     const localErrors = [];
     const localWarnings = [];
@@ -503,6 +590,10 @@ class CPUBattleTest {
           localErrors.push(error);
         }
       }
+
+      // 同種牌の枚数チェック（各種4枚以下）
+      const tileIntegrityErrors = CPUBattleTest.checkTileIntegrity(localRoom, localTurnCount.value);
+      localErrors.push(...tileIntegrityErrors);
 
       // エラーが発生したら中断
       if (localErrors.length > 0) {
@@ -754,6 +845,8 @@ if (require.main === module) {
   let luck1 = null;
   let luck2 = null;
   let showHelp = false;
+  let transparentHand = false;
+  let useRedDora = false;
 
   args.forEach((arg) => {
     if (arg === '--help' || arg === '-h') {
@@ -778,6 +871,14 @@ if (require.main === module) {
     }
     if (arg === '--parallel') {
       parallel = true;
+      return;
+    }
+    if (arg === '--transparent') {
+      transparentHand = true;
+      return;
+    }
+    if (arg === '--red-dora') {
+      useRedDora = true;
       return;
     }
     if (arg.startsWith('--concurrency=')) {
@@ -825,6 +926,8 @@ CPU同士の自動対戦テスト
   --luck1=N               CPU-1のツモ運レベルを指定 (0=なし, 1=弱, 2=中, 3=強)
   --luck2=N               CPU-2のツモ運レベルを指定 (0=なし, 1=弱, 2=中, 3=強)
   --tsumo-luck=N          両プレイヤーのツモ運レベルをまとめて指定
+  --transparent           透明手牌ルールを有効にする
+  --red-dora              赤ドラを有効にする
   --help, -h              このメッセージを表示
 
 使用例:
@@ -842,6 +945,9 @@ CPU同士の自動対戦テスト
 
   並列度を指定:
     node test-cpu-battle.js 10 --progress --parallel --concurrency=8
+
+  透明手牌ルール + 赤ドラで対戦:
+    node test-cpu-battle.js 100 --transparent --red-dora --progress --parallel
 
   ログファイルに保存:
     node test-cpu-battle.js 10 output.log
@@ -863,12 +969,20 @@ CPU同士の自動対戦テスト
     concurrency: concurrency, // 並列度を指定（デフォルトはCPUコア数の半分）
     luck1: luck1, // CPU-1のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
     luck2: luck2, // CPU-2のツモ運レベル (0=なし, 1=弱, 2=中, 3=強)
+    transparentHand: transparentHand, // 透明手牌ルール
+    useRedDora: useRedDora, // 赤ドラ
     logFile: logFile, // ログファイルのパス（UTF-8で保存される）
   });
 
   // ツモ運設定をログ表示（progressモード外）
   if (!progress && (luck1 !== null || luck2 !== null)) {
     console.log(`ツモ運設定: CPU-1=Lv.${luck1 !== null ? luck1 : 0}, CPU-2=Lv.${luck2 !== null ? luck2 : 0}`);
+  }
+  if (!progress && (transparentHand || useRedDora)) {
+    const flags = [];
+    if (transparentHand) flags.push('透明手牌');
+    if (useRedDora) flags.push('赤ドラ');
+    console.log(`ルール設定: ${flags.join(', ')}`);
   }
 
   if (count > 1) {

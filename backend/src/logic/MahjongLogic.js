@@ -814,15 +814,23 @@ class MahjongLogic {
     if (typeof tileIndexInput === 'string') {
       // tileIndexInput は "suit_number" 形式（例："man_3" や "pin_5"）
       // 赤ドラの場合は "suit_number_red" 形式（例："man_5_red"）
+      // 透明牌の場合は末尾に "_transparent" が付く（例："man_3_transparent", "man_5_red_transparent"）
       const parts = tileIndexInput.split('_');
       const suit = parts[0];
       const number = parseInt(parts[1]);
-      const isRed = parts[2] === 'red';
+      const isRed = parts.includes('red');
+      const isTransparent = parts.includes('transparent');
 
-      // 手牌の中から該当する牌を探す（赤ドラの区別あり）
+      // 手牌の中から該当する牌を探す（赤ドラ・透明の区別あり）
       actualIndex = hand.findIndex(
-        t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
+        t => t.suit === suit && t.number === number && (t.isRed || false) === isRed && (t.isTransparent || false) === isTransparent
       );
+      // 透明フラグ無視で再検索（透明ルール無効時のフォールバック）
+      if (actualIndex < 0) {
+        actualIndex = hand.findIndex(
+          t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
+        );
+      }
       // 赤ドラ指定で見つからない場合、赤を無視して検索（フォールバック）
       if (actualIndex < 0) {
         actualIndex = hand.findIndex(
@@ -843,8 +851,14 @@ class MahjongLogic {
       }
 
       actualIndex = hand.findIndex(
-        t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number && (t.isRed || false) === (selectedInSortedOrder.isRed || false)
+        t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number && (t.isRed || false) === (selectedInSortedOrder.isRed || false) && (t.isTransparent || false) === (selectedInSortedOrder.isTransparent || false)
       );
+      // isTransparent 無視で再検索（フォールバック）
+      if (actualIndex < 0) {
+        actualIndex = hand.findIndex(
+          t => t.suit === selectedInSortedOrder.suit && t.number === selectedInSortedOrder.number && (t.isRed || false) === (selectedInSortedOrder.isRed || false)
+        );
+      }
       // isRedで見つからない場合のフォールバック
       if (actualIndex < 0) {
         actualIndex = hand.findIndex(
@@ -1400,20 +1414,29 @@ class MahjongLogic {
 
   /**
    * Draw a tile from the kanning wall (嶺上牌)
+   * 注意: kanningWall / kanningWallSupply の牌は this.wall からの参照であり、
+   * pop しただけでは this.wall に残ったままになる。
+   * drawTileWithLuckAdaptive の除外セットから外れて二重ツモが発生するため、
+   * this.wall からも確実に削除する。
    */
   drawFromKanningWall() {
+    let tile = null;
     if (this.kanningWall.length > 0) {
-      return this.kanningWall.pop();
-    }
-
-    // If kanning wall is empty, try to replenish from supply
-    if (this.kanningWallSupply.length > 0) {
-      return this.kanningWallSupply.pop();
-    }
-
-    // If both are empty, draw from the main wall as fallback
-    if (this.wall.length > 0) {
+      tile = this.kanningWall.pop();
+    } else if (this.kanningWallSupply.length > 0) {
+      tile = this.kanningWallSupply.pop();
+    } else if (this.wall.length > 0) {
+      // フォールバック: wall.pop() は wall から直接除去するので追加処理不要
       return this.wall.pop();
+    }
+
+    if (tile) {
+      // kanningWall / kanningWallSupply から取った牌は this.wall にも残っているので除去
+      const wallIndex = this.wall.indexOf(tile);
+      if (wallIndex !== -1) {
+        this.wall.splice(wallIndex, 1);
+      }
+      return tile;
     }
 
     console.warn('[drawFromKanningWall] No tiles available from kanning wall or main wall');
@@ -2791,16 +2814,24 @@ class MahjongLogic {
     // 牌IDから手牌を探す
     // tileIdInput は "suit_number" 形式（例："man_3" や "pin_5"）
     // 赤ドラの場合は "suit_number_red" 形式（例："man_5_red"）
+    // 透明牌の場合は末尾に "_transparent" が付く（例："man_3_transparent"）
     const hand = player.hand;
     const parts = tileIdInput.split('_');
     const suit = parts[0];
     const number = parseInt(parts[1]);
-    const isRed = parts[2] === 'red';
+    const isRed = parts.includes('red');
+    const isTransparent = parts.includes('transparent');
 
-    // 手牌の中から該当する牌を探す（赤ドラの区別あり）
+    // 手牌の中から該当する牌を探す（赤ドラ・透明の区別あり）
     let discardIndex = hand.findIndex(
-      t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
+      t => t.suit === suit && t.number === number && (t.isRed || false) === isRed && (t.isTransparent || false) === isTransparent
     );
+    // 透明フラグ無視で再検索（フォールバック）
+    if (discardIndex < 0) {
+      discardIndex = hand.findIndex(
+        t => t.suit === suit && t.number === number && (t.isRed || false) === isRed
+      );
+    }
     // フォールバック：赤を無視して検索
     if (discardIndex < 0) {
       discardIndex = hand.findIndex(

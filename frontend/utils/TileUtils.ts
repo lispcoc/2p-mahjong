@@ -52,10 +52,13 @@ export function getTileKey(tile: Tile): string {
 /**
  * 牌をサーバーに送信するためのtileId文字列を生成
  * 赤ドラの場合は "suit_number_red" 形式
+ * 透明牌の場合は末尾に "_transparent" が付く（例："man_3_transparent", "man_5_red_transparent"）
  */
 export function getTileId(tile: Tile): string {
-  const base = `${tile.suit}_${tile.number}`
-  return tile.isRed ? `${base}_red` : base
+  let id = `${tile.suit}_${tile.number}`
+  if (tile.isRed) id += '_red'
+  if (tile.isTransparent) id += '_transparent'
+  return id
 }
 
 /**
