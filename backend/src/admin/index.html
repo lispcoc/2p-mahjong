@@ -534,9 +534,9 @@
 const API = window.location.pathname.replace(/\/mjadmin\/?.*$/, '');
 
 // ── State ───────────────────────────────────────────────────────────────────
-let token = sessionStorage.getItem('admin-token') || null;
-let tokenCreatedAt = parseInt(sessionStorage.getItem('admin-token-ts') || '0');
-const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+let token = localStorage.getItem('admin-token') || null;
+let tokenCreatedAt = parseInt(localStorage.getItem('admin-token-ts') || '0');
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7日間
 
 // ── Init ────────────────────────────────────────────────────────────────────
 (async () => {
@@ -563,8 +563,8 @@ async function doLogin() {
     const res = await fetchJSON('POST', `${API}/mjadmin/api/login`, { password: pw });
     token = res.token;
     tokenCreatedAt = Date.now();
-    sessionStorage.setItem('admin-token', token);
-    sessionStorage.setItem('admin-token-ts', String(tokenCreatedAt));
+    localStorage.setItem('admin-token', token);
+    localStorage.setItem('admin-token-ts', String(tokenCreatedAt));
     showMain();
   } catch (err) {
     errEl.textContent = err.message || 'ログインに失敗しました';
@@ -576,8 +576,8 @@ async function doLogin() {
 
 async function doLogout() {
   try { await apiFetch('POST', `${API}/mjadmin/api/logout`); } catch {}
-  sessionStorage.removeItem('admin-token');
-  sessionStorage.removeItem('admin-token-ts');
+  localStorage.removeItem('admin-token');
+  localStorage.removeItem('admin-token-ts');
   token = null;
   showLogin();
 }
@@ -587,11 +587,13 @@ function showLogin() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-pw').value = '';
   document.getElementById('login-error').style.display = 'none';
-
-  document.getElementById('login-pw').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') doLogin();
-  }, { once: true });
+  setTimeout(() => document.getElementById('login-pw').focus(), 50);
 }
+
+// Enterキーログインはグローバルに一度だけ登録
+document.getElementById('login-pw').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
 
 function showMain() {
   document.getElementById('login-screen').style.display = 'none';
@@ -599,9 +601,11 @@ function showMain() {
 
   // セッション残り時間を表示
   const remaining = SESSION_TTL_MS - (Date.now() - tokenCreatedAt);
-  const hours = Math.floor(remaining / 3600000);
+  const days = Math.floor(remaining / 86400000);
+  const hours = Math.floor((remaining % 86400000) / 3600000);
   const mins = Math.floor((remaining % 3600000) / 60000);
-  document.getElementById('session-info').textContent = `セッション残り: ${hours}h${mins}m`;
+  const remainingText = days > 0 ? `${days}d${hours}h${mins}m` : `${hours}h${mins}m`;
+  document.getElementById('session-info').textContent = `セッション残り: ${remainingText}`;
 
   loadBanList();
 }
@@ -643,8 +647,8 @@ async function apiFetch(method, path, body) {
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(path, opts);
   if (res.status === 401) {
-    sessionStorage.removeItem('admin-token');
-    sessionStorage.removeItem('admin-token-ts');
+    localStorage.removeItem('admin-token');
+    localStorage.removeItem('admin-token-ts');
     token = null;
     showLogin();
     throw new Error('セッションが切れました。再ログインしてください。');
