@@ -373,17 +373,35 @@
       background: var(--bg3);
       border: 1px solid var(--border2);
       border-radius: var(--radius);
-      padding: 12px 16px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
+      overflow: hidden;
     }
 
-    .user-card-info { flex: 1; min-width: 0; }
-    .user-card-names { font-weight: 600; color: var(--text); font-size: 13px; margin-bottom: 4px; }
-    .user-card-details { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text2); margin-top: 4px; }
-    .user-card-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+    .user-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 16px 8px;
+      border-bottom: 1px solid var(--border2);
+    }
+
+    .user-card-names { font-weight: 600; color: var(--text); font-size: 13px; }
+    .user-card-meta  { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+    .user-card-table { margin: 0; }
+    .user-card-table table { border-radius: 0; }
+
+    .user-card-footer {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border2);
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+      background: var(--bg2);
+    }
+
+    .badge-yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid #4a3a10; }
 
     /* ── SCROLLBAR ── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -736,54 +754,113 @@ async function deleteBan(id) {
   if (!confirm('このBANエントリを削除しますか？')) return;
   try {
     await apiFetch('DELETE', `${API}/mjadmin/api/ban-list/${id}`);
-    await loadBanList();
+    if (currentTab === 'users') await loadUserDB();
+    else await loadBanList();
   } catch (err) {
     alert(`削除失敗: ${err.message}`);
   }
 }
 
 // ── USER DB ─────────────────────────────────────────────────────────────────
+
+// ワイルドカードパターン（* を含む）に対して値がマッチするか判定
+function wildcardMatch(pattern, value) {
+  if (!pattern || !value) return false;
+  if (pattern === value) return true;
+  if (!pattern.includes('*')) return false;
+  const re = new RegExp('^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+  return re.test(value);
+}
+
 async function loadUserDB() {
   const container = document.getElementById('user-db-container');
   container.innerHTML = '<div class="empty">読み込み中…</div>';
   try {
-    const list = await apiFetch('GET', `${API}/mjadmin/api/user-database`);
+    const [list, banList] = await Promise.all([
+      apiFetch('GET', `${API}/mjadmin/api/user-database`),
+      apiFetch('GET', `${API}/mjadmin/api/ban-list`),
+    ]);
     if (!Array.isArray(list) || list.length === 0) {
       container.innerHTML = '<div class="empty">データなし</div>';
       return;
     }
 
-    const cards = list.map((u, idx) => {
+    const cards = list.map(u => {
       const names = u.names.join(', ') || '—';
-      const ipsHtml = u.ips.map(ip => `<code>${esc(ip)}</code>`).join(' ');
-      const fpsHtml = u.fingerprints.map(fp => `<code title="${esc(fp)}">${esc(fp.slice(0,12))}…</code>`).join(' ');
-      const banBtns = [];
-      u.ips.forEach(ip => {
-        banBtns.push(`<button class="btn btn-danger btn-xs" onclick="quickBan('${esc(ip)}','','${esc(names)}')">IP BAN</button>`);
-      });
-      u.fingerprints.forEach(fp => {
-        banBtns.push(`<button class="btn btn-danger btn-xs" onclick="quickBan('','${esc(fp)}','${esc(names)}')">FP BAN</button>`);
-      });
-      if (u.ips.length > 0 && u.fingerprints.length > 0) {
-        banBtns.push(`<button class="btn btn-danger btn-xs" onclick="quickBan('${esc(u.ips[0])}','${esc(u.fingerprints[0])}','${esc(names)}')">IP+FP BAN</button>`);
-      }
+
+      // IP 行を生成
+      const ipRows = u.ips.map(ip => {
+        const ban = banList.find(b => wildcardMatch(b.ip, ip) || b.ip === ip);
+        const isBanned = !!ban;
+        const reasonTxt = ban?.reason ? `<span style="color:var(--text3);font-size:10px"> — ${esc(ban.reason)}</span>` : '';
+        const statusHtml = isBanned
+          ? `<span class="badge badge-red">BAN済</span>${reasonTxt}`
+          : `<span class="badge badge-gray">未BAN</span>`;
+        const actionHtml = isBanned
+          ? `<button class="btn btn-ghost btn-xs" onclick="deleteBan('${esc(ban.id)}')">解除</button>`
+          : `<button class="btn btn-danger btn-xs" onclick="quickBan('${esc(ip)}','','${esc(names)}')">BAN</button>`;
+        return `
+          <tr>
+            <td><span class="badge badge-yellow" style="font-size:10px">IP</span></td>
+            <td><code>${esc(ip)}</code></td>
+            <td>${statusHtml}</td>
+            <td style="text-align:right">${actionHtml}</td>
+          </tr>`;
+      }).join('');
+
+      // FP 行を生成
+      const fpRows = u.fingerprints.map(fp => {
+        const ban = banList.find(b => wildcardMatch(b.fingerprint, fp) || b.fingerprint === fp);
+        const isBanned = !!ban;
+        const reasonTxt = ban?.reason ? `<span style="color:var(--text3);font-size:10px"> — ${esc(ban.reason)}</span>` : '';
+        const statusHtml = isBanned
+          ? `<span class="badge badge-red">BAN済</span>${reasonTxt}`
+          : `<span class="badge badge-gray">未BAN</span>`;
+        const actionHtml = isBanned
+          ? `<button class="btn btn-ghost btn-xs" onclick="deleteBan('${esc(ban.id)}')">解除</button>`
+          : `<button class="btn btn-danger btn-xs" onclick="quickBan('','${esc(fp)}','${esc(names)}')">BAN</button>`;
+        return `
+          <tr>
+            <td><span class="badge badge-blue" style="font-size:10px">FP</span></td>
+            <td><code title="${esc(fp)}">${esc(fp.slice(0,16))}…</code></td>
+            <td>${statusHtml}</td>
+            <td style="text-align:right">${actionHtml}</td>
+          </tr>`;
+      }).join('');
+
+      // IP+FP まとめBANボタン（両方未BANの場合のみ表示）
+      const hasUnbannedIp = u.ips.some(ip => !banList.find(b => wildcardMatch(b.ip, ip) || b.ip === ip));
+      const hasUnbannedFp = u.fingerprints.some(fp => !banList.find(b => wildcardMatch(b.fingerprint, fp) || b.fingerprint === fp));
+      const ipFpFooter = (u.ips.length > 0 && u.fingerprints.length > 0 && hasUnbannedIp && hasUnbannedFp)
+        ? `<div class="user-card-footer">
+             <button class="btn btn-danger btn-xs" onclick="quickBan('${esc(u.ips[0])}','${esc(u.fingerprints[0])}','${esc(names)}')">IP+FP 同時BAN</button>
+           </div>`
+        : '';
 
       return `
         <div class="user-card">
-          <div class="user-card-info">
+          <div class="user-card-header">
             <div class="user-card-names">${esc(names)}</div>
-            <div class="user-card-details">
-              <span>IP: ${ipsHtml}</span>
-              ${u.fingerprints.length ? `<span>FP: ${fpsHtml}</span>` : ''}
-              <span style="color:var(--text3)">初: ${fmtDate(u.firstSeen)} / 最終: ${fmtDate(u.lastSeen)}</span>
-            </div>
+            <div class="user-card-meta">初: ${fmtDate(u.firstSeen)} / 最終: ${fmtDate(u.lastSeen)}</div>
           </div>
-          <div class="user-card-actions">${banBtns.join('')}</div>
-        </div>
-      `;
+          <div class="table-wrap user-card-table">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:46px">種別</th>
+                  <th>値</th>
+                  <th style="width:200px">BAN状態</th>
+                  <th style="width:70px"></th>
+                </tr>
+              </thead>
+              <tbody>${ipRows}${fpRows}</tbody>
+            </table>
+          </div>
+          ${ipFpFooter}
+        </div>`;
     }).join('');
 
-    container.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px;">${cards}</div>`;
+    container.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
   } catch (err) {
     container.innerHTML = `<div class="empty" style="color:var(--red)">読み込み失敗: ${esc(err.message)}</div>`;
   }
@@ -791,15 +868,14 @@ async function loadUserDB() {
 
 async function quickBan(ip, fp, names) {
   const reason = prompt(`BAN理由を入力（ユーザー名: ${names}）`, '') ?? '';
-  if (reason === null) return; // cancel
+  if (reason === null) return;
   try {
     await apiFetch('POST', `${API}/mjadmin/api/ban-list`, {
       ip: ip || null,
       fingerprint: fp || null,
       reason,
     });
-    alert(`BANしました: ${ip ? `IP=${ip}` : `FP=${fp}`}`);
-    loadUserDB();
+    await loadUserDB();
   } catch (err) {
     alert(`BAN失敗: ${err.message}`);
   }
