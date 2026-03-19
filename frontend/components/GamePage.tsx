@@ -2190,139 +2190,139 @@ export default function GamePage({
       />
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl flex-1 min-h-0 overflow-y-auto">
         {/* Header */}
-        <div className="flex justify-between items-center">
-          <div className="pl-2 text-xs text-white font-bold">
+        <div className="flex gap-2 justify-end">
+          <div className="pl-2 text-xs text-white font-bold flex flex-col items-end gap-1">
             <div className='max-sm:hidden'>
               ルームID: {roomId}<br/>
               ステータス: {gameState.status}
             </div>
-            {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
-            {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
-              <button
-                onClick={() => setSpectatorShowHands(prev => !prev)}
-                className={`ml-2 px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors ${spectatorShowHands ? 'bg-green-600 text-white' : 'bg-gray-500 text-white'}`}
-              >
-                {spectatorShowHands ? '手牌を隠す' : '手牌を見る'}
-              </button>
-            )}
-            {/* 観戦者一覧ボタン（観戦者向け） */}
-            {isSpectator && spectatorNames.length > 0 && (
-              <div ref={spectatorListRef} className="relative inline-block ml-2">
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              {isSpectator && <span className="px-2 py-1 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
+              {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
                 <button
-                  onClick={() => {
-                    setShowSpectatorList(prev => !prev)
-                    if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                      wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
-                    }
-                  }}
-                  className="px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
+                  onClick={() => setSpectatorShowHands(prev => !prev)}
+                  className={`px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors ${spectatorShowHands ? 'bg-green-600 text-white' : 'bg-gray-500 text-white'}`}
                 >
-                  観戦者 {spectatorNames.length}人
+                  {spectatorShowHands ? '手牌を隠す' : '手牌を見る'}
                 </button>
-                {showSpectatorList && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
-                    {spectatorNames.map((s) => (
-                      <div key={s.userId} className="px-3 py-1.5 text-xs border-b border-gray-700 last:border-b-0">
-                        {s.spectatorName}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            {!isSpectator && opponentDisconnected && (
-              <span className="ml-2 text-red-400 animate-pulse">通信待ち</span>
-            )}
-            {/* 観戦者一覧ボタン（プレイヤー向け） */}
-            {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
-              <div ref={spectatorListRef} className="relative inline-block ml-2">
-                <button
-                  onClick={() => {
-                    setShowSpectatorList(prev => !prev)
-                    // リスト表示時に最新の観戦者リストを取得
-                    if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                      wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
-                    }
-                  }}
-                  className="px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
-                >
-                  観戦者 {gameState.spectatorCount}人
-                </button>
-                {showSpectatorList && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
-                    {spectatorNames.length > 0 ? (
-                      spectatorNames.map((s, i) => (
+              )}
+              {/* 観戦者一覧ボタン（観戦者向け） */}
+              {isSpectator && spectatorNames.length > 0 && (
+                <div ref={spectatorListRef} className="relative">
+                  <button
+                    onClick={() => {
+                      setShowSpectatorList(prev => !prev)
+                      if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
+                      }
+                    }}
+                    className="px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
+                  >
+                    観戦者({spectatorNames.length}人)
+                  </button>
+                  {showSpectatorList && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
+                      {spectatorNames.map((s) => (
                         <div key={s.userId} className="px-3 py-1.5 text-xs border-b border-gray-700 last:border-b-0">
                           {s.spectatorName}
                         </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-1.5 text-xs text-gray-400">読み込み中...</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* 手牌を観戦者に公開ボタン（プレイヤー向け） */}
-            {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && gameState.status === 'playing' && (
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!isSpectator && opponentDisconnected && (
+                <span className="text-red-400 animate-pulse">通信待ち</span>
+              )}
+              {/* 観戦者一覧ボタン（プレイヤー向け） */}
+              {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
+                <div ref={spectatorListRef} className="relative">
+                  <button
+                    onClick={() => {
+                      setShowSpectatorList(prev => !prev)
+                      // リスト表示時に最新の観戦者リストを取得
+                      if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                        wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
+                      }
+                    }}
+                    className="px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
+                  >
+                    観戦者({gameState.spectatorCount}人)
+                  </button>
+                  {showSpectatorList && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
+                      {spectatorNames.length > 0 ? (
+                        spectatorNames.map((s, i) => (
+                          <div key={s.userId} className="px-3 py-1.5 text-xs border-b border-gray-700 last:border-b-0">
+                            {s.spectatorName}
+                          </div>
+                        ))
+                      ) : (
+                        <div className="px-3 py-1.5 text-xs text-gray-400">読み込み中...</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* 手牌を観戦者に公開ボタン（プレイヤー向け） */}
+              {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && gameState.status === 'playing' && (
+                <button
+                  onClick={() => {
+                    const newValue = !handRevealedToSpectators
+                    setHandRevealedToSpectators(newValue)
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({
+                        type: 'revealHandToSpectators',
+                        payload: { revealed: newValue },
+                      }))
+                    }
+                  }}
+                  className={`px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors ${handRevealedToSpectators ? 'bg-green-600 text-white' : 'bg-gray-500 text-white hover:bg-gray-600'}`}
+                >
+                  {handRevealedToSpectators ? '手牌公開中' : '手牌非公開'}
+                </button>
+              )}
+              {/* CPU追加ボタン（待機中のみ表示） */}
+              {gameState.status === 'waiting' && gameState.players.length < 2 && (
+                <button
+                  onClick={handleAddCPU}
+                  disabled={isAddingCPU}
+                  className={`px-2 py-1 text-[#ffffff] border-none rounded cursor-pointer font-bold text-xs transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
+                >
+                  {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
+                </button>
+              )}
+              {/* 部屋強制削除ボタン（ホストのみ表示） */}
+              {!isSpectator && userId && gameState.hostId === userId && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('部屋を削除しますか？全員がホーム画面に戻されます。')) {
+                      handleDeleteRoom()
+                    }
+                  }}
+                  disabled={isDeletingRoom}
+                  className={`px-2 py-1 text-[#ffffff] border-none rounded cursor-pointer font-bold text-xs transition-colors ${isDeletingRoom ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
+                >
+                  {isDeletingRoom ? '削除中...' : '部屋削除'}
+                </button>
+              )}
+              {/* 試合履歴ボタン */}
               <button
-                onClick={() => {
-                  const newValue = !handRevealedToSpectators
-                  setHandRevealedToSpectators(newValue)
-                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                    wsRef.current.send(JSON.stringify({
-                      type: 'revealHandToSpectators',
-                      payload: { revealed: newValue },
-                    }))
-                  }
-                }}
-                className={`ml-1 px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors ${handRevealedToSpectators ? 'bg-green-600 text-white' : 'bg-gray-500 text-white hover:bg-gray-600'}`}
+                onClick={() => setShowMatchHistory(true)}
+                className="px-2 py-1 text-[#ffffff] border-none rounded cursor-pointer font-bold text-xs transition-colors bg-indigo-600 hover:bg-indigo-700"
               >
-                {handRevealedToSpectators ? '手牌公開中' : '手牌非公開'}
+                履歴
               </button>
-            )}
-          </div>
-          <div className="flex gap-2 items-center">
-            {/* CPU追加ボタン（待機中のみ表示） */}
-            {gameState.status === 'waiting' && gameState.players.length < 2 && (
               <button
-                onClick={handleAddCPU}
-                disabled={isAddingCPU}
-                className={`px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isAddingCPU ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600'}`}
+                onClick={() => setSoundEnabled(prev => !prev)}
+                className={`px-2 py-1 text-xs font-bold border-2 rounded cursor-pointer transition-all ${soundEnabled ? 'bg-blue-600 text-[#ffffff] border-blue-700' : 'bg-white text-blue-600 border-blue-600'}`}
               >
-                {isAddingCPU ? 'CPU追加中...' : 'CPU追加'}
+                効果音: {soundEnabled ? 'ON' : 'OFF'}
               </button>
-            )}
-            {/* 部屋強制削除ボタン（ホストのみ表示） */}
-            {!isSpectator && userId && gameState.hostId === userId && (
-              <button
-                onClick={() => {
-                  if (window.confirm('部屋を削除しますか？全員がホーム画面に戻されます。')) {
-                    handleDeleteRoom()
-                  }
-                }}
-                disabled={isDeletingRoom}
-                className={`px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors ${isDeletingRoom ? 'bg-gray-400 cursor-not-allowed' : 'bg-red-500 hover:bg-red-600'}`}
-              >
-                {isDeletingRoom ? '削除中...' : '部屋削除'}
+              <button onClick={onBack} className="px-2 py-1 bg-[#1a2e0a] border-2 rounded border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
+                戻る
               </button>
-            )}
-            {/* 試合履歴ボタン */}
-            <button
-              onClick={() => setShowMatchHistory(true)}
-              className="px-1 py-2 text-[#ffffff] border-none rounded cursor-pointer font-bold text-sm transition-colors bg-indigo-600 hover:bg-indigo-700"
-            >
-              履歴
-            </button>
-            <button
-              onClick={() => setSoundEnabled(prev => !prev)}
-              className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${soundEnabled ? 'bg-blue-600 text-[#ffffff] border-blue-700' : 'bg-white text-blue-600 border-blue-600'}`}
-            >
-              効果音: {soundEnabled ? 'ON' : 'OFF'}
-            </button>
-            <button onClick={onBack} className="px-4 py-2 bg-[#1a2e0a] border-2 rounded border-white text-xs text-[#ffffff] cursor-pointer transition-colors hover:bg-[#0f1a06]">
-              戻る
-            </button>
+            </div>
           </div>
         </div>
 
