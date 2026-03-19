@@ -99,6 +99,28 @@ function validateProfileFields(body, requirePassword = true) {
   return errors;
 }
 
+// ─── IP レートリミット ────────────────────────────────────────────────────────
+const REGISTER_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24時間
+const _registeredIps = new Map(); // ip -> timestamp
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) return forwarded.split(',')[0].trim();
+  return req.socket?.remoteAddress || req.ip || 'unknown';
+}
+
+/** まだ登録できない場合は残りミリ秒を返す。登録可能なら null を返す */
+function getRegisterCooldownRemaining(ip) {
+  const last = _registeredIps.get(ip);
+  if (!last) return null;
+  const remaining = last + REGISTER_COOLDOWN_MS - Date.now();
+  return remaining > 0 ? remaining : null;
+}
+
+function markRegistered(ip) {
+  _registeredIps.set(ip, Date.now());
+}
+
 // ─── エンドポイント ──────────────────────────────────────────────────────────
 
 /**
