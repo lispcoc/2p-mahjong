@@ -63,6 +63,8 @@ export interface GameState {
   hostId?: string
   rematchReadyUserIds?: string[]
   transparentHand?: boolean
+  allowKuikae?: boolean
+  lastPonTile?: { suit: string; number: number } | null
   cheating?: CheatingState | null
 }
 

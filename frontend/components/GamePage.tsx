@@ -2002,6 +2002,15 @@ export default function GamePage({
   const lastOpponentDiscard = otherDiscards.length > 0 ? otherDiscards[otherDiscards.length - 1] : null
   const isRiichi = gameState.riichi?.[effectiveUserId] === true
   const isNoMeldMode = gameState.noMeldMode?.[effectiveUserId] === true
+
+  // 喰い替え禁止チェック: ポン直後に同種の牌は捨てられない
+  const lastPonTile = gameState.lastPonTile ?? null
+  const allowKuikae = gameState.allowKuikae ?? false
+  const isKuikaeTile = (tile: Tile) =>
+    !allowKuikae &&
+    lastPonTile !== null &&
+    tile.suit === lastPonTile.suit &&
+    tile.number === lastPonTile.number
   const canPung = isYourTurn && pendingPungFor === userId && !!lastOpponentDiscard && !isRiichi && !isNoMeldMode && fullHand.filter(
     (tile) => tile.suit === lastOpponentDiscard.suit && tile.number === lastOpponentDiscard.number
   ).length >= 2
@@ -2724,7 +2733,7 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : (isTransparentHandRule && isSpectator) ? 'opacity-90' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
+                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : isKuikaeTile(fullHand[idx]) ? 'opacity-30 grayscale' : (isTransparentHandRule && isSpectator) ? 'opacity-90' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
@@ -2741,6 +2750,10 @@ export default function GamePage({
                           if (isYourTurn && gameState.status === 'playing') {
                             // ポン・カン・ロンの選択待ち中は打牌を禁止（小牌防止）
                             if (pendingPungFor === userId || ronPossibleFor === userId) {
+                              return;
+                            }
+                            // 喰い替え禁止: ポン直後は同種の牌を捨てられない
+                            if (isKuikaeTile(fullHand[idx])) {
                               return;
                             }
                             // リーチモードONの場合、聴牌形になる牌のみクリック可能

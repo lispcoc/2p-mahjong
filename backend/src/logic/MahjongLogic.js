@@ -44,6 +44,8 @@ class MahjongLogic {
     this.riichiDeposits = 0; // 供託点（リーチ棒の合計）
     this.riichiDepositRequired = options.riichiDepositRequired !== false; // リーチ時に供託点を必要とするか（デフォルト: true）
     this.isPlayerInNoMeldMode = isPlayerInNoMeldMode || ((userId) => false); // Callback to check if player is in no-meld mode
+    this.allowKuikae = options.allowKuikae || false; // 喰い替えを許可するか（デフォルト: 禁止）
+    this.lastPonTile = null; // ポン直後の喰い替えチェック用（ポンした牌の種類）
     this.useRedDora = options.useRedDora || false; // 赤ドラを使用するか
     this.transparentHand = options.transparentHand || false; // 透明手牌ルール
     const rawWallTiles = Number(options.wallTiles);
@@ -957,6 +959,17 @@ class MahjongLogic {
       actualIndex = Math.floor(Math.random() * hand.length);
     }
 
+    // 喰い替え（直接喰い替え）チェック: ポン直後は同種の牌を捨てられない
+    if (!this.allowKuikae && this.lastPonTile !== null) {
+      const candidateTile = hand[actualIndex];
+      if (candidateTile.suit === this.lastPonTile.suit && candidateTile.number === this.lastPonTile.number) {
+        return { success: false, message: '喰い替えはできません（ポンした牌と同じ牌は捨てられません）' };
+      }
+    }
+    // ポン以外の捨て牌（ツモ後）ではlastPonTileをリセット
+    // （ポン直後の一度だけ制限がかかる）
+    this.lastPonTile = null;
+
     // ツモ切り判定: 捨てた牌がツモ牌と同一オブジェクトかどうか
     const isTsumogiri = (hand[actualIndex] === player.drawnTile);
     const tile = hand.splice(actualIndex, 1)[0];
@@ -1181,6 +1194,9 @@ class MahjongLogic {
     // ポン後、このプレイヤーは手牌が13枚のまま（ツモ待ちになる）
     // ターンをポンをした人に設定（このプレイヤーが牌を捨てることになる）
     this.currentTurnIndex = this.playerIds.indexOf(userId);
+
+    // 喰い替えチェック用: ポンした牌を記録（次の捨て牌で使用）
+    this.lastPonTile = lastDiscard;
 
     return { success: true, message: 'Pung successful' };
   }

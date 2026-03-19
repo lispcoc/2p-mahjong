@@ -63,6 +63,7 @@ class GameRoom {
     this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
     this.transparentHand = options.transparentHand || false; // 透明手牌ルール（同種3枚保有・赤ドラは透けて見える）
+    this.allowKuikae = options.allowKuikae || false; // 喰い替えを許可するか（デフォルト: 禁止）
     // ===== イカサマインフラ =====
     this.cheatingEnabled = options.cheatingEnabled || false;     // イカサマ機能有効フラグ（デフォルト無効）
     this.fixedDrawOrder = options.fixedDrawOrder || false;       // ツモ順固定（壁牌シャッフル後の順序でツモ）
@@ -402,6 +403,7 @@ class GameRoom {
         ronMultiplier: this.ronMultiplier,
         riichiDepositRequired: this.riichiDepositRequired,
         transparentHand: this.transparentHand,
+        allowKuikae: this.allowKuikae,
         // イカサマインフラ
         cheatingEnabled: this.cheatingEnabled,
         fixedDrawOrder: this.fixedDrawOrder,
@@ -754,6 +756,8 @@ class GameRoom {
       hostId: this.hostId, // 部屋作成者のuserId
       rematchReadyUserIds: Array.from(this.rematchReady), // 再戦準備完了プレイヤー一覧
       transparentHand: this.transparentHand, // 透明手牌ルール
+      allowKuikae: this.allowKuikae, // 喰い替えを許可するか
+      lastPonTile: this.gameLogic.lastPonTile ? { suit: this.gameLogic.lastPonTile.suit, number: this.gameLogic.lastPonTile.number } : null, // ポン直後の喰い替えチェック用
       cheating: this.getCheatingGameState(), // イカサマ関連情報
     };
 
@@ -1554,9 +1558,27 @@ class GameRoom {
     };
     const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];
-    const tileId = tileToDiscard.isRed ? `${tileToDiscard.suit}_${tileToDiscard.number}_red` : `${tileToDiscard.suit}_${tileToDiscard.number}`;
 
-    console.log(`🤖 CPU discarding tile: ${tileId} (index: ${discardIndex}, drawnIndex: ${drawnTileIndex})`);
+    // 喰い替え禁止チェック: CPUがポン直後に同種の牌を捨てようとした場合は別の牌を選ぶ
+    let finalDiscardIndex = discardIndex;
+    if (!this.allowKuikae && this.gameLogic.lastPonTile !== null) {
+      const ponTile = this.gameLogic.lastPonTile;
+      if (tileToDiscard.suit === ponTile.suit && tileToDiscard.number === ponTile.number) {
+        // 喰い替えになる牌以外で最初に見つかった牌を選ぶ
+        const altIndex = hand.findIndex(
+          (t) => !(t.suit === ponTile.suit && t.number === ponTile.number)
+        );
+        if (altIndex >= 0) {
+          console.log(`🤖 CPU kuikae avoided: changed discard from ${tileToDiscard.suit}${tileToDiscard.number} to ${hand[altIndex].suit}${hand[altIndex].number}`);
+          finalDiscardIndex = altIndex;
+        }
+      }
+    }
+
+    const finalTileToDiscard = hand[finalDiscardIndex];
+    const tileId = finalTileToDiscard.isRed ? `${finalTileToDiscard.suit}_${finalTileToDiscard.number}_red` : `${finalTileToDiscard.suit}_${finalTileToDiscard.number}`;
+
+    console.log(`🤖 CPU discarding tile: ${tileId} (index: ${finalDiscardIndex}, drawnIndex: ${drawnTileIndex})`);
 
     const discardResult = this.handlePlayerAction(userId, {
       type: 'discard',
