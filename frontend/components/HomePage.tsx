@@ -7,6 +7,77 @@ import { YakumanListModal } from './Modals/YakumanListModal'
 import { IconPickerModal, loadIconLibrary } from './Modals/IconPickerModal'
 import { prefetchFingerprint } from '../utils/fingerprint'
 
+interface RulePreset {
+  name: string
+  initialScore: number
+  wallTiles: number
+  gameMode: string
+  autoActionTimerSeconds: number
+  useRedDora: boolean
+  notenPenalty: boolean
+  riichiDepositRequired: boolean
+  aotenjou: boolean
+  kiriagemangan: boolean
+  dealerSelection: string
+  ronMultiplier: number
+  transparentHand: boolean
+  cheatingEnabled: boolean
+}
+
+const BASE_STANDARD_RULES: Omit<RulePreset, 'name'> = {
+  initialScore: 25000,
+  wallTiles: 44,
+  gameMode: 'oneRound',
+  autoActionTimerSeconds: 60,
+  useRedDora: true,
+  notenPenalty: false,
+  riichiDepositRequired: true,
+  aotenjou: false,
+  kiriagemangan: true,
+  dealerSelection: 'random',
+  ronMultiplier: 1,
+  transparentHand: false,
+  cheatingEnabled: false,
+}
+
+const CUSTOM_PRESETS_KEY = 'mahjong-custom-presets'
+const MAX_PRESETS = 5
+
+const createDefaultPresets = (): RulePreset[] =>
+  Array.from({ length: MAX_PRESETS }, (_, i) => ({
+    ...BASE_STANDARD_RULES,
+    name: `カスタム${i + 1}`,
+  }))
+
+const loadPresetsFromStorage = (): RulePreset[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_PRESETS_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed)) {
+        const presets = parsed.slice(0, MAX_PRESETS).map((p: Partial<RulePreset>, i: number) => ({
+          ...BASE_STANDARD_RULES,
+          name: `カスタム${i + 1}`,
+          ...p,
+        }))
+        while (presets.length < MAX_PRESETS) {
+          presets.push({ ...BASE_STANDARD_RULES, name: `カスタム${presets.length + 1}` })
+        }
+        return presets
+      }
+    }
+  } catch {}
+  return createDefaultPresets()
+}
+
+const savePresetsToStorage = (presets: RulePreset[]) => {
+  try {
+    localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(presets))
+  } catch (e) {
+    console.error('Failed to save custom presets:', e)
+  }
+}
+
 interface HomePageProps {
   playerName: string
   onCreateRoom: (roomId: string) => Promise<void>
@@ -86,12 +157,16 @@ export default function HomePage({
   const [cheatingEnabled, setCheatingEnabled] = useState(savedSettings?.cheatingEnabled ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
+  const [isCustomPresetsOpen, setIsCustomPresetsOpen] = useState(false)
   const [isYakuModalOpen, setIsYakuModalOpen] = useState(false)
   const [isYakumanModalOpen, setIsYakumanModalOpen] = useState(false)
   const SHOW_OPPONENT_ICON_KEY = 'mahjong-show-opponent-icon'
   const [playerIcon, setPlayerIcon] = useState<string | null>(null)
   const [showOpponentIcon, setShowOpponentIcon] = useState(true)
   const [showIconPicker, setShowIconPicker] = useState(false)
+  const [customPresets, setCustomPresets] = useState<RulePreset[]>(createDefaultPresets)
+  const [editingPresetIndex, setEditingPresetIndex] = useState<number | null>(null)
+  const [presetName, setPresetName] = useState('')
 
   // ホームページ表示時にフィンガープリントをバックグラウンドで事前生成する
   // WebSocket接続より先に取得しておくことで、join時に即座に送信できる
@@ -118,6 +193,11 @@ export default function HomePage({
       return next
     })
   }
+
+  // カスタムプリセットをlocalStorageから読み込み
+  useEffect(() => {
+    setCustomPresets(loadPresetsFromStorage())
+  }, [])
 
   const handleIconSelect = (icon: string | null) => {
     setPlayerIcon(icon)
@@ -164,6 +244,7 @@ export default function HomePage({
 
   const handleOpenCustomCreate = () => {
     setIsCreateMenuOpen(false)
+    setEditingPresetIndex(null)
     setIsRuleModalOpen(true)
   }
 
@@ -450,25 +531,123 @@ export default function HomePage({
   }
 
   const handleResetToDefaults = () => {
-    setInitialScore(defaultInitialScore)
-    setWallTiles(defaultWallTiles)
-    setGameMode('oneRound')
-    setMyTsumoLuck(0)
-    setOpponentTsumoLuck(0)
-    setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
-    setUseRedDora(true)
-    setNotenPenalty(false)
-    setRiichiDepositRequired(true)
-    setAotenjou(false)
-    setKiriagemangan(true)
-    setDealerSelection('random')
-    setRonMultiplier(1)
-    setTransparentHand(false)
-    setCheatingEnabled(false)
+    if (editingPresetIndex !== null) {
+      setPresetName(`カスタム${editingPresetIndex + 1}`)
+      setInitialScore(BASE_STANDARD_RULES.initialScore)
+      setWallTiles(BASE_STANDARD_RULES.wallTiles)
+      setGameMode(BASE_STANDARD_RULES.gameMode)
+      setAutoActionTimerSeconds(BASE_STANDARD_RULES.autoActionTimerSeconds)
+      setUseRedDora(BASE_STANDARD_RULES.useRedDora)
+      setNotenPenalty(BASE_STANDARD_RULES.notenPenalty)
+      setRiichiDepositRequired(BASE_STANDARD_RULES.riichiDepositRequired)
+      setAotenjou(BASE_STANDARD_RULES.aotenjou)
+      setKiriagemangan(BASE_STANDARD_RULES.kiriagemangan)
+      setDealerSelection(BASE_STANDARD_RULES.dealerSelection)
+      setRonMultiplier(BASE_STANDARD_RULES.ronMultiplier)
+      setTransparentHand(BASE_STANDARD_RULES.transparentHand)
+      setCheatingEnabled(BASE_STANDARD_RULES.cheatingEnabled)
+    } else {
+      setInitialScore(defaultInitialScore)
+      setWallTiles(defaultWallTiles)
+      setGameMode('oneRound')
+      setMyTsumoLuck(0)
+      setOpponentTsumoLuck(0)
+      setAutoActionTimerSeconds(defaultAutoActionTimerSeconds)
+      setUseRedDora(true)
+      setNotenPenalty(false)
+      setRiichiDepositRequired(true)
+      setAotenjou(false)
+      setKiriagemangan(true)
+      setDealerSelection('random')
+      setRonMultiplier(1)
+      setTransparentHand(false)
+      setCheatingEnabled(false)
+    }
   }
 
   const handleCancelCreateRoom = () => {
     setIsRuleModalOpen(false)
+    if (editingPresetIndex !== null) {
+      setEditingPresetIndex(null)
+      setIsCustomPresetsOpen(true)
+    } else {
+      setEditingPresetIndex(null)
+    }
+  }
+
+  const handleEditPreset = (index: number) => {
+    const preset = customPresets[index]
+    setEditingPresetIndex(index)
+    setPresetName(preset.name)
+    setInitialScore(preset.initialScore)
+    setWallTiles(preset.wallTiles)
+    setGameMode(preset.gameMode)
+    setAutoActionTimerSeconds(preset.autoActionTimerSeconds)
+    setUseRedDora(preset.useRedDora)
+    setNotenPenalty(preset.notenPenalty)
+    setRiichiDepositRequired(preset.riichiDepositRequired)
+    setAotenjou(preset.aotenjou)
+    setKiriagemangan(preset.kiriagemangan)
+    setDealerSelection(preset.dealerSelection)
+    setRonMultiplier(preset.ronMultiplier)
+    setTransparentHand(preset.transparentHand)
+    setCheatingEnabled(preset.cheatingEnabled)
+    setError('')
+    setIsRuleModalOpen(true)
+  }
+
+  const handleSavePreset = () => {
+    if (editingPresetIndex === null) return
+    const updatedPresets = [...customPresets]
+    updatedPresets[editingPresetIndex] = {
+      name: presetName.trim() || `カスタム${editingPresetIndex + 1}`,
+      initialScore: sanitizeInitialScore(initialScore),
+      wallTiles: clampWallTiles(wallTiles),
+      gameMode,
+      autoActionTimerSeconds: clampAutoActionTimerSeconds(autoActionTimerSeconds),
+      useRedDora,
+      notenPenalty,
+      riichiDepositRequired,
+      aotenjou,
+      kiriagemangan,
+      dealerSelection,
+      ronMultiplier,
+      transparentHand,
+      cheatingEnabled,
+    }
+    setCustomPresets(updatedPresets)
+    savePresetsToStorage(updatedPresets)
+    setIsRuleModalOpen(false)
+    setEditingPresetIndex(null)
+    setIsCustomPresetsOpen(true)
+  }
+
+  const handleCreateFromPreset = async (index: number) => {
+    const preset = customPresets[index]
+    setIsCreating(true)
+    setError('')
+    try {
+      const { name: _name, ...ruleSettings } = preset
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...ruleSettings,
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      await onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const handleJoinRoom = async (e: React.FormEvent) => {
@@ -626,15 +805,22 @@ export default function HomePage({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <h2 className="text-lg text-[#ffffff] m-0 font-bold">新しい部屋を作成</h2>
-            <p className="text-gray-300 text-sm m-0">
-              ランダムに生成されたルームIDで新しい部屋を作成できます
-            </p>
             <button
               onClick={handleOpenCreateRoomModal}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70 w-full"
             >
-              {isCreating ? '作成中...' : '部屋を作成'}
+              {isCreating ? '作成中...' : '基本ルールで部屋を作成'}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <button
+              onClick={() => setIsCustomPresetsOpen(true)}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70 w-full"
+            >
+              カスタムルールで部屋を作成
             </button>
           </div>
 
@@ -737,6 +923,46 @@ export default function HomePage({
         />
       )}
 
+      {isCustomPresetsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
+          <div className="w-full max-w-md border-2 border-white bg-[#2d5016] p-6 shadow-2xl flex flex-col gap-3 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-white m-0 mb-2">カスタムルールで部屋を作成</h3>
+            {customPresets.map((preset, index) => (
+              <div key={index} className="flex gap-2">
+                <button
+                  onClick={() => { setIsCustomPresetsOpen(false); handleCreateFromPreset(index) }}
+                  disabled={isCreating}
+                  className="flex-1 px-3 py-2 border-2 border-white text-sm font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70 truncate text-left"
+                  title={preset.name}
+                >
+                  <div className="truncate">{preset.name}</div>
+                  <div className="text-xs text-gray-300 font-normal truncate">
+                    {preset.gameMode === 'oneRound' ? '一局' : preset.gameMode === 'easternsouthern' ? '東南' : 'エンドレス'}
+                    ・{preset.autoActionTimerSeconds}秒
+                    {preset.useRedDora ? '・赤ドラ' : ''}
+                    {preset.notenPenalty ? '・罰符あり' : ''}
+                    {!preset.riichiDepositRequired ? '・供託なし' : ''}
+                    {preset.aotenjou ? '・青天井' : ''}
+                  </div>
+                </button>
+                <button
+                  onClick={() => { setIsCustomPresetsOpen(false); handleEditPreset(index) }}
+                  className="px-3 py-2 border-2 border-white text-sm font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] flex-shrink-0"
+                >
+                  編集
+                </button>
+              </div>
+            ))}
+            <button
+              onClick={() => setIsCustomPresetsOpen(false)}
+              className="px-6 py-2 border-2 border-gray-400 text-sm font-bold cursor-pointer transition-all bg-transparent text-gray-300 hover:bg-[#1a2e0a] hover:text-white mt-2"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      )}
+
       {isCreateMenuOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
           <div className="w-full max-w-xs border-2 border-white bg-[#2d5016] p-6 shadow-2xl flex flex-col gap-3">
@@ -787,10 +1013,28 @@ export default function HomePage({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2">
           <div className="w-full max-w-xl border-2 border-white bg-[#2d5016] p-2 shadow-2xl max-h-[80vh] overflow-y-auto">
             <div className="mb-5 border-b-2 border-gray-300 pb-3">
-              <h3 className="text-xl font-bold text-white m-0">ルール設定</h3>
+              <h3 className="text-xl font-bold text-white m-0">
+                {editingPresetIndex !== null ? 'プリセット編集' : 'ルール設定'}
+              </h3>
             </div>
 
             <div className="flex flex-col gap-4">
+              {editingPresetIndex !== null && (
+                <div className="flex flex-col gap-1">
+                  <label className="text-gray-300 text-xs" htmlFor="presetNameModal">
+                    ルール名
+                  </label>
+                  <input
+                    id="presetNameModal"
+                    type="text"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder={`カスタム${editingPresetIndex + 1}`}
+                    maxLength={20}
+                    className="px-4 py-3 border-2 border-white text-base bg-white transition-colors focus:outline-none focus:border-[#1a2e0a]"
+                  />
+                </div>
+              )}
               <div className="flex flex-col gap-1">
                 <label className="text-gray-300 text-xs" htmlFor="initialScoreModal">
                   初期持ち点
@@ -1140,11 +1384,11 @@ export default function HomePage({
             <div className="mt-6 flex flex-col gap-3">
               <div className="flex gap-3">
                 <button
-                  onClick={handleConfirmCreateRoom}
+                  onClick={editingPresetIndex !== null ? handleSavePreset : handleConfirmCreateRoom}
                   disabled={isCreating}
                   className="flex-1 px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
                 >
-                  {isCreating ? '作成中...' : 'OK'}
+                  {editingPresetIndex !== null ? '保存' : isCreating ? '作成中...' : 'OK'}
                 </button>
                 <button
                   onClick={handleCancelCreateRoom}
@@ -1159,7 +1403,7 @@ export default function HomePage({
                 disabled={isCreating}
                 className="w-full px-6 py-2 border-2 border-gray-400 text-sm cursor-pointer transition-all bg-transparent text-gray-300 hover:bg-[#1a2e0a] hover:text-white disabled:opacity-70"
               >
-                デフォルト設定に戻す
+                {editingPresetIndex !== null ? '基本ルールに戻す' : 'デフォルト設定に戻す'}
               </button>
             </div>
           </div>
