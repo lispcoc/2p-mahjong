@@ -956,6 +956,12 @@ async function handleMessage(ws, data, req = null) {
     case 'shareIcon':
       handleShareIcon(ws, payload);
       break;
+    case 'revealHandToSpectators':
+      handleRevealHandToSpectators(ws, payload);
+      break;
+    case 'requestSpectatorList':
+      handleRequestSpectatorList(ws);
+      break;
     case 'cheat':
       handleCheat(ws, payload);
       break;
@@ -997,6 +1003,52 @@ function handleShareIcon(ws, payload) {
       }));
     }
   });
+}
+
+// ===== 観戦者への手牌公開処理 =====
+
+function handleRevealHandToSpectators(ws, payload) {
+  const conn = connections.get(ws);
+  if (!conn) return;
+  const { userId, roomId, isSpectator } = conn;
+  if (isSpectator) return; // 観戦者自身はこの操作を行えない
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  const revealed = !!payload?.revealed;
+  room.setHandRevealedToSpectators(userId, revealed);
+
+  // 観戦者全員に通知（対戦相手には送信しない）
+  const playerName = conn.playerName;
+  room.spectators.forEach((spectator) => {
+    if (spectator.ws && spectator.ws.readyState === 1) {
+      spectator.ws.send(JSON.stringify({
+        type: 'spectatorHandRevealed',
+        payload: {
+          userId,
+          playerName,
+          revealed,
+          handRevealedMap: room.getHandRevealedMap(),
+        },
+      }));
+    }
+  });
+}
+
+function handleRequestSpectatorList(ws) {
+  const conn = connections.get(ws);
+  if (!conn) return;
+  const { roomId } = conn;
+  const room = rooms.get(roomId);
+  if (!room) return;
+
+  ws.send(JSON.stringify({
+    type: 'spectatorListUpdate',
+    payload: {
+      spectators: room.getSpectators(),
+      spectatorCount: room.getSpectatorCount(),
+    },
+  }));
 }
 
 // ===== イカサマアクション処理 =====
@@ -1266,6 +1318,8 @@ function handleJoin(ws, payload, req = null) {
     gameState: filteredGameState,
     isReconnecting,
     hostId: room.getHostId(),
+    spectators: room.getSpectators(),
+    spectatorCount: room.getSpectatorCount(),
   };
 
   console.log('Sending joined message:', JSON.stringify(joinedPayload, null, 2));
@@ -1399,6 +1453,7 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
     lastFinishedPayload,
     playerIcons: playerIconsData,
+    handRevealedMap: room.getHandRevealedMap(),
   };
 
   try {

@@ -86,6 +86,7 @@ class GameRoom {
     this.accusationCounts = new Map();        // userId -> 今局の指摘回数
     this.cheatExecutionCounts = new Map();    // userId -> 今局の実行回数
     this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
+    this.handRevealedToSpectators = new Map(); // userId -> boolean (プレイヤーが観戦者に手牌を公開しているか)
   }
 
   setPlayerIcon(userId, iconData) {
@@ -103,6 +104,22 @@ class GameRoom {
       if (id !== userId) return icon;
     }
     return null;
+  }
+
+  setHandRevealedToSpectators(userId, revealed) {
+    this.handRevealedToSpectators.set(userId, !!revealed);
+  }
+
+  getHandRevealedToSpectators(userId) {
+    return this.handRevealedToSpectators.get(userId) || false;
+  }
+
+  getHandRevealedMap() {
+    const result = {};
+    this.handRevealedToSpectators.forEach((revealed, uid) => {
+      result[uid] = revealed;
+    });
+    return result;
   }
 
   // dealerSelection に基づいて dealerIndex を決定

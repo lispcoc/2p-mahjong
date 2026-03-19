@@ -115,6 +115,11 @@ export default function GamePage({
   const [spectatorHandsAllowed, setSpectatorHandsAllowed] = useState(false) // サーバー設定: 観戦時に手牌表示を許可するか
   const [myTsumoLuck, setMyTsumoLuck] = useState(0) // 自分のツモ運レベル
   const [opponentTsumoLuck, setOpponentTsumoLuck] = useState(0) // 相手のツモ運レベル
+  const [spectatorNames, setSpectatorNames] = useState<Array<{ userId: string; spectatorName: string }>>([]) // 観戦者名一覧
+  const [showSpectatorList, setShowSpectatorList] = useState(false) // 観戦者一覧の表示フラグ
+  const [handRevealedToSpectators, setHandRevealedToSpectators] = useState(false) // 自分の手牌を観戦者に公開中か
+  const [handRevealedMap, setHandRevealedMap] = useState<Record<string, boolean>>({}) // プレイヤーごとの手牌公開状態（観戦者が参照）
+  const spectatorListRef = useRef<HTMLDivElement>(null) // 観戦者一覧ドロップダウン用ref
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
   const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
   const [rematchRequested, setRematchRequested] = useState(false) // 再戦準備OK送信済み（自分）
@@ -246,6 +251,18 @@ export default function GamePage({
       tilesRef.current = gameState.tiles
     }
   }, [gameState?.tiles])
+
+  // 観戦者一覧ドロップダウンの外側クリックで閉じる
+  useEffect(() => {
+    if (!showSpectatorList) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (spectatorListRef.current && !spectatorListRef.current.contains(e.target as Node)) {
+        setShowSpectatorList(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showSpectatorList])
 
   // 打牌確認モードを localStorage から読み込む（部屋設定とは独立）
   useEffect(() => {
@@ -501,6 +518,10 @@ export default function GamePage({
             { duration: 3000 }
           )
         }
+        // 観戦者リストを復元
+        if (payload.spectators) {
+          setSpectatorNames(payload.spectators)
+        }
         break
       case 'spectatorJoined':
         debugLog(`👀 Joined as spectator userId=${payload.userId}`)
@@ -542,6 +563,14 @@ export default function GamePage({
 
         toast.success(`観戦モードで参加しました`, { duration: 3000 })
 
+        // 観戦者名リストと手牌公開マップを復元
+        if (payload.spectators) {
+          setSpectatorNames(payload.spectators)
+        }
+        if (payload.handRevealedMap) {
+          setHandRevealedMap(payload.handRevealedMap)
+        }
+
         // 局間に参加した場合は前の局の結果を表示する
         if (payload.lastFinishedPayload) {
           const lf = payload.lastFinishedPayload
@@ -566,11 +595,28 @@ export default function GamePage({
       case 'spectatorJoinedNotify':
         debugLog(`👀 A spectator joined: ${payload.spectatorName}`)
         setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
+        if (payload.spectators) {
+          setSpectatorNames(payload.spectators)
+        }
         toast(`👀 ${payload.spectatorName}が観戦中`, { duration: 2000 })
         break
       case 'spectatorLeft':
         debugLog(`👀 A spectator left: ${payload.spectatorName}`)
         setGameState((prev) => prev ? { ...prev, spectatorCount: payload.spectatorCount } : prev)
+        if (payload.spectators) {
+          setSpectatorNames(payload.spectators)
+        }
+        break
+      case 'spectatorHandRevealed':
+        debugLog(`👀 Hand reveal update: ${payload.playerName} revealed=${payload.revealed}`)
+        if (payload.handRevealedMap) {
+          setHandRevealedMap(payload.handRevealedMap)
+        }
+        break
+      case 'spectatorListUpdate':
+        if (payload.spectators) {
+          setSpectatorNames(payload.spectators)
+        }
         break
       case 'playerJoined':
         debugLog(`✅ Another player joined`)
@@ -2159,11 +2205,81 @@ export default function GamePage({
                 {spectatorShowHands ? '手牌を隠す' : '手牌を見る'}
               </button>
             )}
+            {/* 観戦者一覧ボタン（観戦者向け） */}
+            {isSpectator && spectatorNames.length > 0 && (
+              <div ref={spectatorListRef} className="relative inline-block ml-2">
+                <button
+                  onClick={() => {
+                    setShowSpectatorList(prev => !prev)
+                    if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
+                    }
+                  }}
+                  className="px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
+                >
+                  観戦者 {spectatorNames.length}人
+                </button>
+                {showSpectatorList && (
+                  <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
+                    {spectatorNames.map((s) => (
+                      <div key={s.userId} className="px-3 py-1.5 text-xs border-b border-gray-700 last:border-b-0">
+                        {s.spectatorName}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {!isSpectator && opponentDisconnected && (
               <span className="ml-2 text-red-400 animate-pulse">通信待ち</span>
             )}
+            {/* 観戦者一覧ボタン（プレイヤー向け） */}
             {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
-              <span className="ml-2 text-yellow-300">見学中: {gameState.spectatorCount}人</span>
+              <div ref={spectatorListRef} className="relative inline-block ml-2">
+                <button
+                  onClick={() => {
+                    setShowSpectatorList(prev => !prev)
+                    // リスト表示時に最新の観戦者リストを取得
+                    if (!showSpectatorList && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      wsRef.current.send(JSON.stringify({ type: 'requestSpectatorList' }))
+                    }
+                  }}
+                  className="px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors bg-yellow-600 text-white hover:bg-yellow-700"
+                >
+                  観戦者 {gameState.spectatorCount}人
+                </button>
+                {showSpectatorList && (
+                  <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 text-white rounded shadow-lg border border-gray-600 min-w-[140px] max-h-48 overflow-y-auto">
+                    {spectatorNames.length > 0 ? (
+                      spectatorNames.map((s, i) => (
+                        <div key={s.userId} className="px-3 py-1.5 text-xs border-b border-gray-700 last:border-b-0">
+                          {s.spectatorName}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-1.5 text-xs text-gray-400">読み込み中...</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* 手牌を観戦者に公開ボタン（プレイヤー向け） */}
+            {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && gameState.status === 'playing' && (
+              <button
+                onClick={() => {
+                  const newValue = !handRevealedToSpectators
+                  setHandRevealedToSpectators(newValue)
+                  if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(JSON.stringify({
+                      type: 'revealHandToSpectators',
+                      payload: { revealed: newValue },
+                    }))
+                  }
+                }}
+                className={`ml-1 px-2 py-0.5 text-xs font-bold rounded border-none cursor-pointer transition-colors ${handRevealedToSpectators ? 'bg-green-600 text-white' : 'bg-gray-500 text-white hover:bg-gray-600'}`}
+              >
+                {handRevealedToSpectators ? '手牌公開中' : '手牌非公開'}
+              </button>
             )}
           </div>
           <div className="flex gap-2 items-center">
@@ -2277,7 +2393,9 @@ export default function GamePage({
                           faceDown={
                             isTransparentHandRule
                               ? !isTransparent
-                              : (isSpectator ? (!spectatorHandsAllowed || !spectatorShowHands) : (!showOpponentHand || !displayOtherPlayer?.isCPU))
+                              : (isSpectator
+                                ? (!(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[otherUserId ?? ''])
+                                : (!showOpponentHand || !displayOtherPlayer?.isCPU))
                           }
                         />
                       </div>
@@ -2381,13 +2499,13 @@ export default function GamePage({
                 <div className="text-xs text-gray-500 mb-1">得点</div>
                 <div className="text-sm font-bold flex justify-around gap-4">
                   <div>
-                    <div className="text-xs text-gray-600">{isSpectator ? (gameState.players?.find(p => p.userId === effectiveUserId)?.playerName ?? 'P1') : `あなた (${playerName})`}</div>
+                    <div className="text-xs text-gray-600">{isSpectator ? (gameState.players?.find(p => p.userId === effectiveUserId)?.playerName ?? 'P1') : `あなた (${playerName})`}{isSpectator && handRevealedMap[effectiveUserId] && ' 👁️'}</div>
                     <div className="text-green-600">
                       {((gameState?.scores?.[effectiveUserId]) ?? 25000)?.toLocaleString()}
                     </div>
                   </div>
                   <div>
-                    <div className="text-xs text-gray-600">{isSpectator ? (displayOtherPlayer?.playerName ?? '---') : `相手 (${displayOtherPlayer?.playerName || '---'})`}</div>
+                    <div className="text-xs text-gray-600">{isSpectator ? (displayOtherPlayer?.playerName ?? '---') : `相手 (${displayOtherPlayer?.playerName || '---'})`}{isSpectator && handRevealedMap[otherUserId ?? ''] && ' 👁️'}</div>
                     <div className="text-red-500">
                       {otherUserId ? ((gameState?.scores?.[otherUserId]) ?? 25000)?.toLocaleString() : '---'}
                     </div>
@@ -2613,7 +2731,7 @@ export default function GamePage({
                         faceDown={
                           isTransparentHandRule && isSpectator
                             ? !myTransparentSet.has(idx)
-                            : (isSpectator && (!spectatorHandsAllowed || !spectatorShowHands))
+                            : (isSpectator && !(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[effectiveUserId])
                         }
                         onClick={() => {
                           // リーチ中は手牌をクリックできない

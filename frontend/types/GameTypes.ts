@@ -58,6 +58,8 @@ export interface GameState {
   spectatorCount?: number
   isSpectatorView?: boolean
   spectatorShowHandsByDefault?: boolean
+  spectatorNames?: Array<{ userId: string; spectatorName: string }>
+  handRevealedToSpectators?: Record<string, boolean>
   hostId?: string
   rematchReadyUserIds?: string[]
   transparentHand?: boolean
