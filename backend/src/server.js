@@ -9,6 +9,7 @@ const { v4: uuidv4 } = require('uuid');
 const GameRoom = require('./logic/GameRoom');
 const settings = require('./settings');
 const { generateBattleId, saveBattleLog, readBattleLogs, listAvailableMonths, updateIPDatabase } = require('./BattleLogger');
+const profileRouter = require('./profiles/ProfileRouter');
 
 // アクティブな対戦ログ情報を管理
 // roomId -> { battleId, startTime, playerIPs: Map<userId, ip>, playerFingerprints: Map<userId, fingerprint> }
@@ -86,11 +87,18 @@ app.use(cors());
 app.use(express.json());
 
 // ─────────────────────────────────────────────────────────────────────────────
+// プロフィール名簿 API  (/api/profiles)
+// ─────────────────────────────────────────────────────────────────────────────
+app.use('/api/profiles', profileRouter);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 管理者認証 (Admin Authentication)
 // ─────────────────────────────────────────────────────────────────────────────
 const ADMIN_CONFIG_FILE = path.join(process.cwd(), 'admin-config.json');
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000; // 8時間
 const adminSessions = new Map(); // token -> { createdAt }
+// プロフィールルーターに管理者セッション情報を共有
+profileRouter.setAdminSessionsRef(adminSessions, ADMIN_SESSION_TTL_MS);
 
 function loadAdminConfig() {
   try {
