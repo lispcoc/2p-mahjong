@@ -87,10 +87,10 @@ export default function GamePage({
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null)
   const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null) // 打牌確認モード: 選択中の牌
   const [confirmDiscardMode, setConfirmDiscardMode] = useState(false) // 打牌確認モード（2タップ打牌）
-  const [tenpaiInfo, setTenpaiInfo] = useState<{ isTenpai: boolean; winningTiles: any[] } | null>(null)
+  const [tenpaiInfo, setTenpaiInfo] = useState<{ isTenpai: boolean; winningTiles: any[]; isFuriten?: boolean } | null>(null)
   const [scoreResult, setScoreResult] = useState<any>(null)
   const [riichiMode, setRiichiMode] = useState(false)
-  const [tenpaiInfoMap, setTenpaiInfoMap] = useState<Record<number, { isTenpai: boolean; winningTiles: any[] }>>({})
+  const [tenpaiInfoMap, setTenpaiInfoMap] = useState<Record<number, { isTenpai: boolean; winningTiles: any[]; isFuriten?: boolean }>>({})
   const [nextRoundReady, setNextRoundReady] = useState(false)
   const [finalResults, setFinalResults] = useState<any[] | null>(null)
   const [tenpaiStatus, setTenpaiStatus] = useState<Record<string, boolean> | null>(null) // 流局時の聴牌状態
@@ -1397,23 +1397,29 @@ export default function GamePage({
     console.log(`🔍 Checking tenpai locally for tile index ${tileIndex}`)
     const hand = gameState?.tiles?.[userId]?.hand || []
     const melds = gameState?.tiles?.[userId]?.melds || []
+    const discards: any[] = gameState?.discards?.[userId] || []
     //console.log(`  Current hand:`, hand)
     //console.log(`  Current melds:`, melds)
 
     if (hand.length === 0) {
-      setTenpaiInfo({ isTenpai: false, winningTiles: [] })
+      setTenpaiInfo({ isTenpai: false, winningTiles: [], isFuriten: false })
       return
     }
 
     // クライアント側で聴牌判定を実行
     const result = TenpaiChecker.checkTenpaiAfterDiscard(hand, tileIndex, melds)
     //console.log(`  Tenpai result:`, result)
-    setTenpaiInfo(result)
+    // フリテン判定: 待ち牌が自分の捨て牌に含まれているか
+    const isFuriten = result.isTenpai && result.winningTiles.some((wt: any) =>
+      discards.some((d: any) => d.suit === wt.suit && d.number === wt.number)
+    )
+    setTenpaiInfo({ ...result, isFuriten })
   }, [gameState, userId])
 
   // ツモ時に全牌の聴牌情報をローカルで計算
   const handForTenpai = gameState?.tiles?.[userId]?.hand
   const meldsForTenpai = gameState?.tiles?.[userId]?.melds
+  const discardsForTenpai = gameState?.discards?.[userId]
   const handLengthForTenpai = handForTenpai?.length ?? 0
   const isMyTurnForTenpai = gameState?.currentTurn === userId
   const myRiichiForTenpai = !!gameState?.riichi?.[userId]
@@ -1426,13 +1432,22 @@ export default function GamePage({
     if (isMyTurnForTenpai && !myRiichiForTenpai && statusForTenpai === 'playing') {
       const hand = handForTenpai || []
       const melds = meldsForTenpai || []
+      const discards: any[] = discardsForTenpai || []
 
       if (hand.length > 0) {
         const results = TenpaiChecker.checkAllTenpai(hand, melds)
-        setTenpaiInfoMap(results)
+        // フリテン判定を各結果に追加: 待ち牌が自分の捨て牌に含まれているか
+        const resultsWithFuriten: Record<number, { isTenpai: boolean; winningTiles: any[]; isFuriten?: boolean }> = {}
+        for (const [key, result] of Object.entries(results)) {
+          const isFuriten = result.isTenpai && result.winningTiles.some((wt: any) =>
+            discards.some((d: any) => d.suit === wt.suit && d.number === wt.number)
+          )
+          resultsWithFuriten[Number(key)] = { ...result, isFuriten }
+        }
+        setTenpaiInfoMap(resultsWithFuriten)
       }
     }
-  }, [handLengthForTenpai, isMyTurnForTenpai, myRiichiForTenpai, userId, statusForTenpai, handForTenpai, meldsForTenpai])
+  }, [handLengthForTenpai, isMyTurnForTenpai, myRiichiForTenpai, userId, statusForTenpai, handForTenpai, meldsForTenpai, discardsForTenpai])
 
   const toggleAutoDrawMode = React.useCallback((enabled: boolean) => {
     setAutoDrawMode(enabled)
@@ -2562,6 +2577,9 @@ export default function GamePage({
               {info?.isTenpai && info.winningTiles.length > 0 ? (
                 <>
                   <div className="text-white text-xs font-bold whitespace-nowrap">待ち:</div>
+                  {info.isFuriten && (
+                    <div className="text-red-300 text-xs font-bold whitespace-nowrap bg-red-900/70 px-1.5 py-0.5 rounded border border-red-500/50">フリテン</div>
+                  )}
                   <div className="flex gap-0.5 flex-row flex-wrap items-center">
                     {info.winningTiles.slice(0, 12).map((tile: any, tIdx: number) => (
                       <TileInline key={tIdx} tile={tile} height={40} width={28} className="rounded shadow-sm" />
@@ -2709,8 +2727,9 @@ export default function GamePage({
                       {/* Tenpai popup */}
                       {!confirmDiscardMode && hoveredTileIndex === idx && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
-                          <div className="text-white text-xs font-bold mb-0.5">
+                          <div className="text-white text-xs font-bold mb-0.5 flex items-center gap-1">
                             聴牌
+                            {tenpaiInfo.isFuriten && <span className="text-red-300 text-[10px] font-bold bg-red-900/70 px-1 rounded border border-red-500/50">フリテン</span>}
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => (
@@ -2835,8 +2854,9 @@ export default function GamePage({
                       {/* Tenpai popup for drawn tile */}
                       {hoveredTileIndex === drawnTileIndex && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 bg-green-600/95 px-3 py-2.5 rounded-lg mb-2.5 whitespace-nowrap z-[1000] shadow-lg pointer-events-none flex flex-col items-center gap-1.5">
-                          <div className="text-white text-xs font-bold mb-0.5">
-                            🀄 聴牌
+                          <div className="text-white text-xs font-bold mb-0.5 flex items-center gap-1">
+                            聴牌
+                            {tenpaiInfo.isFuriten && <span className="text-red-300 text-[10px] font-bold bg-red-900/70 px-1 rounded border border-red-500/50">フリテン</span>}
                           </div>
                           <div className="flex gap-0.5 flex-row flex-nowrap justify-center items-center">
                             {tenpaiInfo.winningTiles.slice(0, 8).map((tile, tIdx) => (
