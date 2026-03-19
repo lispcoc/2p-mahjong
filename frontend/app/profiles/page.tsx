@@ -71,6 +71,24 @@ async function apiAdminDeleteProfile(id: string, token: string): Promise<void> {
 
 // ── サブコンポーネント ────────────────────────────────────────────────────────
 
+/** 改行を <br> に変換して描画するヘルパー。maxLines を指定すると超過行を「…」で省略 */
+function Nl2br({ text, className, maxLines }: { text: string; className?: string; maxLines?: number }) {
+  const lines = text.split('\n')
+  const truncated = maxLines !== undefined && lines.length > maxLines
+  const visible = truncated ? lines.slice(0, maxLines) : lines
+  return (
+    <span className={className}>
+      {visible.map((line, i) => (
+        <React.Fragment key={i}>
+          {line}
+          {i < visible.length - 1 && <br />}
+        </React.Fragment>
+      ))}
+      {truncated && '…'}
+    </span>
+  )
+}
+
 /** フォームの入力フィールド */
 function Field({
   label, name, value, onChange, type = 'text', placeholder = '', maxLength, required = false, textarea = false
@@ -619,8 +637,8 @@ function TableView({
                 {profile.origin}
               </td>
               <td className="px-3 py-2 border border-gray-200 text-gray-600 max-w-[300px]">
-                <span className="line-clamp-2 block">
-                  {profile.bio ? (profile.bio.length > 120 ? profile.bio.slice(0, 120) + '…' : profile.bio) : ''}
+                <span className="block">
+                  {profile.bio ? <Nl2br text={profile.bio} maxLines={6} /> : ''}
                 </span>
               </td>
             </tr>
@@ -816,8 +834,8 @@ export default function ProfilesPage() {
                     <p className="text-gray-500 text-xs truncate">{profile.origin}</p>
                   )}
                   {profile.bio && (
-                    <p className="text-gray-600 text-xs mt-2 leading-relaxed line-clamp-3">
-                      {profile.bio.length > 200 ? profile.bio.slice(0, 200) + '…' : profile.bio}
+                    <p className="text-gray-600 text-xs mt-2 leading-relaxed">
+                      <Nl2br text={profile.bio} maxLines={6} />
                     </p>
                   )}
                 </button>
