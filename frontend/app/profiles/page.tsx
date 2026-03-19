@@ -532,7 +532,112 @@ function DetailPanel({
   )
 }
 
+// ── 表形式ビュー ────────────────────────────────────────────────────────────
+
+const GENDER_LABEL: Record<string, string> = { male: '♂', female: '♀', other: '♂♀' }
+
+type SortKey = 'name' | 'gender' | 'origin' | 'bio' | 'updatedAt'
+
+function TableView({
+  profiles,
+  onRowClick,
+}: {
+  profiles: ProfileSummary[]
+  onRowClick: (id: string) => void
+}) {
+  const [sortKey, setSortKey] = useState<SortKey>('updatedAt')
+  const [sortAsc, setSortAsc] = useState(false)
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortAsc(a => !a)
+    } else {
+      setSortKey(key)
+      setSortAsc(true)
+    }
+  }
+
+  const sorted = [...profiles].sort((a, b) => {
+    let va: string = a[sortKey] ?? ''
+    let vb: string = b[sortKey] ?? ''
+    if (sortKey === 'updatedAt') {
+      const diff = new Date(va).getTime() - new Date(vb).getTime()
+      return sortAsc ? diff : -diff
+    }
+    if (sortKey === 'gender') {
+      va = GENDER_LABEL[va] ?? va
+      vb = GENDER_LABEL[vb] ?? vb
+    }
+    return sortAsc ? va.localeCompare(vb, 'ja') : vb.localeCompare(va, 'ja')
+  })
+
+  const formatDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString('ja-JP') } catch { return iso }
+  }
+
+  const th = (key: SortKey, label: string, extraClass = '') => {
+    const active = sortKey === key
+    return (
+      <th
+        key={key}
+        onClick={() => handleSort(key)}
+        className={`px-3 py-2 text-left text-xs font-semibold text-gray-600 bg-gray-100 border border-gray-200 cursor-pointer select-none whitespace-nowrap hover:bg-gray-200 transition-colors ${extraClass}`}
+      >
+        {label}
+        <span className="ml-1 text-gray-400">
+          {active ? (sortAsc ? '▲' : '▼') : '⇅'}
+        </span>
+      </th>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      <table className="min-w-full border-collapse text-sm">
+        <thead>
+          <tr>
+            {th('name', '名前')}
+            {th('gender', '性別', 'w-16')}
+            {th('origin', '出身(作品)')}
+            {th('bio', '自己紹介')}
+            {th('updatedAt', '更新日', 'w-24')}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((profile, idx) => (
+            <tr
+              key={profile.id}
+              onClick={() => onRowClick(profile.id)}
+              className={`cursor-pointer hover:bg-green-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+            >
+              <td className="px-3 py-2 border border-gray-200 font-medium text-gray-800 whitespace-nowrap">
+                {profile.name}
+              </td>
+              <td className="px-3 py-2 border border-gray-200 text-gray-600 text-center whitespace-nowrap">
+                {GENDER_LABEL[profile.gender] ?? ''}
+              </td>
+              <td className="px-3 py-2 border border-gray-200 text-gray-600 whitespace-nowrap max-w-[160px] truncate">
+                {profile.origin}
+              </td>
+              <td className="px-3 py-2 border border-gray-200 text-gray-600 max-w-[300px]">
+                <span className="line-clamp-2 block">
+                  {profile.bio ? (profile.bio.length > 120 ? profile.bio.slice(0, 120) + '…' : profile.bio) : ''}
+                </span>
+              </td>
+              <td className="px-3 py-2 border border-gray-200 text-gray-400 whitespace-nowrap text-xs">
+                {formatDate(profile.updatedAt)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 // ── メインページコンポーネント ───────────────────────────────────────────────
+
+const VIEW_MODE_KEY = 'profiles_view_mode'
 
 export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<ProfileSummary[]>([])
@@ -543,6 +648,23 @@ export default function ProfilesPage() {
   const [successMsg, setSuccessMsg] = useState('')
   const [adminToken, setAdminToken] = useState<string | null>(null)
   const [showAdminLogin, setShowAdminLogin] = useState(false)
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+
+  // ローカルストレージから表示モードを復元
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_KEY)
+      if (saved === 'card' || saved === 'table') setViewMode(saved)
+    } catch { /* ignore */ }
+  }, [])
+
+  const toggleViewMode = () => {
+    setViewMode(prev => {
+      const next = prev === 'card' ? 'table' : 'card'
+      try { localStorage.setItem(VIEW_MODE_KEY, next) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   const fetchProfiles = useCallback(async () => {
     try {
@@ -636,17 +758,37 @@ export default function ProfilesPage() {
           </div>
         )}
 
-        {/* 登録ボタン */}
+        {/* 登録ボタン・表示切替 */}
         <div className="flex items-center justify-between mb-5">
           <p className="text-gray-600 text-sm">
             {loading ? '読み込み中…' : `${profiles.length} 人登録済み`}
           </p>
-          <button
-            onClick={() => setShowRegister(true)}
-            className="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-5 rounded text-sm shadow"
-          >
-            ＋ 登録する
-          </button>
+          <div className="flex items-center gap-2">
+            {/* 表示モード切替トグル */}
+            <button
+              onClick={toggleViewMode}
+              title={viewMode === 'card' ? '表形式に切り替え' : 'カード形式に切り替え'}
+              className="flex items-center gap-1.5 text-xs bg-white border border-gray-300 hover:border-green-500 text-gray-600 hover:text-green-700 px-3 py-1.5 rounded shadow-sm transition-colors"
+            >
+              {viewMode === 'card' ? (
+                <>
+                  <span>☰</span>
+                  <span>表形式</span>
+                </>
+              ) : (
+                <>
+                  <span>⊞</span>
+                  <span>カード</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => setShowRegister(true)}
+              className="bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-5 rounded text-sm shadow"
+            >
+              ＋ 登録する
+            </button>
+          </div>
         </div>
 
         {/* プロフィール一覧 */}
@@ -656,6 +798,8 @@ export default function ProfilesPage() {
           <div className="text-center py-16 text-gray-400">
             <p>まだ登録者がいません</p>
           </div>
+        ) : viewMode === 'table' ? (
+          <TableView profiles={profiles} onRowClick={handleCardClick} />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {profiles.map(profile => (
