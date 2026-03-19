@@ -615,8 +615,6 @@ function TableView({
         <thead>
           <tr>
             {th('name', '名前')}
-            {th('gender', '性別', 'w-16')}
-            {th('origin', '出身(作品)')}
             {th('bio', '自己紹介')}
           </tr>
         </thead>
@@ -628,13 +626,7 @@ function TableView({
               className={`cursor-pointer hover:bg-green-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
             >
               <td className="px-3 py-2 border border-gray-200 font-medium text-gray-800 whitespace-nowrap">
-                {profile.name}
-              </td>
-              <td className="px-3 py-2 border border-gray-200 text-gray-600 text-center whitespace-nowrap">
-                {GENDER_LABEL[profile.gender] ?? ''}
-              </td>
-              <td className="px-3 py-2 border border-gray-200 text-gray-600 whitespace-nowrap max-w-[160px] truncate">
-                {profile.origin}
+                {profile.name} {GENDER_LABEL[profile.gender] ?? ''} ({profile.origin})
               </td>
               <td className="px-3 py-2 border border-gray-200 text-gray-600 max-w-[300px]">
                 <span className="block">
