@@ -626,7 +626,12 @@ function TableView({
               className={`cursor-pointer hover:bg-green-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
             >
               <td className="px-3 py-2 border border-gray-200 font-medium text-gray-800 whitespace-nowrap">
-                {profile.name} {GENDER_LABEL[profile.gender] ?? ''} ({profile.origin})
+                <div>
+                  {profile.name} {GENDER_LABEL[profile.gender] ?? ''}
+                </div>
+                <div className='text-xs'>
+                  ({profile.origin})
+                </div>
               </td>
               <td className="px-3 py-2 border border-gray-200 text-gray-600 max-w-[300px]">
                 <span className="block">
