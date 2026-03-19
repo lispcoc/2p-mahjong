@@ -130,6 +130,7 @@ export default function GamePage({
   const [iconPanelWidth, setIconPanelWidth] = useState(0)
   const [showIconPicker, setShowIconPicker] = useState(false)
   const playerIconRef = React.useRef<string | null>(null)
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false) // 対戦相手の通信切断状態
 
   // ===== イカサマ関連のstate =====
   const [isCheatPanelOpen, setIsCheatPanelOpen] = useState(false)
@@ -574,6 +575,7 @@ export default function GamePage({
       case 'playerJoined':
         debugLog(`✅ Another player joined`)
         console.log('✅ Another player joined')
+        setOpponentDisconnected(false)
         setGameState((prev) => {
           debugLog(`In setGameState callback - prev gameState=${prev?.status || 'null'}`)
           console.log('In setGameState callback - prev:', prev)
@@ -1026,9 +1028,15 @@ export default function GamePage({
         toast.error(errorMessage, { duration: 5000 })
         break
       }
+      case 'playerDisconnected':
+        debugLog(`📡 Player disconnected: ${payload.playerName}`)
+        console.log('📡 Player disconnected:', payload)
+        setOpponentDisconnected(true)
+        break
       case 'playerReconnected':
         debugLog(`🔄 Player reconnected: ${payload.playerName}`)
         console.log('🔄 Player reconnected:', payload)
+        setOpponentDisconnected(false)
         toast.success(`${payload.playerName}さんが再接続しました`, { duration: 3000 })
         break
       case 'rematchReadyUpdate':
@@ -1043,6 +1051,7 @@ export default function GamePage({
       case 'rematchStart':
         console.log('🔄 Rematch starting:', payload)
         // Reset all game-related state for the new match
+        setOpponentDisconnected(false)
         setFinalResults(null)
         setShowFinalResults(false)
         setScoreResult(null)
@@ -2085,11 +2094,18 @@ export default function GamePage({
           className="absolute top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center overflow-hidden"
           style={{ right: 8, width: iconPanelWidth, maxHeight: '80vh' }}
         >
-          <img
-            src={opponentIcon}
-            alt="相手アイコン"
-            style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain' }}
-          />
+          <div className="relative">
+            <img
+              src={opponentIcon}
+              alt="相手アイコン"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', filter: opponentDisconnected ? 'brightness(0.4)' : 'none', transition: 'filter 0.3s' }}
+            />
+            {opponentDisconnected && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-white font-bold text-lg bg-black/60 px-3 py-1 rounded animate-pulse" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>通信待ち</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <Toaster
@@ -2115,8 +2131,10 @@ export default function GamePage({
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="pl-2 text-xs text-white font-bold">
-            ルームID: {roomId}<br/>
-            ステータス: {gameState.status}
+            <div className='max-sm:hidden'>
+              ルームID: {roomId}<br/>
+              ステータス: {gameState.status}
+            </div>
             {isSpectator && <span className="ml-2 px-2 py-0.5 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
             {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
               <button
@@ -2125,6 +2143,9 @@ export default function GamePage({
               >
                 {spectatorShowHands ? '手牌を隠す' : '手牌を見る'}
               </button>
+            )}
+            {!isSpectator && opponentDisconnected && (
+              <span className="ml-2 text-red-400 animate-pulse">通信待ち</span>
             )}
             {!isSpectator && gameState.spectatorCount !== undefined && gameState.spectatorCount > 0 && (
               <span className="ml-2 text-yellow-300">見学中: {gameState.spectatorCount}人</span>
@@ -2195,6 +2216,7 @@ export default function GamePage({
             {/* Current Round */}
             <div className="sm:hidden w-full text-center p-2 bg-white rounded-lg border border-gray-300 flex-1 min-w-24 flex flex-col justify-center">
               <div className="text-xs font-bold text-green-900">
+                ルームID: {roomId} /
                 {getRoundLabel(gameState)} /
                 自風 {getSeatWindLabel(gameState, effectiveUserId)} /
                 残り {gameState.wall || 0}枚
@@ -2303,12 +2325,17 @@ export default function GamePage({
               })()}
               </div>
               {opponentIcon && showOpponentIcon && (
-                <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28">
+                <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300 min-h-28 relative">
                   <img
                     src={opponentIcon}
                     alt="相手アイコン"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center', filter: opponentDisconnected ? 'brightness(0.4)' : 'none', transition: 'filter 0.3s' }}
                   />
+                  {opponentDisconnected && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-white font-bold text-xs bg-black/60 px-2 py-0.5 rounded animate-pulse" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>通信待ち</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

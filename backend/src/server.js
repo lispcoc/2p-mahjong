@@ -1786,6 +1786,16 @@ function handleDisconnect(ws) {
     const player = room.markDisconnected(userId);
 
     if (player && !player.isCPU) {
+      // 対戦相手に切断を通知
+      console.log(`📡 Broadcasting playerDisconnected: ${playerName} (${userId}) in room ${roomId}`);
+      broadcastToRoom(roomId, {
+        type: 'playerDisconnected',
+        payload: {
+          playerName,
+          userId,
+        },
+      });
+
       // プレイヤーが切断されたらタイマーを切断時点からリセット。
       // こうすることで「非アクティブ削除タイマー」が切断猶予期間より先に
       // 発火してルームを消してしまう競合状態を防ぐ。
