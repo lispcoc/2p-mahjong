@@ -117,7 +117,7 @@ function ProfileForm({
   const [form, setForm] = useState<ProfileFormData>({
     name:        initial?.name        || '',
     password:    '',
-    gender:      initial?.gender      || '',
+    gender:      initial?.gender      || 'female',
     origin:      initial?.origin      || '',
     bio:         initial?.bio         || '',
     activeHours: initial?.activeHours || '',
