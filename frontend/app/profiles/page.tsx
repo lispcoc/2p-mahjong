@@ -654,7 +654,7 @@ export default function ProfilesPage() {
   const [successMsg, setSuccessMsg] = useState('')
   const [adminToken, setAdminToken] = useState<string | null>(null)
   const [showAdminLogin, setShowAdminLogin] = useState(false)
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('table')
 
   // ローカルストレージから表示モードを復元
   useEffect(() => {
