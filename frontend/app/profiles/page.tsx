@@ -600,7 +600,6 @@ function TableView({
             {th('gender', '性別', 'w-16')}
             {th('origin', '出身(作品)')}
             {th('bio', '自己紹介')}
-            {th('updatedAt', '更新日', 'w-24')}
           </tr>
         </thead>
         <tbody>
@@ -623,9 +622,6 @@ function TableView({
                 <span className="line-clamp-2 block">
                   {profile.bio ? (profile.bio.length > 120 ? profile.bio.slice(0, 120) + '…' : profile.bio) : ''}
                 </span>
-              </td>
-              <td className="px-3 py-2 border border-gray-200 text-gray-400 whitespace-nowrap text-xs">
-                {formatDate(profile.updatedAt)}
               </td>
             </tr>
           ))}
