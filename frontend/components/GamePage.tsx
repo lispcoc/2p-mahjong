@@ -2031,6 +2031,12 @@ export default function GamePage({
       .map((meld) => meld.map(normalizeTile)))
     : []
 
+  // 相手のdrawnTileIndex（相手のターン時のみ有効）
+  const isOpponentTurn = otherUserId ? gameState.currentTurn === otherUserId : false
+  const otherDrawnTileIndex = isOpponentTurn
+    ? (otherUserId ? (gameState.tiles?.[otherUserId]?.drawnTileIndex ?? -1) : -1)
+    : -1
+
   // 透明手牌ルール: 相手の手牌で透明牌のインデックスを取得し、左側（透明）→右側（不透明）でソート
   const isTransparentHandRule = gameState.transparentHand === true
   const otherHandSorted: Array<{ tile: Tile; originalIdx: number; isTransparent: boolean }> = (() => {
@@ -2039,11 +2045,13 @@ export default function GamePage({
         ? ((gameState.tiles?.[otherUserId]?.transparentIndices as number[]) ?? [])
         : []
     )
-    return otherHand.map((tile, idx) => ({
-      tile,
-      originalIdx: idx,
-      isTransparent: transparentSet.has(idx),
-    }))
+    return otherHand
+      .map((tile, idx) => ({
+        tile,
+        originalIdx: idx,
+        isTransparent: transparentSet.has(idx),
+      }))
+      .filter(({ originalIdx }) => !(!isTransparentHandRule && otherDrawnTileIndex >= 0 && originalIdx === otherDrawnTileIndex))
   })()
   if (isTransparentHandRule) {
     otherHandSorted.sort((a, b) => {
@@ -2496,6 +2504,19 @@ export default function GamePage({
                     <div
                       className="inline-block w-[33px] h-[47px]"
                     />
+                  )}
+                  {/* ツモ牌を右端にスペースを開けて表示（透明手牌ルール時は適用しない） */}
+                  {!isTransparentHandRule && otherDrawnTileIndex >= 0 && otherHand[otherDrawnTileIndex] && (
+                    <div className="inline-block ml-4 sm:ml-8">
+                      <TileImage
+                        tile={otherHand[otherDrawnTileIndex]}
+                        faceDown={
+                          isSpectator
+                            ? (!(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[otherUserId ?? ''] && !gameState?.isDelayedMode)
+                            : (!showOpponentHand || !displayOtherPlayer?.isCPU)
+                        }
+                      />
+                    </div>
                   )}
                 </div>
               </div>
