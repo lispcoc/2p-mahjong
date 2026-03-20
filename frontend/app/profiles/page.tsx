@@ -69,6 +69,38 @@ async function apiAdminDeleteProfile(id: string, token: string): Promise<void> {
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
 }
 
+// ── パスワードセッション・ローカルストレージ ─────────────────────────────────
+
+// 365日。重要データではないので展開はできるだけ長く設定
+const PW_SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000
+const PW_SESSION_KEY_PREFIX = 'profile_pw_'
+
+interface PwSession { password: string; expiresAt: number }
+
+function savePwSession(profileId: string, password: string) {
+  try {
+    const data: PwSession = { password, expiresAt: Date.now() + PW_SESSION_TTL_MS }
+    localStorage.setItem(PW_SESSION_KEY_PREFIX + profileId, JSON.stringify(data))
+  } catch { /* ignore */ }
+}
+
+function loadPwSession(profileId: string): string | null {
+  try {
+    const raw = localStorage.getItem(PW_SESSION_KEY_PREFIX + profileId)
+    if (!raw) return null
+    const data: PwSession = JSON.parse(raw)
+    if (Date.now() > data.expiresAt) {
+      localStorage.removeItem(PW_SESSION_KEY_PREFIX + profileId)
+      return null
+    }
+    return data.password
+  } catch { return null }
+}
+
+function clearPwSession(profileId: string) {
+  try { localStorage.removeItem(PW_SESSION_KEY_PREFIX + profileId) } catch { /* ignore */ }
+}
+
 // ── サブコンポーネント ────────────────────────────────────────────────────────
 
 /** 改行を <br> に変換して描画するヘルパー。maxLines を指定すると超過行を「…」で省略 */
@@ -124,13 +156,15 @@ function Field({
 
 /** 登録・編集フォーム */
 function ProfileForm({
-  initial, onSubmit, onCancel, submitLabel, isEdit = false
+  initial, onSubmit, onCancel, submitLabel, isEdit = false, savedPassword
 }: {
   initial?: Partial<ProfileFormData>
   onSubmit: (data: ProfileFormData & { currentPassword?: string }) => Promise<void>
   onCancel: () => void
   submitLabel: string
   isEdit?: boolean
+  /** 認証済みパスワード（あればパスワード欄を非表示にし自動送信） */
+  savedPassword?: string
 }) {
   const [form, setForm] = useState<ProfileFormData>({
     name:        initial?.name        || '',
@@ -153,7 +187,8 @@ function ProfileForm({
     setError('')
     setLoading(true)
     try {
-      await onSubmit(form)
+      // 認証済みパスワードがあればそれを使用、なければフォーム入力を使用
+      await onSubmit({ ...form, password: savedPassword ?? form.password })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '送信に失敗しました')
     } finally {
@@ -167,12 +202,19 @@ function ProfileForm({
         <div className="bg-red-50 border border-red-300 text-red-700 rounded px-3 py-2 text-sm mb-2">{error}</div>
       )}
       <Field label="名前" name="name" value={form.name} onChange={handleChange} required maxLength={30} placeholder="表示名（30文字以内）" />
-      <Field
-        label={isEdit ? 'パスワード（認証用）' : 'パスワード'}
-        name="password" type="password" value={form.password} onChange={handleChange}
-        required maxLength={64}
-        placeholder={isEdit ? '変更・削除時に必要なパスワード' : '編集・削除に使うパスワード（4文字以上）'}
-      />
+      {!savedPassword && (
+        <Field
+          label={isEdit ? 'パスワード（認証用）' : 'パスワード'}
+          name="password" type="password" value={form.password} onChange={handleChange}
+          required maxLength={64}
+          placeholder={isEdit ? '変更・削除時に必要なパスワード' : '編集・削除に使うパスワード（4文字以上）'}
+        />
+      )}
+      {savedPassword && isEdit && (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1.5 mb-1">
+          ✅ 認証済み（パスワード入力不要）
+        </p>
+      )}
       <div className="mb-3">
         <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
         <select
@@ -260,7 +302,12 @@ function ChangePasswordForm({ profileId, onDone, onCancel }: { profileId: string
 }
 
 /** 削除確認フォーム */
-function DeleteForm({ profile, onDeleted, onCancel }: { profile: ProfileDetail; onDeleted: () => void; onCancel: () => void }) {
+function DeleteForm({ profile, onDeleted, onCancel, savedPassword }: {
+  profile: ProfileDetail
+  onDeleted: () => void
+  onCancel: () => void
+  savedPassword?: string
+}) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -270,7 +317,7 @@ function DeleteForm({ profile, onDeleted, onCancel }: { profile: ProfileDetail; 
     setError('')
     setLoading(true)
     try {
-      await apiDelete(`/api/profiles/${profile.id}`, { password })
+      await apiDelete(`/api/profiles/${profile.id}`, { password: savedPassword ?? password })
       onDeleted()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '削除に失敗しました')
@@ -283,15 +330,79 @@ function DeleteForm({ profile, onDeleted, onCancel }: { profile: ProfileDetail; 
     <form onSubmit={handleSubmit} className="space-y-2">
       <p className="text-red-700 text-sm">「{profile.name}」のプロフィールを削除します。この操作は取り消せません。</p>
       {error && <div className="bg-red-50 border border-red-300 text-red-700 rounded px-3 py-2 text-sm">{error}</div>}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
-      </div>
+      {savedPassword ? (
+        <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1.5">
+          ✅ 認証済み（パスワード入力不要）
+        </p>
+      ) : (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+            className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500" />
+        </div>
+      )}
       <div className="flex gap-2 pt-1">
         <button type="submit" disabled={loading}
           className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded text-sm disabled:opacity-50">
           {loading ? '削除中…' : '削除する'}
+        </button>
+        <button type="button" onClick={onCancel}
+          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded text-sm">
+          キャンセル
+        </button>
+      </div>
+    </form>
+  )
+}
+
+/** パスワード検証フォーム（編集・削除前の認証ステップ） */
+function VerifyPasswordForm({
+  profileId, profileName, onVerified, onCancel
+}: {
+  profileId: string
+  profileName: string
+  onVerified: (password: string) => void
+  onCancel: () => void
+}) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      await apiPost(`/api/profiles/${profileId}/verify-password`, { password })
+      onVerified(password)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '認証に失敗しました')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <p className="text-sm text-gray-700">
+        「{profileName}」の編集・削除にはパスワードが必要です。
+      </p>
+      <p className="text-xs text-gray-400">認証後はこのブラウザで1年間パスワード不要になります。</p>
+      {error && (
+        <div className="bg-red-50 border border-red-300 text-red-700 rounded px-3 py-2 text-sm">{error}</div>
+      )}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">パスワード</label>
+        <input
+          type="password" value={password} onChange={e => setPassword(e.target.value)}
+          required autoFocus
+          className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+      </div>
+      <div className="flex gap-2">
+        <button type="submit" disabled={loading}
+          className="flex-1 bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-4 rounded text-sm disabled:opacity-50">
+          {loading ? '確認中…' : '認証する'}
         </button>
         <button type="button" onClick={onCancel}
           className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded text-sm">
@@ -409,8 +520,30 @@ function DetailPanel({
   onClose: () => void
   adminToken: string | null
 }) {
-  type Mode = 'view' | 'edit' | 'delete' | 'changePassword'
+  type Mode = 'view' | 'verifyPassword' | 'edit' | 'delete' | 'changePassword'
   const [mode, setMode] = useState<Mode>('view')
+  // LS から認証済みパスワードを復元
+  const [savedPw, setSavedPw] = useState<string | null>(() => loadPwSession(profile.id))
+  // verifyPassword 後の遷移先
+  const [pendingMode, setPendingMode] = useState<'edit' | 'delete'>('edit')
+
+  const goEdit = () => {
+    if (savedPw) { setMode('edit'); return }
+    setPendingMode('edit')
+    setMode('verifyPassword')
+  }
+
+  const goDelete = () => {
+    if (savedPw) { setMode('delete'); return }
+    setPendingMode('delete')
+    setMode('verifyPassword')
+  }
+
+  const handleVerified = (password: string) => {
+    savePwSession(profile.id, password)
+    setSavedPw(password)
+    setMode(pendingMode)
+  }
 
   const handleEdit = async (data: ProfileFormData & { currentPassword?: string }) => {
     const updated = await apiPut<ProfileDetail>(`/api/profiles/${profile.id}`, data)
@@ -489,18 +622,27 @@ function DetailPanel({
           </dl>
 
           <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-            <button onClick={() => setMode('edit')}
+            <button onClick={goEdit}
               className="bg-green-700 hover:bg-green-800 text-white text-xs font-bold py-1.5 px-4 rounded">
-              編集
+              編集{savedPw ? '' : ' 🔒'}
             </button>
             <button onClick={() => setMode('changePassword')}
               className="bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-bold py-1.5 px-4 rounded">
               パスワード変更
             </button>
-            <button onClick={() => setMode('delete')}
+            <button onClick={goDelete}
               className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1.5 px-4 rounded">
-              削除
+              削除{savedPw ? '' : ' 🔒'}
             </button>
+            {savedPw && (
+              <button
+                onClick={() => { clearPwSession(profile.id); setSavedPw(null) }}
+                className="text-xs text-gray-400 hover:text-gray-600 py-1.5 px-2 rounded border border-gray-200 hover:border-gray-400"
+                title="このブラウザの認証情報を削除"
+              >
+                🔓 認証解除
+              </button>
+            )}
             {adminToken && (
               <button
                 onClick={async () => {
@@ -521,6 +663,15 @@ function DetailPanel({
         </div>
       )}
 
+      {mode === 'verifyPassword' && (
+        <VerifyPasswordForm
+          profileId={profile.id}
+          profileName={profile.name}
+          onVerified={handleVerified}
+          onCancel={() => setMode('view')}
+        />
+      )}
+
       {mode === 'edit' && (
         <ProfileForm
           initial={profile}
@@ -528,6 +679,7 @@ function DetailPanel({
           onCancel={() => setMode('view')}
           submitLabel="変更を保存"
           isEdit
+          savedPassword={savedPw ?? undefined}
         />
       )}
 
@@ -544,6 +696,7 @@ function DetailPanel({
           profile={profile}
           onDeleted={onDeleted}
           onCancel={() => setMode('view')}
+          savedPassword={savedPw ?? undefined}
         />
       )}
     </Modal>

@@ -259,6 +259,23 @@ router.delete('/:id', (req, res) => {
 });
 
 /**
+ * POST /api/profiles/:id/verify-password
+ * パスワード検証のみ（変更なし）。
+ * Body: { password }
+ */
+router.post('/:id/verify-password', (req, res) => {
+  const profiles = loadProfiles();
+  const profile = profiles.find(p => p.id === req.params.id);
+  if (!profile) return res.status(404).json({ error: 'プロフィールが見つかりません' });
+
+  const { password } = req.body || {};
+  if (!password || !verifyPassword(profile, password)) {
+    return res.status(403).json({ error: 'パスワードが正しくありません' });
+  }
+  res.json({ ok: true });
+});
+
+/**
  * POST /api/profiles/:id/change-password
  * パスワード変更。現在のパスワードと新しいパスワードが必要。
  * Body: { currentPassword, newPassword }
