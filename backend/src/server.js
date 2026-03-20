@@ -916,9 +916,35 @@ app.get('/api/rooms/:roomId/match-history', (req, res) => {
   res.json({ matchHistory: room.getMatchHistory() });
 });
 
+// WebSocket ハートビート（ping/pong）：アイドル接続がNAT/ロードバランサーに切断されるのを防ぐ
+const HEARTBEAT_INTERVAL_MS = 30000; // 30秒ごとにping
+const HEARTBEAT_TIMEOUT_MS = 10000;  // pongが10秒以内に来なければ切断
+
+function setupHeartbeat(ws) {
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+}
+
+const heartbeatTimer = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log('💔 [heartbeat] No pong received - terminating dead connection');
+      handleDisconnect(ws);
+      ws.terminate();
+      return;
+    }
+    ws.isAlive = false;
+    try { ws.ping(); } catch (_) {}
+  });
+}, HEARTBEAT_INTERVAL_MS);
+
+wss.on('close', () => clearInterval(heartbeatTimer));
+
 // WebSocket Connection
 wss.on('connection', (ws, req) => {
   console.log(`\n✓✓✓ New WebSocket client connected (Total connections: ${wss.clients.size})`);
+
+  setupHeartbeat(ws);
 
   ws.on('message', async (message) => {
     try {
@@ -927,7 +953,7 @@ wss.on('connection', (ws, req) => {
       await handleMessage(ws, data, req);
     } catch (error) {
       console.error('Error parsing message:', error);
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+      try { ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' })); } catch (_) {}
     }
   });
 
@@ -1169,7 +1195,7 @@ function handleJoin(ws, payload, req = null) {
     return;
   }
 
-  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck, spectator: wantSpectator, fingerprint } = payload;
+  const { roomId, playerName, userId: existingUserId, myTsumoLuck, opponentTsumoLuck, spectator: wantSpectator, delayedSpectator: wantDelayedSpectator, fingerprint } = payload;
 
   if (!roomId || !playerName) {
     ws.send(JSON.stringify({ type: 'error', message: 'roomId and playerName are required' }));
@@ -1188,7 +1214,7 @@ function handleJoin(ws, payload, req = null) {
 
   // ---- 見学者として参加 -------------------------------------------------------
   if (wantSpectator) {
-    return handleSpectatorJoin(ws, room, roomId, playerName, existingUserId);
+    return handleSpectatorJoin(ws, room, roomId, playerName, existingUserId, wantDelayedSpectator === true);
   }
   // ---- ここまで ---------------------------------------------------------------
 
@@ -1402,7 +1428,7 @@ function handleJoin(ws, payload, req = null) {
 }
 
 // 見学者用参加処理
-function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
+function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId, wantDelayedMode = false) {
   // プレイヤーとして参加しているユーザーが観戦しようとするのを拒否
   if (existingUserId && room.players.has(existingUserId)) {
     console.log(`❌ Player ${spectatorName} (${existingUserId}) tried to spectate their own room ${roomId}`);
@@ -1412,14 +1438,15 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
 
   let userId = existingUserId;
   let isReconnecting = false;
+  const delayedMode = wantDelayedMode === true;
 
   if (existingUserId && room.spectators.has(existingUserId)) {
     // 再接続
-    const result = room.addSpectator(existingUserId, spectatorName, ws);
+    const result = room.addSpectator(existingUserId, spectatorName, ws, delayedMode);
     isReconnecting = result.isReconnecting && result.spectator?.spectatorName === spectatorName;
     if (isReconnecting) {
       userId = existingUserId;
-      console.log(`🔄 Spectator reconnecting: ${spectatorName} (${existingUserId}) to room ${roomId}`);
+      console.log(`🔄 Spectator reconnecting: ${spectatorName} (${existingUserId}) to room ${roomId} (delayed=${delayedMode})`);
     }
   }
 
@@ -1427,48 +1454,114 @@ function handleSpectatorJoin(ws, room, roomId, spectatorName, existingUserId) {
     if (!userId) {
       userId = uuidv4();
     }
-    room.addSpectator(userId, spectatorName, ws);
-    console.log(`👀 Spectator joined: ${spectatorName} (${userId}) to room ${roomId}`);
+    room.addSpectator(userId, spectatorName, ws, delayedMode);
+    console.log(`👀 Spectator joined: ${spectatorName} (${userId}) to room ${roomId} (delayed=${delayedMode})`);
   }
 
   connections.set(ws, { userId, roomId, playerName: spectatorName, isSpectator: true });
 
-  // 現在のゲーム状態（見学者向けに透明牌フィルタ適用）を送信
-  const rawGameState = room.getGameState();
-  const filteredForSpectator = filterGameStateForTransparent(rawGameState, null);
-  // 局間（playing以外）に参加した観戦者には前局の結果も送信する
-  const lastFinishedPayload = room.status !== 'playing' ? (room.lastFinishedPayload || null) : null;
-
   // 両プレイヤーのアイコンを取得して観戦者に送信
   const playerIconsData = {};
   const players = room.getPlayers();
-  players.forEach((player, index) => {
+  players.forEach((player) => {
     const icon = room.getPlayerIcon(player.userId);
     if (icon) {
       playerIconsData[player.userId] = icon;
     }
   });
 
-  const joinedPayload = {
-    userId,
-    spectatorName,
-    roomId,
-    players: room.getPlayers(),
-    spectators: room.getSpectators(),
-    gameState: { ...filteredForSpectator, isSpectatorView: true },
-    isSpectator: true,
-    isReconnecting,
-    spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
-    lastFinishedPayload,
-    playerIcons: playerIconsData,
-    handRevealedMap: room.getHandRevealedMap(),
-  };
+  if (delayedMode) {
+    // ===== 遅延観戦モード =====
+    // バッファからスナップショットと直近イベントを取得して初期状態を再現する
+    const { snapshot, eventsAfterSnapshot } = room.initDelayedSpectatorCursor(userId);
 
-  try {
-    ws.send(JSON.stringify({ type: 'spectatorJoined', payload: joinedPayload }));
-    console.log(`✅ spectatorJoined sent to ${spectatorName}`);
-  } catch (err) {
-    console.error('❌ Error sending spectatorJoined:', err);
+    if (snapshot === null) {
+      // バッファにまだ遅延分のデータがない → 待機中メッセージを送信
+      // ★ カーソルを初期化（バッファ先頭から）して、以降のdispatchで正しくイベントを受け取れるようにする
+      room.initDelayedSpectatorCursor(userId);
+      const joinedPayload = {
+        userId,
+        spectatorName,
+        roomId,
+        players: room.getPlayers(),
+        spectators: room.getSpectators(),
+        isSpectator: true,
+        isDelayedMode: true,
+        isReconnecting,
+        spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
+        playerIcons: playerIconsData,
+        handRevealedMap: room.getHandRevealedMap(),
+        delayedModeWaiting: true, // まだ遅延分バッファが溜まっていないことを示す
+        delayMs: settings.spectator.delayedMode.delayMs,
+      };
+      try {
+        ws.send(JSON.stringify({ type: 'spectatorJoined', payload: joinedPayload }));
+        console.log(`✅ [delayed] spectatorJoined (waiting) sent to ${spectatorName}`);
+      } catch (err) {
+        console.error('❌ Error sending spectatorJoined (delayed waiting):', err);
+      }
+    } else {
+      // スナップショットを初期状態として送信し、その後のイベントを順次送信する
+      const joinedPayload = {
+        userId,
+        spectatorName,
+        roomId,
+        players: room.getPlayers(),
+        spectators: room.getSpectators(),
+        gameState: { ...snapshot, isSpectatorView: true },
+        isSpectator: true,
+        isDelayedMode: true,
+        isReconnecting,
+        spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
+        playerIcons: playerIconsData,
+        handRevealedMap: room.getHandRevealedMap(),
+        delayMs: settings.spectator.delayedMode.delayMs,
+      };
+      try {
+        ws.send(JSON.stringify({ type: 'spectatorJoined', payload: joinedPayload }));
+        console.log(`✅ [delayed] spectatorJoined sent to ${spectatorName}`);
+      } catch (err) {
+        console.error('❌ Error sending spectatorJoined (delayed):', err);
+      }
+      // スナップショット以降の遅延済みイベントを即時再生
+      for (const msg of eventsAfterSnapshot) {
+        if (msg.type === 'gameStateSnapshot') continue;
+        try {
+          ws.send(JSON.stringify(msg));
+        } catch (err) {
+          console.error(`❌ [delayed] Error sending buffered event to ${spectatorName}:`, err.message);
+        }
+      }
+    }
+  } else {
+    // ===== 即時観戦モード（従来の動作）=====
+    const rawGameState = room.getGameState();
+    const filteredForSpectator = filterGameStateForTransparent(rawGameState, null);
+    // 局間（playing以外）に参加した観戦者には前局の結果も送信する
+    const lastFinishedPayload = room.status !== 'playing' ? (room.lastFinishedPayload || null) : null;
+
+    const joinedPayload = {
+      userId,
+      spectatorName,
+      roomId,
+      players: room.getPlayers(),
+      spectators: room.getSpectators(),
+      gameState: { ...filteredForSpectator, isSpectatorView: true },
+      isSpectator: true,
+      isDelayedMode: false,
+      isReconnecting,
+      spectatorShowHandsByDefault: settings.spectator.showHandsByDefault,
+      lastFinishedPayload,
+      playerIcons: playerIconsData,
+      handRevealedMap: room.getHandRevealedMap(),
+    };
+
+    try {
+      ws.send(JSON.stringify({ type: 'spectatorJoined', payload: joinedPayload }));
+      console.log(`✅ spectatorJoined sent to ${spectatorName}`);
+    } catch (err) {
+      console.error('❌ Error sending spectatorJoined:', err);
+    }
   }
 
   // 他の全員に見学者参加を通知
@@ -1838,6 +1931,7 @@ function handleDisconnect(ws) {
     // 見学者が切断した場合はすぐに削除
     if (isSpectator) {
       room.removeSpectator(userId);
+      room.removeDelayedSpectatorCursor(userId); // 遅延観戦カーソルも削除
       console.log(`👀❌ Spectator disconnected: ${playerName} (${userId}) from room ${roomId}`);
       broadcastToRoom(roomId, {
         type: 'spectatorLeft',
@@ -2116,29 +2210,55 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
     }
     if (player.ws && player.ws !== excludeWs && player.ws.readyState === 1) {
       console.log(`    ✅ Broadcasting to ${player.playerName}`);
-      if (needsFiltering) {
-        const filtered = filterGameStateForTransparent(message.payload, player.userId);
-        player.ws.send(JSON.stringify({ ...message, payload: filtered }));
-      } else {
-        player.ws.send(JSON.stringify(message));
+      try {
+        if (needsFiltering) {
+          const filtered = filterGameStateForTransparent(message.payload, player.userId);
+          player.ws.send(JSON.stringify({ ...message, payload: filtered }));
+        } else {
+          player.ws.send(JSON.stringify(message));
+        }
+        broadcastCount++;
+      } catch (err) {
+        console.error(`❌ [broadcast] Failed to send to player ${player.playerName}:`, err.message);
       }
-      broadcastCount++;
     } else {
       console.log(`    ❌ Skipped (ws: ${!!player.ws}, ready: ${player.ws?.readyState})`);
     }
   });
 
-  // 見学者にも送信
+  // 見学者向けメッセージを構築（spectatorMessage の共通部分）
+  const spectatorMessageBase = buildSpectatorMessage(message);
+
+  // 遅延観戦バッファへの記録（常に記録する。遅延観戦者が後から参加した時のために）
+  {
+    let spectatorPayloadForBuffer = spectatorMessageBase.payload;
+    if (needsFiltering && spectatorPayloadForBuffer) {
+      spectatorPayloadForBuffer = filterGameStateForTransparent(spectatorPayloadForBuffer, null);
+    }
+    const bufferMessage = (needsFiltering && spectatorPayloadForBuffer !== spectatorMessageBase.payload)
+      ? { ...spectatorMessageBase, payload: spectatorPayloadForBuffer }
+      : spectatorMessageBase;
+    // gameStateSnapshot（状態スナップショット）もバッファに保存（gameStarted / gameStateUpdate 時）
+    if (isGameStateMsg) {
+      room.pushDelayedEvent({ type: 'gameStateSnapshot', payload: spectatorPayloadForBuffer });
+    }
+    room.pushDelayedEvent(bufferMessage);
+  }
+
+  // 見学者にも送信（即時観戦者のみ即時送信; 遅延観戦者はバッファ経由）
   room.spectators.forEach((spectator) => {
-    if (spectator.ws && spectator.ws !== excludeWs && spectator.ws.readyState === 1) {
-      // 見学者向けにもゲーム状態を送信
-      let spectatorMessage = buildSpectatorMessage(message);
-      if (needsFiltering) {
-        // 見学者には両プレイヤーの非透明牌をマスク
-        spectatorMessage = { ...spectatorMessage, payload: filterGameStateForTransparent(spectatorMessage.payload, null) };
-      }
+    if (!spectator.ws || spectator.ws === excludeWs || spectator.ws.readyState !== 1) return;
+    if (spectator.delayedMode) return; // 遅延観戦者は dispatchDelayedEvents で送信
+
+    let spectatorMessage = spectatorMessageBase;
+    if (needsFiltering) {
+      spectatorMessage = { ...spectatorMessage, payload: filterGameStateForTransparent(spectatorMessage.payload, null) };
+    }
+    try {
       spectator.ws.send(JSON.stringify(spectatorMessage));
       broadcastCount++;
+    } catch (err) {
+      console.error(`❌ [broadcast] Failed to send to spectator ${spectator.spectatorName}:`, err.message);
     }
   });
 
@@ -2385,6 +2505,43 @@ function executeCPUTurnIfNeeded(room) {
     });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 遅延観戦イベント配信ループ
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 全ルームの遅延観戦者に対して、遅延時間を経過したイベントを配信する。
+ * サーバー起動後 settings.spectator.delayedMode.dispatchIntervalMs ごとに実行される。
+ */
+function dispatchDelayedSpectatorEvents() {
+  rooms.forEach((room) => {
+    // 遅延観戦者がいなければスキップ
+    const delayedSpectators = Array.from(room.spectators.values()).filter(s => s.delayedMode && s.ws && s.ws.readyState === 1);
+    if (delayedSpectators.length === 0) return;
+
+    delayedSpectators.forEach((spectator) => {
+      const { events } = room.getEventsForDelayedSpectator(spectator.userId);
+      if (events.length === 0) return;
+
+      // gameStateSnapshot は内部管理用なので観戦者には送らない
+      for (const msg of events) {
+        if (msg.type === 'gameStateSnapshot') continue; // 内部用スナップショットはスキップ
+        try {
+          spectator.ws.send(JSON.stringify(msg));
+        } catch (err) {
+          console.error(`❌ [delayedSpectator] Failed to send to ${spectator.spectatorName}:`, err.message);
+          // 送信失敗 = 接続が切れているのでゾンビ状態を解消する
+          try { spectator.ws.terminate(); } catch (_) {}
+          handleDisconnect(spectator.ws);
+          return; // このspectatorの残イベントはスキップ
+        }
+      }
+    });
+  });
+}
+
+setInterval(dispatchDelayedSpectatorEvents, settings.spectator.delayedMode.dispatchIntervalMs);
 
 server.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);

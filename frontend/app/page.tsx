@@ -6,7 +6,7 @@ import HomePage from '../components/HomePage'
 import GamePage from '../components/GamePage'
 import { getCachedFingerprint } from '../utils/fingerprint'
 
-type PageState = 'loading' | 'login' | 'home' | 'game' | 'spectate'
+type PageState = 'loading' | 'login' | 'home' | 'game' | 'spectate' | 'delayedSpectate'
 
 export default function Page() {
   const [pageState, setPageState] = useState<PageState>('loading')
@@ -79,8 +79,9 @@ export default function Page() {
           setPlayerName(session.playerName)
           setRoomId(session.roomId)
           setUserId(localStorage.getItem('mahjong-userId') || '')
-          setPageState(session.isSpectator ? 'spectate' : 'game')
-          console.log('✅ State updated to', session.isSpectator ? 'spectate' : 'game')
+          const restoredState = session.isDelayedSpectator ? 'delayedSpectate' : session.isSpectator ? 'spectate' : 'game'
+          setPageState(restoredState)
+          console.log('✅ State updated to', restoredState)
           shouldGoToLogin = false
         } else {
           console.log('⏰ Session expired or invalid, clearing...')
@@ -218,7 +219,7 @@ export default function Page() {
   }
 
   const handleBackToHome = () => {
-    if (pageState === 'spectate') {
+    if (pageState === 'spectate' || pageState === 'delayedSpectate') {
       // 観戦モードから戻る場合はセッションをクリア
       localStorage.removeItem('mahjong-session')
       console.log('🗑️ Cleared spectator session on back to home')
@@ -235,9 +236,14 @@ export default function Page() {
 
   const handleSpectateRoom = (targetRoomId: string) => {
     console.log('👁️ handleSpectateRoom called with roomId:', targetRoomId)
-    // 見学者の場合はセッションをクリアしない
     setRoomId(targetRoomId)
     setPageState('spectate')
+  }
+
+  const handleDelayedSpectateRoom = (targetRoomId: string) => {
+    console.log('🕐 handleDelayedSpectateRoom called with roomId:', targetRoomId)
+    setRoomId(targetRoomId)
+    setPageState('delayedSpectate')
   }
 
   const handleLogout = () => {
@@ -282,6 +288,7 @@ export default function Page() {
           onCreateRoom={handleCreateRoom}
           onJoinRoom={handleJoinRoom}
           onSpectateRoom={handleSpectateRoom}
+          onDelayedSpectateRoom={handleDelayedSpectateRoom}
           onLogout={handleLogout}
           shouldRefresh={shouldRefreshRooms}
           onRefreshed={() => setShouldRefreshRooms(false)}
@@ -301,6 +308,16 @@ export default function Page() {
           roomId={roomId}
           onBack={handleBackToHome}
           isSpectator={true}
+          onBanned={setBanReason}
+        />
+      )}
+      {pageState === 'delayedSpectate' && (
+        <GamePage
+          playerName={playerName}
+          roomId={roomId}
+          onBack={handleBackToHome}
+          isSpectator={true}
+          isDelayedSpectator={true}
           onBanned={setBanReason}
         />
       )}

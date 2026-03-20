@@ -73,6 +73,7 @@ export default function GamePage({
   roomId,
   onBack,
   isSpectator = false,
+  isDelayedSpectator = false,
   onBanned,
 }: GamePageProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
@@ -136,6 +137,13 @@ export default function GamePage({
   const [showIconPicker, setShowIconPicker] = useState(false)
   const playerIconRef = React.useRef<string | null>(null)
   const [opponentDisconnected, setOpponentDisconnected] = useState(false) // 対戦相手の通信切断状態
+
+  // ===== 遅延観戦モード関連 =====
+  const [delayedSpectatorWaiting, setDelayedSpectatorWaiting] = useState(false) // 遅延バッファ待機中
+  const [delayedModeDelayMs, setDelayedModeDelayMs] = useState(60000) // 遅延時間（ミリ秒）
+  const [delayedCountdownSec, setDelayedCountdownSec] = useState<number | null>(null) // カウントダウン残り秒数
+  const delayedCountdownIntervalRef = useRef<number | null>(null) // カウントダウン用インターバルID
+  const delayedWaitingStartRef = useRef<number | null>(null) // 待機開始時刻
 
   // ===== イカサマ関連のstate =====
   const [isCheatPanelOpen, setIsCheatPanelOpen] = useState(false)
@@ -533,24 +541,72 @@ export default function GamePage({
             roomId: payload.roomId,
             playerName: payload.spectatorName,
             isSpectator: true,
+            isDelayedSpectator: payload.isDelayedMode === true,
             timestamp: Date.now(),
           }
           try { localStorage.setItem('mahjong-session', JSON.stringify(spectatorSession)) } catch {}
         }
-        const handsAllowed = payload.spectatorShowHandsByDefault !== false
+        if (payload.delayMs) {
+          setDelayedModeDelayMs(payload.delayMs)
+        }
+        // 遅延観戦モードは常に両方の手牌を公開
+        const handsAllowed = payload.isDelayedMode === true ? true : payload.spectatorShowHandsByDefault !== false
         setSpectatorHandsAllowed(handsAllowed)
         setSpectatorShowHands(handsAllowed)
-        if (payload.gameState) {
-          setGameState({ ...payload.gameState, isSpectatorView: true })
-          if (payload.gameState.autoActionTimerSeconds) {
-            setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
-          }
-        } else {
+
+        if (payload.delayedModeWaiting) {
+          // 遅延バッファ待機中
+          setDelayedSpectatorWaiting(true)
           setGameState({
             status: 'waiting',
             players: payload.players || [],
             isSpectatorView: true,
+            isDelayedMode: true,
           })
+          // カウントダウン開始
+          const delayMs = payload.delayMs || 60000
+          const startedAt = Date.now()
+          delayedWaitingStartRef.current = startedAt
+          if (delayedCountdownIntervalRef.current !== null) {
+            clearInterval(delayedCountdownIntervalRef.current)
+          }
+          const remaining = Math.ceil(delayMs / 1000)
+          setDelayedCountdownSec(remaining)
+          delayedCountdownIntervalRef.current = window.setInterval(() => {
+            const elapsed = Date.now() - startedAt
+            const rem = Math.ceil((delayMs - elapsed) / 1000)
+            if (rem <= 0) {
+              setDelayedCountdownSec(0)
+              if (delayedCountdownIntervalRef.current !== null) {
+                clearInterval(delayedCountdownIntervalRef.current)
+                delayedCountdownIntervalRef.current = null
+              }
+            } else {
+              setDelayedCountdownSec(rem)
+            }
+          }, 500)
+          toast(`⏳ 遅延観戦モードで参加しました。約${Math.round(delayMs / 1000)}秒後から観戦が始まります。`, { duration: 5000 })
+        } else {
+          setDelayedSpectatorWaiting(false)
+          if (payload.gameState) {
+            setGameState({ ...payload.gameState, isSpectatorView: true, isDelayedMode: payload.isDelayedMode === true })
+            if (payload.gameState.autoActionTimerSeconds) {
+              setAutoActionTimerSeconds(payload.gameState.autoActionTimerSeconds)
+            }
+          } else {
+            setGameState({
+              status: 'waiting',
+              players: payload.players || [],
+              isSpectatorView: true,
+              isDelayedMode: payload.isDelayedMode === true,
+            })
+          }
+
+          if (payload.isDelayedMode) {
+            toast.success(`遅延観戦モードで参加しました（${Math.round((payload.delayMs || 60000) / 1000)}秒遅延・手牌公開）`, { duration: 4000 })
+          } else {
+            toast.success(`観戦モードで参加しました`, { duration: 3000 })
+          }
         }
 
         // 観戦モード時：両プレイヤーのアイコンを設定
@@ -561,8 +617,6 @@ export default function GamePage({
           setOpponentIcon(player2Icon)
         }
 
-        toast.success(`観戦モードで参加しました`, { duration: 3000 })
-
         // 観戦者名リストと手牌公開マップを復元
         if (payload.spectators) {
           setSpectatorNames(payload.spectators)
@@ -571,8 +625,8 @@ export default function GamePage({
           setHandRevealedMap(payload.handRevealedMap)
         }
 
-        // 局間に参加した場合は前の局の結果を表示する
-        if (payload.lastFinishedPayload) {
+        // 局間に参加した場合は前の局の結果を表示する（遅延観戦でない場合のみ）
+        if (!payload.isDelayedMode && payload.lastFinishedPayload) {
           const lf = payload.lastFinishedPayload
           if (lf.isDraw && lf.tenpaiStatus) setTenpaiStatus(lf.tenpaiStatus)
           else setTenpaiStatus(null)
@@ -643,6 +697,13 @@ export default function GamePage({
           console.warn('⚠️ gameStarted rejected - fewer than 2 players:', payload)
           break
         }
+        // 遅延観戦待機中フラグを解除
+        setDelayedSpectatorWaiting(false)
+        if (delayedCountdownIntervalRef.current !== null) {
+          clearInterval(delayedCountdownIntervalRef.current)
+          delayedCountdownIntervalRef.current = null
+        }
+        setDelayedCountdownSec(null)
         // 次の局が始まったらUI状態をリセット
         setScoreResult(null)
         setLastWinnerId(null)
@@ -681,7 +742,7 @@ export default function GamePage({
           setAutoPlayMode(payload.autoPlay[currentUserIdForGameStart])
         }
 
-        setGameState((prevState) => ({ ...payload, isSpectatorView: prevState?.isSpectatorView }))
+        setGameState((prevState) => ({ ...payload, isSpectatorView: prevState?.isSpectatorView, isDelayedMode: prevState?.isDelayedMode }))
         debugLog(`✅ gameState updated to status=${payload.status}`)
 
         // Set autoActionTimerSeconds from gameState
@@ -758,6 +819,7 @@ export default function GamePage({
             totalPlayers: payload.totalPlayers ?? prevState?.totalPlayers,
             // 観戦モードフラグを維持する
             isSpectatorView: prevState?.isSpectatorView,
+            isDelayedMode: prevState?.isDelayedMode,
           }
         })
         break
@@ -1183,6 +1245,9 @@ export default function GamePage({
       if (reconnectTimerRef.current !== null) {
         clearTimeout(reconnectTimerRef.current)
       }
+      if (delayedCountdownIntervalRef.current !== null) {
+        clearInterval(delayedCountdownIntervalRef.current)
+      }
     }
   }, [])
 
@@ -1310,6 +1375,12 @@ export default function GamePage({
       // 見学者モードのときはフラグを追加
       if (isSpectator) {
         joinPayload.spectator = true
+      }
+
+      // 遅延観戦モードのときはフラグを追加
+      if (isDelayedSpectator) {
+        joinPayload.spectator = true
+        joinPayload.delayedSpectator = true
       }
 
       // デバイスフィンガープリントを付与（ログインページ表示時に事前生成済み）
@@ -2206,8 +2277,18 @@ export default function GamePage({
               ステータス: {gameState.status}
             </div>
             <div className="flex items-center gap-1 flex-wrap justify-end">
-              {isSpectator && <span className="px-2 py-1 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
-              {isSpectator && spectatorHandsAllowed && gameState.status === 'playing' && (
+              {isSpectator && !isDelayedSpectator && !delayedSpectatorWaiting && <span className="px-2 py-1 bg-yellow-500 text-black rounded font-bold">観戦中</span>}
+              {(isDelayedSpectator || gameState?.isDelayedMode) && (
+                <span className={`px-2 py-1 rounded font-bold text-xs ${delayedSpectatorWaiting ? 'bg-orange-500 text-white animate-pulse' : 'bg-purple-600 text-white'}`}>
+                  {delayedSpectatorWaiting
+                    ? (delayedCountdownSec !== null && delayedCountdownSec > 0
+                        ? `⏳ 遅延観戦 あと${delayedCountdownSec}秒`
+                        : `⏳ 遅延観戦 まもなく開始…`)
+                    : `🕐 遅延観戦中（${Math.round(delayedModeDelayMs / 1000)}秒遅延）`
+                  }
+                </span>
+              )}
+              {isSpectator && spectatorHandsAllowed && !gameState?.isDelayedMode && gameState.status === 'playing' && (
                 <button
                   onClick={() => setSpectatorShowHands(prev => !prev)}
                   className={`px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors ${spectatorShowHands ? 'bg-green-600 text-white' : 'bg-gray-500 text-white'}`}
@@ -2403,7 +2484,7 @@ export default function GamePage({
                             isTransparentHandRule
                               ? !isTransparent
                               : (isSpectator
-                                ? (!(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[otherUserId ?? ''])
+                                ? (!(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[otherUserId ?? ''] && !gameState?.isDelayedMode)
                                 : (!showOpponentHand || !displayOtherPlayer?.isCPU))
                           }
                         />
@@ -2740,7 +2821,7 @@ export default function GamePage({
                         faceDown={
                           isTransparentHandRule && isSpectator
                             ? !myTransparentSet.has(idx)
-                            : (isSpectator && !(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[effectiveUserId])
+                            : (isSpectator && !(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[effectiveUserId] && !gameState?.isDelayedMode)
                         }
                         onClick={() => {
                           // リーチ中は手牌をクリックできない

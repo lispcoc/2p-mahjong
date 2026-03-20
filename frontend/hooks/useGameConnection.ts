@@ -10,6 +10,7 @@ interface UseGameConnectionProps {
   onFinalResults: (results: any[] | null) => void
   setAutoNextTimer: (timerId: number | null) => void
   isSpectator?: boolean
+  isDelayedSpectator?: boolean
 }
 
 export function useGameConnection({
@@ -19,11 +20,14 @@ export function useGameConnection({
   onFinalResults,
   setAutoNextTimer,
   isSpectator = false,
+  isDelayedSpectator = false,
 }: UseGameConnectionProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [userId, setUserId] = useState('')
+  const [delayedSpectatorWaiting, setDelayedSpectatorWaiting] = useState(false)
+  const [delayMs, setDelayMs] = useState(60000)
   const wsRef = useRef<WebSocket | null>(null)
   const connectionAttempted = useRef(false)
 
@@ -43,16 +47,38 @@ export function useGameConnection({
             roomId: payload.roomId,
             playerName: payload.spectatorName,
             isSpectator: true,
+            isDelayedSpectator: payload.isDelayedMode === true,
             timestamp: Date.now(),
           }
           try { localStorage.setItem('mahjong-session', JSON.stringify(spectatorSession)) } catch {}
         }
-        setGameState(payload.gameState ? { ...payload.gameState, isSpectatorView: true } : {
-          status: 'waiting',
-          players: payload.players || [],
-          isSpectatorView: true,
-        })
-        setMessage(`観戦モードで参加しました（見学者 ${payload.spectators?.length ?? 1}人）`)
+        if (payload.delayMs) {
+          setDelayMs(payload.delayMs)
+        }
+        if (payload.delayedModeWaiting) {
+          // まだ遅延バッファが溜まっていない待機状態
+          setDelayedSpectatorWaiting(true)
+          setGameState({
+            status: 'waiting',
+            players: payload.players || [],
+            isSpectatorView: true,
+            isDelayedMode: true,
+          })
+          setMessage(`遅延観戦モードで参加しました。約1分後から観戦が始まります。`)
+        } else {
+          setDelayedSpectatorWaiting(false)
+          setGameState(payload.gameState ? { ...payload.gameState, isSpectatorView: true, isDelayedMode: payload.isDelayedMode === true } : {
+            status: 'waiting',
+            players: payload.players || [],
+            isSpectatorView: true,
+            isDelayedMode: payload.isDelayedMode === true,
+          })
+          if (payload.isDelayedMode) {
+            setMessage(`遅延観戦モードで参加しました（1分遅延・手牌公開）`)
+          } else {
+            setMessage(`観戦モードで参加しました（見学者 ${payload.spectators?.length ?? 1}人）`)
+          }
+        }
         break
       case 'spectatorJoinedNotify':
         debugLog(`👀 A spectator joined`)
@@ -147,6 +173,7 @@ export function useGameConnection({
           break
         }
         onScoreResult(null)
+        setDelayedSpectatorWaiting(false) // 遅延観戦待機中フラグを解除
         setGameState(payload)
         debugLog(`✅ gameState updated to status=${payload.status}`)
         setMessage('ゲームが始まりました！')
@@ -329,6 +356,12 @@ export function useGameConnection({
         joinPayload.spectator = true
       }
 
+      // 遅延観戦モードの場合はフラグを追加
+      if (isDelayedSpectator) {
+        joinPayload.spectator = true
+        joinPayload.delayedSpectator = true
+      }
+
       // Always include the persistent userId (generated at login, kept until logout)
       // This ensures the same userId is used across all rooms
       let persistentUserId: string | null = null
@@ -442,5 +475,7 @@ export function useGameConnection({
     userId,
     wsRef,
     sendAction,
+    delayedSpectatorWaiting,
+    delayMs,
   }
 }

@@ -88,6 +88,14 @@ class GameRoom {
     this.cheatExecutionCounts = new Map();    // userId -> 今局の実行回数
     this.playerIcons = new Map(); // userId -> base64 image data (in-memory only, not persisted)
     this.handRevealedToSpectators = new Map(); // userId -> boolean (プレイヤーが観戦者に手牌を公開しているか)
+
+    // ===== 遅延観戦バッファ =====
+    // 遅延観戦モード時、ゲームイベントをタイムスタンプ付きで蓄積するキュー
+    // 各エントリ: { timestamp: number, message: object, spectatorMessageFn: function|null }
+    this.delayedSpectatorBuffer = [];
+    // 遅延観戦者ごとの配信カーソル: userId -> { lastDispatchedIndex: number }
+    // （将来的に個別遅延管理が必要な場合に使用。現状は全員同じバッファを共有）
+    this.delayedSpectatorCursors = new Map(); // userId -> { lastDispatchedIndex: number }
   }
 
   setPlayerIcon(userId, iconData) {
@@ -121,6 +129,137 @@ class GameRoom {
       result[uid] = revealed;
     });
     return result;
+  }
+
+  // ===== 遅延観戦バッファ管理 =====
+
+  /**
+   * 遅延観戦用バッファにイベントを追加する
+   * @param {object} message - WebSocket メッセージオブジェクト { type, payload }（観戦者向けに加工済みのものを渡すこと）
+   */
+  pushDelayedEvent(message) {
+    const bufferDurationMs = settings.spectator.delayedMode.bufferDurationMs;
+    const now = Date.now();
+
+    // 古いエントリを削除（バッファ保持期間を超えたもの）
+    const cutoff = now - bufferDurationMs;
+    let removeCount = 0;
+    while (removeCount < this.delayedSpectatorBuffer.length && this.delayedSpectatorBuffer[removeCount].timestamp < cutoff) {
+      removeCount++;
+    }
+    if (removeCount > 0) {
+      this.delayedSpectatorBuffer.splice(0, removeCount);
+      // カーソルをシフト（削除した分インデックスを減らす）
+      this.delayedSpectatorCursors.forEach((cursor) => {
+        cursor.lastDispatchedIndex = Math.max(0, cursor.lastDispatchedIndex - removeCount);
+      });
+    }
+
+    this.delayedSpectatorBuffer.push({ timestamp: now, message });
+  }
+
+  /**
+   * 指定した観戦者に対して、現在時刻 - delayMs 以前のバッファ済みイベントを返す
+   * （サーバー側の dispatchDelayedEvents ループから呼ばれる）
+   * @param {string} userId
+   * @returns {{ events: object[], newIndex: number }}
+   */
+  getEventsForDelayedSpectator(userId) {
+    const delayMs = settings.spectator.delayedMode.delayMs;
+    const threshold = Date.now() - delayMs;
+
+    if (!this.delayedSpectatorCursors.has(userId)) {
+      // 初回: バッファ内で「現時刻 - delayMs」を超えたエントリの先頭からスタート
+      let startIdx = 0;
+      for (let i = 0; i < this.delayedSpectatorBuffer.length; i++) {
+        if (this.delayedSpectatorBuffer[i].timestamp <= threshold) {
+          startIdx = i + 1;
+        } else {
+          break;
+        }
+      }
+      this.delayedSpectatorCursors.set(userId, { lastDispatchedIndex: startIdx });
+      return { events: [], newIndex: startIdx };
+    }
+
+    const cursor = this.delayedSpectatorCursors.get(userId);
+    const events = [];
+    let idx = cursor.lastDispatchedIndex;
+
+    while (idx < this.delayedSpectatorBuffer.length) {
+      const entry = this.delayedSpectatorBuffer[idx];
+      if (entry.timestamp <= threshold) {
+        events.push(entry.message);
+        idx++;
+      } else {
+        break;
+      }
+    }
+
+    cursor.lastDispatchedIndex = idx;
+    return { events, newIndex: idx };
+  }
+
+  /**
+   * 遅延観戦者のカーソルを初期化（新規参加時）
+   * バッファ内で「現時刻 - delayMs」を超えたエントリの先頭から再生する
+   * @param {string} userId
+   * @returns {{ snapshot: object|null, eventsAfterSnapshot: object[] }}
+   *   snapshot: 遅延時点に最も近い gameStateSnapshot エントリ（なければ null）
+   *   eventsAfterSnapshot: snapshot 以降の配信済みエントリ（snapshot が null の場合は空）
+   */
+  initDelayedSpectatorCursor(userId) {
+    const delayMs = settings.spectator.delayedMode.delayMs;
+    const threshold = Date.now() - delayMs;
+
+    // threshold 以前の最後の gameStateSnapshot を探す
+    let snapshotIdx = -1;
+    for (let i = 0; i < this.delayedSpectatorBuffer.length; i++) {
+      const entry = this.delayedSpectatorBuffer[i];
+      if (entry.timestamp > threshold) break;
+      if (entry.message.type === 'gameStateSnapshot') {
+        snapshotIdx = i;
+      }
+    }
+
+    // スナップショット以降（スナップショットを含まず threshold 以前）のイベントを収集
+    const eventsAfterSnapshot = [];
+    const startIdx = snapshotIdx + 1;
+    for (let i = startIdx; i < this.delayedSpectatorBuffer.length; i++) {
+      const entry = this.delayedSpectatorBuffer[i];
+      if (entry.timestamp > threshold) break;
+      eventsAfterSnapshot.push(entry.message);
+    }
+
+    // カーソルを threshold 以前の末尾に設定
+    let cursorIdx = 0;
+    for (let i = 0; i < this.delayedSpectatorBuffer.length; i++) {
+      if (this.delayedSpectatorBuffer[i].timestamp <= threshold) {
+        cursorIdx = i + 1;
+      } else {
+        break;
+      }
+    }
+    this.delayedSpectatorCursors.set(userId, { lastDispatchedIndex: cursorIdx });
+
+    const snapshot = snapshotIdx >= 0 ? this.delayedSpectatorBuffer[snapshotIdx].message.payload : null;
+    return { snapshot, eventsAfterSnapshot };
+  }
+
+  /**
+   * 遅延観戦者のカーソルを削除（退出時）
+   * @param {string} userId
+   */
+  removeDelayedSpectatorCursor(userId) {
+    this.delayedSpectatorCursors.delete(userId);
+  }
+
+  /**
+   * 遅延観戦バッファをリセット（再戦時など）
+   */
+  clearDelayedSpectatorBuffer() {
+    this.delayedSpectatorBuffer = [];
+    this.delayedSpectatorCursors.clear();
   }
 
   // dealerSelection に基づいて dealerIndex を決定
@@ -164,6 +303,9 @@ class GameRoom {
     this.cheatExecutionCounts.clear();
     this.clearAutoReadyTimer();
     this.clearGameOverTimer();
+
+    // 遅延観戦バッファはリセットしない（再戦をまたいで遅延観戦者が途切れないようにする）
+    // カーソルも維持するので dispatchDelayedSpectatorEvents が続きを配信できる
 
     // プレイヤーのスコアと状態をリセット（ws接続は維持）
     this.players.forEach((player) => {
@@ -249,14 +391,14 @@ class GameRoom {
 
   // ---- 見学者管理 ------------------------------------------------------------
 
-  addSpectator(userId, spectatorName, ws) {
+  addSpectator(userId, spectatorName, ws, delayedMode = false) {
     if (this.spectators.has(userId)) {
       // 再接続: WebSocket を更新するだけ
       const s = this.spectators.get(userId);
       s.ws = ws;
       return { success: true, spectator: s, isReconnecting: true };
     }
-    const spectator = { userId, spectatorName, ws };
+    const spectator = { userId, spectatorName, ws, delayedMode };
     this.spectators.set(userId, spectator);
     return { success: true, spectator, isReconnecting: false };
   }

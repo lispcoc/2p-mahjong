@@ -12,6 +12,7 @@ export interface GamePageProps {
   roomId: string
   onBack: () => void
   isSpectator?: boolean
+  isDelayedSpectator?: boolean
   onBanned?: (reason: string) => void
 }
 
@@ -66,6 +67,7 @@ export interface GameState {
   allowKuikae?: boolean
   lastPonTile?: { suit: string; number: number } | null
   cheating?: CheatingState | null
+  isDelayedMode?: boolean
 }
 
 // イカサマ種類

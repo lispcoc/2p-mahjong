@@ -140,6 +140,7 @@ npm run task:generate  # タスク生成
 | `cpuDelays` | AIの思考遅延、ポン/カン後遅延 |
 | `tsumoLuck` | 配牌運のレベル別試行回数・選択確率 |
 | `cheating` | イカサマ機能のデフォルト設定（有効フラグ、ツモ順固定、記録スキップ） |
+| `spectator.delayedMode` | 遅延観戦の遅延時間（1分）、バッファ保持期間（1時間）、配信間隔（500ms） |
 
 ### 環境変数
 
@@ -388,3 +389,5 @@ if (result === expected) {
 - **package-lock.jsonはgitignore対象**: 依存関係のバージョンロックなし。`npm install`の結果が環境により変わりうる
 - **バックエンドにlint設定なし**: フロントエンドのみESLint（`next/core-web-vitals`）
 - **`manager/`はnw.jsアプリ**: バックエンド/フロントエンドの起動管理GUIで、ゲームロジックとは独立
+- **遅延観戦モード**: `wantDelayedSpectator: true`でjoinすると手牌公開・1分遅延で観戦。バッファは`GameRoom.delayedSpectatorBuffer`に1時間分保持され`dispatchDelayedSpectatorEvents()`が500msごとに配信する
+- **WebSocketハートビート**: 30秒ごとにpingを送り、10秒以内にpongが来なければ切断・`handleDisconnect`呼び出し。`setupHeartbeat(ws)`で初期化

@@ -83,6 +83,7 @@ interface HomePageProps {
   onCreateRoom: (roomId: string) => Promise<void>
   onJoinRoom: (roomId: string) => Promise<void>
   onSpectateRoom?: (roomId: string) => void
+  onDelayedSpectateRoom?: (roomId: string) => void
   onLogout: () => void
   shouldRefresh?: boolean
   onRefreshed?: () => void
@@ -103,6 +104,7 @@ export default function HomePage({
   onCreateRoom,
   onJoinRoom,
   onSpectateRoom,
+  onDelayedSpectateRoom,
   onLogout,
   shouldRefresh = false,
   onRefreshed,
@@ -887,6 +889,15 @@ export default function HomePage({
                           className="px-4 py-3 border-2 border-white bg-[#1a4a5a] text-[#ffffff] text-base font-bold cursor-pointer transition-all hover:bg-[#0f3040]"
                         >
                           観戦
+                        </button>
+                      )}
+                      {onDelayedSpectateRoom && !(myUserId && room.playerIds?.includes(myUserId)) && (
+                        <button
+                          onClick={() => onDelayedSpectateRoom(room.roomId)}
+                          title="1分遅延で手牌公開観戦（のぞき見防止）"
+                          className="px-4 py-3 border-2 border-purple-400 bg-[#2d1a4a] text-[#d8b4fe] text-base font-bold cursor-pointer transition-all hover:bg-[#1e0f33]"
+                        >
+                          遅延観戦
                         </button>
                       )}
                       <button

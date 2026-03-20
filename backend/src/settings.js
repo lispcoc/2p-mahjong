@@ -58,6 +58,11 @@ module.exports = {
   // ===== 観戦設定 =====
   spectator: {
     showHandsByDefault: false, // 観戦時にプレイヤーの手牌をデフォルトで表示するか
+    delayedMode: {
+      delayMs: 60 * 1000,           // 遅延観戦の遅延時間（ミリ秒）: 1分
+      bufferDurationMs: 60 * 60 * 1000, // バッファの保持期間: 1時間（試合全体を保持）
+      dispatchIntervalMs: 500,      // 配信チェック間隔（ミリ秒）
+    },
   },
 
   // ===== イカサマ（チート）設定 =====
