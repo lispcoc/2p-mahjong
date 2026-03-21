@@ -22,7 +22,7 @@ export function OpponentDiscards({ discards, gameState, otherUserId, tileScale =
             🔴 リーチ中
           </div>
         )}
-        <div className="flex flex-wrap gap-px">
+        <div className="flex flex-wrap gap-px items-end">
           {discards.length === 0 ? (
             <span className="text-gray-400 text-xs">なし</span>
           ) : (
@@ -31,7 +31,7 @@ export function OpponentDiscards({ discards, gameState, otherUserId, tileScale =
               return (
                 <div
                   key={`od-${idx}`}
-                  className={`inline-block ${isRiichiDiscard ? 'rotate-90 my-2' : ''}`}
+                  className={`inline-block self-end ${isRiichiDiscard ? 'rotate-90' : ''}`}
                   style={{
                     transformOrigin: 'center',
                   }}
