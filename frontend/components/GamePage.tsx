@@ -778,10 +778,13 @@ export default function GamePage({
           }
           if (lastInfo && lastInfo.userId !== myId && !lastInfo.isTsumogiri) {
             // 相手が手出しした → 手牌の中にランダムな位置で歯抜けを表示
-            // 遅延観戦モードで両手牌が全表示されている場合は歯抜けを無効化
-            const isDelayed = payload.isDelayedMode === true
+            // 手牌が全表示されている場合（遅延観戦、観戦手牌表示、プレイヤー公開など）は歯抜けを無効化
+            const opponentHandVisible =
+              payload.isDelayedMode === true ||
+              (spectatorHandsAllowed && spectatorShowHands) ||
+              !!(handRevealedMap[lastInfo.userId])
             const opponentHandLen = payload.tiles?.[lastInfo.userId]?.hand?.length ?? 0
-            const gapPos = (!isDelayed && opponentHandLen > 0) ? Math.floor(Math.random() * opponentHandLen) : -1
+            const gapPos = (!opponentHandVisible && opponentHandLen > 0) ? Math.floor(Math.random() * opponentHandLen) : -1
             setOpponentTedashiGapIdx(gapPos)
             if (opponentTedashiGapTimerRef.current !== null) {
               clearTimeout(opponentTedashiGapTimerRef.current)
