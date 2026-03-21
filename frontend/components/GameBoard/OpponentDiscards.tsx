@@ -31,12 +31,9 @@ export function OpponentDiscards({ discards, gameState, otherUserId, tileScale =
               return (
                 <div
                   key={`od-${idx}`}
-                  className={`inline-block self-end ${isRiichiDiscard ? 'rotate-90' : ''}`}
-                  style={{
-                    transformOrigin: 'center',
-                  }}
+                  className="inline-block"
                 >
-                  <TileImage tile={tile} scale={tileScale} />
+                  <TileImage tile={tile} scale={tileScale} isRotated={isRiichiDiscard} />
                 </div>
               )
             })
