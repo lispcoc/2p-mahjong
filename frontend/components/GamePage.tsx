@@ -772,8 +772,10 @@ export default function GamePage({
           }
           if (lastInfo && lastInfo.userId !== myId && !lastInfo.isTsumogiri) {
             // 相手が手出しした → 手牌の中にランダムな位置で歯抜けを表示
+            // 遅延観戦モードで両手牌が全表示されている場合は歯抜けを無効化
+            const isDelayed = payload.isDelayedMode === true
             const opponentHandLen = payload.tiles?.[lastInfo.userId]?.hand?.length ?? 0
-            const gapPos = opponentHandLen > 0 ? Math.floor(Math.random() * opponentHandLen) : 0
+            const gapPos = (!isDelayed && opponentHandLen > 0) ? Math.floor(Math.random() * opponentHandLen) : -1
             setOpponentTedashiGapIdx(gapPos)
             if (opponentTedashiGapTimerRef.current !== null) {
               clearTimeout(opponentTedashiGapTimerRef.current)
@@ -2008,13 +2010,17 @@ export default function GamePage({
     : otherPlayer
 
   const isYourTurn = gameState.currentTurn === (isSpectator ? '' : userId)
-  const drawnTileIndex = isYourTurn
+  // 遅延観戦モードでは effectiveUserId のターン時にもツモ牌インデックスを取得してツモ牌を右端に分離表示する
+  const isEffectiveUserTurn = isDelayedSpectator
+    ? gameState.currentTurn === effectiveUserId
+    : isYourTurn
+  const drawnTileIndex = isEffectiveUserTurn
     ? (gameState.tiles?.[effectiveUserId]?.drawnTileIndex ?? -1)
     : -1
   const fullHand = (gameState.tiles?.[effectiveUserId]?.hand as Tile[]) || []
   const displayHandIndices = fullHand
     .map((_, idx) => idx)
-    .filter((idx) => !(isYourTurn && drawnTileIndex >= 0 && idx === drawnTileIndex))
+    .filter((idx) => !(isEffectiveUserTurn && drawnTileIndex >= 0 && idx === drawnTileIndex))
 
   const yourDiscards = ((gameState.discards?.[effectiveUserId] as Array<Tile | string>) || []).map(normalizeTile)
   const otherUserId = isSpectator
@@ -2980,7 +2986,7 @@ export default function GamePage({
                   ))}
 
                   {/* Highlight drawn tile on the right - always reserve space */}
-                  {isYourTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
+                  {isEffectiveUserTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
                     <div className={`relative ml-4 sm:ml-8 transition-transform ${selectedTileIndex === drawnTileIndex ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(drawnTileIndex) ? 'opacity-50' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
