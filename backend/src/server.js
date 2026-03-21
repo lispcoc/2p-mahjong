@@ -1781,9 +1781,14 @@ async function handleAction(ws, payload) {
       const isDraw = result.isDraw === true || latestRound?.isDraw === true || false;
 
       const gameState = room.getGameState();
+      // userIdキーでスコアを構築（previousScoresとキーを山合わせるため）
+      const scoresById = {};
+      room.players.forEach((player, uid) => {
+        scoresById[uid] = room.gameLogic ? room.gameLogic.getPlayerScore(uid) : player.score;
+      });
       const finishedPayload = {
         winner: room.getWinner(),
-        scores: room.getScores(),
+        scores: scoresById,
         scoreResult: scoreResult,
         winType: winType,
         isDraw: isDraw,
@@ -1798,6 +1803,7 @@ async function handleAction(ws, payload) {
         tiles: gameState.tiles || {},  // フロント側で winner の hand データを取得するために必要
         tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,  // 流局時の聴牌状態
         notenPenalty: isDraw ? (latestRound?.notenPenalty || result.notenPenalty || null) : null,  // ノーテン罰符情報
+        previousScores: latestRound?.previousScores || null,  // 点数変動表示用（前の点数）
       };
 
       // ゲームオーバー（誰かの点数がマイナス）の場合
@@ -1819,6 +1825,9 @@ async function handleAction(ws, payload) {
         winner: finishedPayload.winner,
         isDraw: finishedPayload.isDraw,
         roundName: finishedPayload.roundName,
+        scores: finishedPayload.scores,
+        previousScores: finishedPayload.previousScores,
+        dealerId: finishedPayload.dealerId,
       });
 
       broadcastToRoom(roomId, {
@@ -2305,9 +2314,14 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
     console.log(`[🔵 ${logPrefix}] [DEBUG] Final isDraw = ${isDraw}`);
 
     const gameState = room.getGameState();
+    // userIdキーでスコアを構築（previousScoresとキーを山合わせるため）
+    const scoresById = {};
+    room.players.forEach((player, uid) => {
+      scoresById[uid] = room.gameLogic ? room.gameLogic.getPlayerScore(uid) : player.score;
+    });
     finishedPayload = {
       winner: room.getWinner(),
-      scores: room.getScores(),
+      scores: scoresById,
       scoreResult: scoreResult,
       winType: winType,
       isDraw: isDraw,
@@ -2322,6 +2336,7 @@ function handleAutoPlayGameFinished(room, logPrefix = 'AUTO') {
       tiles: gameState.tiles || {},
       tenpaiStatus: isDraw ? (latestRound?.tenpai || null) : null,
       notenPenalty: isDraw ? (latestRound?.notenPenalty || room.lastResult?.notenPenalty || null) : null,
+      previousScores: latestRound?.previousScores || null,  // 点数変動表示用（前の点数）
     };
 
     if (room.isGameOver()) {

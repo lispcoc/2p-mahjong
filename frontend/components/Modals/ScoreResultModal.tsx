@@ -45,6 +45,37 @@ export function ScoreResultModal({
     : null
   const hasWinnerTiles = winnerHand.length > 0 || winnerMelds.length > 0
 
+  // 起家（東家）と非起家の判定
+  const dealerId = scoreResult.dealerId ?? gameState?.dealerId ?? null
+  const allPlayers = gameState?.players ?? []
+  // playerOrder があればその順、なければ起家優先でソート
+  const orderedPlayers = playerOrder
+    ? playerOrder
+        .map((id) => allPlayers.find((p) => p.userId === id))
+        .filter(Boolean) as Array<{ userId: string; playerName: string }>
+    : [
+        ...allPlayers.filter((p) => p.userId === dealerId),
+        ...allPlayers.filter((p) => p.userId !== dealerId),
+      ]
+  const dealerPlayer = orderedPlayers.find((p) => p.userId === dealerId) ?? orderedPlayers[0]
+  const nonDealerPlayer = orderedPlayers.find((p) => p.userId !== dealerPlayer?.userId) ?? orderedPlayers[1]
+
+  // 点数移動の計算
+  const prevScores: Record<string, number> | null = scoreResult.previousScores ?? null
+  const currentScores: Record<string, number> | null =
+    scoreResult.scores ?? (gameState?.scores as Record<string, number> | undefined) ?? null
+  const getScoreChange = (uid: string): number | null => {
+    if (!prevScores || !currentScores) return null
+    const prev = prevScores[uid]
+    const curr = currentScores[uid]
+    if (prev === undefined || curr === undefined) return null
+    return curr - prev
+  }
+  const dealerChange = dealerPlayer ? getScoreChange(dealerPlayer.userId) : null
+  const nonDealerChange = nonDealerPlayer ? getScoreChange(nonDealerPlayer.userId) : null
+  const dealerCurrentScore = dealerPlayer && currentScores ? (currentScores[dealerPlayer.userId] ?? null) : null
+  const nonDealerCurrentScore = nonDealerPlayer && currentScores ? (currentScores[nonDealerPlayer.userId] ?? null) : null
+
   // デバッグログ
   if (process.env.NODE_ENV === 'development') {
     console.log('[ScoreResultModal] render:', {
@@ -55,7 +86,12 @@ export function ScoreResultModal({
       hasWinnerTiles,
       winnerHand_length: winnerHand.length,
       winnerMelds_length: winnerMelds.length,
-      winningTile: scoreResult?.winningTile
+      winningTile: scoreResult?.winningTile,
+      dealerId,
+      dealerPlayer: dealerPlayer?.playerName,
+      nonDealerPlayer: nonDealerPlayer?.playerName,
+      dealerChange,
+      nonDealerChange,
     });
   }
 
@@ -64,9 +100,6 @@ export function ScoreResultModal({
       <div className="bg-mahjong-dark-primary p-2 max-w-[95vw] w-[1200px] max-h-[90vh] overflow-auto shadow-2xl border-4 border-white">
         {(winnerName || winnerId) && !isDrawOrAbort && scoreResult.valid && (hasWinnerTiles || scoreResult.winningTile) && (
           <div className="mb-3 p-3 bg-mahjong-dark-secondary border-2 border-white">
-            <div className="text-sm font-bold text-white mb-2">
-              勝者: {winnerName}
-            </div>
             <div className="flex gap-3 items-start flex-wrap">
               {winnerMelds.length > 0 && (
                 <div className="flex gap-2 flex-wrap">
@@ -108,7 +141,7 @@ export function ScoreResultModal({
           {isDrawOrAbort
             ? (scoreResult.scoreType?.includes('Draw') ? '流局' : (scoreResult.scoreType || 'ゲーム終了'))
             : (scoreResult.valid
-                ? `${winnerName} が${(scoreResult.winType || scoreResult.scoreType || '和了').replace('!', '')}で和了`
+                ? null
                 : '役なし')}
         </h2>
 
@@ -286,6 +319,54 @@ export function ScoreResultModal({
           <p className="text-center text-gray-300 text-sm">
             {scoreResult.error || '役がありません'}
           </p>
+        )}
+
+        {/* 和了時の点数移動表示 */}
+        {!isDrawOrAbort && scoreResult.valid && dealerPlayer && nonDealerPlayer && (
+          <div className="mt-4 mb-2 grid grid-cols-2 bg-mahjong-dark-secondary border-2 border-white">
+            {/* 起家 */}
+            <div className="p-3 text-center">
+              <div className={`text-base font-bold mb-1 ${dealerPlayer.userId === winnerId ? 'text-green-300' : 'text-white'}`}>
+                {dealerPlayer.playerName}
+                {dealerPlayer.userId === winnerId && (
+                  <span className="ml-2 text-xs font-bold text-white bg-green-600 px-1.5 py-0.5 rounded">
+                    {(scoreResult.winType || scoreResult.scoreType || '').replace('!', '')}
+                  </span>
+                )}
+              </div>
+              {dealerCurrentScore !== null && (
+                <div className="text-lg font-bold text-white">
+                  {dealerCurrentScore.toLocaleString()}点
+                </div>
+              )}
+              {dealerChange !== null && (
+                <div className={`text-sm font-bold mt-0.5 ${dealerChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {dealerChange >= 0 ? '+' : ''}{dealerChange.toLocaleString()}
+                </div>
+              )}
+            </div>
+            {/* 非起家 */}
+            <div className="p-3 text-center">
+              <div className={`text-base font-bold mb-1 ${nonDealerPlayer.userId === winnerId ? 'text-green-300' : 'text-white'}`}>
+                {nonDealerPlayer.playerName}
+                {nonDealerPlayer.userId === winnerId && (
+                  <span className="ml-2 text-xs font-bold text-white bg-green-600 px-1.5 py-0.5 rounded">
+                    {(scoreResult.winType || scoreResult.scoreType || '').replace('!', '')}
+                  </span>
+                )}
+              </div>
+              {nonDealerCurrentScore !== null && (
+                <div className="text-lg font-bold text-white">
+                  {nonDealerCurrentScore.toLocaleString()}点
+                </div>
+              )}
+              {nonDealerChange !== null && (
+                <div className={`text-sm font-bold mt-0.5 ${nonDealerChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {nonDealerChange >= 0 ? '+' : ''}{nonDealerChange.toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {isSpectator && onLeave && (

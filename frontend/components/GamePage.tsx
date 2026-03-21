@@ -907,12 +907,16 @@ export default function GamePage({
         }
 
         // gameOver の有無に関わらず scoreResult を処理
+        console.log('🏁 [SCORES DEBUG] payload.scores=', payload.scores, 'payload.previousScores=', payload.previousScores, 'payload.dealerId=', payload.dealerId)
         if (payload.scoreResult) {
           // scoreResultがある場合は、winType情報を追加し、isDraw を false に設定
           const resultToShow = {
             ...payload.scoreResult,
             winType: payload.winType || '',
-            isDraw: false  // ロン・ツモなど実際の和了は流局ではない
+            isDraw: false,  // ロン・ツモなど実際の和了は流局ではない
+            previousScores: payload.previousScores || null,
+            scores: payload.scores || null,
+            dealerId: payload.dealerId || null,
           }
           console.log('🏁 scoreResult がある: resultToShow=', resultToShow, 'resultDelayMs=', resultDelayMs)
           scheduleOpponentResultDisplay(() => {
@@ -929,7 +933,10 @@ export default function GamePage({
             scoreType: payload.winType || '和了',
             yaku: [],
             isDraw: false,  // 勝者がいるなら和了
-            winType: payload.winType || ''
+            winType: payload.winType || '',
+            previousScores: payload.previousScores || null,
+            scores: payload.scores || null,
+            dealerId: payload.dealerId || null,
           }
           scheduleOpponentResultDisplay(() => {
             setScoreResult(resultToShow)
@@ -945,6 +952,9 @@ export default function GamePage({
             scoreType: payload.winType || 'ゲーム終了',
             yaku: [],
             isDraw: true,  // 流局・引き分けフラグ
+            previousScores: payload.previousScores || null,
+            scores: payload.scores || null,
+            dealerId: payload.dealerId || null,
           }
           console.log('🏁 Creating scoreResult for draw:', resultToShow)
           scheduleOpponentResultDisplay(() => {
@@ -1085,6 +1095,7 @@ export default function GamePage({
             dealerId: payload.dealerId ?? prevState.dealerId,
             seatWinds: payload.seatWinds ?? prevState.seatWinds,
             tiles: payload.tiles ?? prevState.tiles,
+            scores: payload.scores ?? prevState.scores,
             nextRoundReadyCount: payload.nextRoundReadyCount,
             totalPlayers: payload.totalPlayers,
           } : prevState
