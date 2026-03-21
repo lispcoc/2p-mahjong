@@ -102,9 +102,16 @@ export function TileImage({
         className={isDora && !faceDown ? 'dora-shine' : ''}
         style={{
           position: 'relative',
-          overflow: 'hidden',
+          // 回転時は overflow:hidden を外し、コンテナサイズを回転後の寸法に合わせる
+          overflow: isRotated ? 'visible' : 'hidden',
           lineHeight: 0,
           borderRadius: '2px',
+          // 回転時はコンテナを回転後のサイズ（縦横入れ替え）に設定
+          width: isRotated ? `${baseSizesMobile[1] * scale}px` : undefined,
+          height: isRotated ? `${baseSizesMobile[0] * scale}px` : undefined,
+          display: isRotated ? 'flex' : undefined,
+          alignItems: isRotated ? 'center' : undefined,
+          justifyContent: isRotated ? 'center' : undefined,
           // 牌ごとにアニメーション開始タイミングをずらす（最大3.9秒オフセット）
           ...(isDora && !faceDown ? { '--dora-delay': `${((tile.suit.charCodeAt(0) * 7 + tile.number * 13 + (tile.isRed ? 3 : 0)) % 40) / 10}s` } as React.CSSProperties : {}),
         }}
@@ -128,6 +135,7 @@ export function TileImage({
             transformOrigin: 'center',
             transition: 'all 200ms',
             cursor: onClick ? 'pointer' : 'default',
+            flexShrink: 0,
           }}
         />
       </div>
