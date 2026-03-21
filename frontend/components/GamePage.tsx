@@ -1965,6 +1965,22 @@ export default function GamePage({
     return () => clearTimeout(timer)
   }, [autoPlayMode, scoreResult, gameState?.status, finalResults, showFinalResults, handleNextRound])
 
+  // ドラ判定: dora.tiles に含まれる牌か、または赤ドラ (isRed) であれば true
+  // ※ フックのルール上、条件分岐(early return)より前に定義する必要がある
+  const doraTilesSet: Set<string> = React.useMemo(() => {
+    const set = new Set<string>()
+    const doraTiles = gameState?.dora?.tiles ?? []
+    for (const t of doraTiles) {
+      set.add(`${t.suit}_${t.number}`)
+    }
+    return set
+  }, [gameState?.dora?.tiles])
+
+  const checkIsDora = React.useCallback((tile: Tile): boolean => {
+    if (tile.isRed) return true
+    return doraTilesSet.has(`${tile.suit}_${tile.number}`)
+  }, [doraTilesSet])
+
   if (!gameState) {
     const debugLogs = JSON.parse(localStorage.getItem('debugLogs') || '[]')
     const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
@@ -2850,6 +2866,7 @@ export default function GamePage({
                             ? !myTransparentSet.has(idx)
                             : (isSpectator && !(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[effectiveUserId] && !gameState?.isDelayedMode)
                         }
+                        isDora={checkIsDora(fullHand[idx])}
                         onClick={() => {
                           // リーチ中は手牌をクリックできない
                           if (isRiichi) {
@@ -3089,6 +3106,7 @@ export default function GamePage({
                           setTenpaiInfo(null);
                         }}
                         isDrawn={true}
+                        isDora={checkIsDora(fullHand[drawnTileIndex])}
                       />
                       {/* Tenpai popup for drawn tile */}
                       {hoveredTileIndex === drawnTileIndex && tenpaiInfo?.isTenpai && tenpaiInfo.winningTiles.length > 0 && (

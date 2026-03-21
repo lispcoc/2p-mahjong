@@ -15,6 +15,7 @@ interface TileImageProps {
   faceDown?: boolean
   isRotated?: boolean
   scale?: number
+  isDora?: boolean
 }
 
 export function TileImage({
@@ -27,6 +28,7 @@ export function TileImage({
   faceDown = false,
   isRotated = false,
   scale = 1,
+  isDora = false,
 }: TileImageProps) {
   const { textMode } = useTextMode()
   const { whiteMode } = useWhiteMode()
@@ -56,10 +58,12 @@ export function TileImage({
         }}
       >
         <div
-          className={`flex items-center justify-center bg-white border border-gray-400 rounded-sm select-none font-bold ${colorClass}`}
+          className={`flex items-center justify-center bg-white border border-gray-400 rounded-sm select-none font-bold ${colorClass}${isDora && !faceDown ? ' dora-shine' : ''}`}
           style={{
             width: '100%',
             height: '100%',
+            position: 'relative',
+            overflow: 'hidden',
             boxShadow: isDrawn ? '0 0 8px #FFD700' : (isHovered ? `0 0 10px ${hoverGlow}` : '0 2px 4px rgba(0,0,0,0.2)'),
             transform: isRotated ? `rotate(90deg)` : (isDrawn ? `scale(${1.1 * scale})` : `scale(${scale})`),
             transformOrigin: 'center',
@@ -68,6 +72,7 @@ export function TileImage({
             textAlign: 'center',
             padding: '1px',
             fontSize: `${isRotated ? 10 * scale : 12 * scale}px`,
+            ...(isDora && !faceDown ? { '--dora-delay': `${((tile.suit.charCodeAt(0) * 7 + tile.number * 13 + (tile.isRed ? 3 : 0)) % 40) / 10}s` } as React.CSSProperties : {}),
           }}
         >
           {text}
@@ -93,26 +98,39 @@ export function TileImage({
         height: `${containerHeight}px`,
       }}
     >
-      <img
-        src={src}
-        alt={tile.display}
-        onClick={onClick}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        onError={(event) => {
-          event.currentTarget.src = getTileImageUrl('missing')
-        }}
+      <div
+        className={isDora && !faceDown ? 'dora-shine' : ''}
         style={{
-          width: `${baseSizesMobile[0] * scale}px`,
-          height: `${baseSizesMobile[1] * scale}px`,
-          filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? `drop-shadow(0 0 10px ${hoverGlow})` : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
-          transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : 'scale(1)'),
-          borderRadius: '0px',
-          transformOrigin: 'center',
-          transition: 'all 200ms',
-          cursor: onClick ? 'pointer' : 'default',
+          position: 'relative',
+          overflow: 'hidden',
+          lineHeight: 0,
+          borderRadius: '2px',
+          // 牌ごとにアニメーション開始タイミングをずらす（最大3.9秒オフセット）
+          ...(isDora && !faceDown ? { '--dora-delay': `${((tile.suit.charCodeAt(0) * 7 + tile.number * 13 + (tile.isRed ? 3 : 0)) % 40) / 10}s` } as React.CSSProperties : {}),
         }}
-      />
+      >
+        <img
+          src={src}
+          alt={tile.display}
+          onClick={onClick}
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+          onError={(event) => {
+            event.currentTarget.src = getTileImageUrl('missing')
+          }}
+          style={{
+            width: `${baseSizesMobile[0] * scale}px`,
+            height: `${baseSizesMobile[1] * scale}px`,
+            display: 'block',
+            filter: isDrawn ? 'drop-shadow(0 0 8px #FFD700)' : (isHovered ? `drop-shadow(0 0 10px ${hoverGlow})` : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'),
+            transform: isRotated ? 'rotate(90deg)' : (isDrawn ? 'scale(1.1)' : 'scale(1)'),
+            borderRadius: '0px',
+            transformOrigin: 'center',
+            transition: 'all 200ms',
+            cursor: onClick ? 'pointer' : 'default',
+          }}
+        />
+      </div>
     </div>
   )
 }

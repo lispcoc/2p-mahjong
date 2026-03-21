@@ -168,3 +168,53 @@ code {
     filter: grayscale(1) saturate(0);
   }
 }
+
+/* ドラ牌光沢アニメーション */
+/* ★ 光る周期（秒）を変えるにはこの変数を編集 ★ */
+:root {
+  --dora-shine-period: 2s;
+}
+
+@keyframes doraShineDiag {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  40% {
+    transform: translateX(220%) skewX(-20deg);
+    opacity: 0.8;
+  }
+  50%, 100% {
+    transform: translateX(220%) skewX(-20deg);
+    opacity: 0;
+  }
+}
+
+.dora-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.dora-shine::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  left: 0;
+  width: 40%;
+  height: 160%;
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.55) 45%,
+    rgba(255, 255, 255, 0.80) 50%,
+    rgba(255, 255, 255, 0.55) 55%,
+    transparent 80%
+  );
+  animation: doraShineDiag var(--dora-shine-period) ease-in-out infinite;
+  animation-delay: var(--dora-delay, 0s);
+  pointer-events: none;
+  z-index: 10;
+}
