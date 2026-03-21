@@ -27,6 +27,10 @@ import { getCachedFingerprint } from '../utils/fingerprint'
 
 const DEVELOPMENT_MODE = process.env.NODE_ENV === 'development'
 
+const toastSettings = {
+  spectatorJoinedNotify: false
+}
+
 // Gate console.log / console.warn to dev mode or CPU battle only.
 // We shadow the module-level `console` so existing calls need no changes.
 let _enableGameLogs = DEVELOPMENT_MODE
@@ -652,7 +656,9 @@ export default function GamePage({
         if (payload.spectators) {
           setSpectatorNames(payload.spectators)
         }
-        toast(`👀 ${payload.spectatorName}が観戦中`, { duration: 2000 })
+        if (toastSettings.spectatorJoinedNotify) {
+          toast(`👀 ${payload.spectatorName}が観戦中`, { duration: 2000 })
+        }
         break
       case 'spectatorLeft':
         debugLog(`👀 A spectator left: ${payload.spectatorName}`)
