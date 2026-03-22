@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { GameState, Tile } from '../../types/GameTypes'
 import { TileImage } from '../TileImage'
 import { FuroDisplay } from '../FuroDisplay'
@@ -34,6 +34,15 @@ export function ScoreResultModal({
   isSpectator = false,
   onLeave,
 }: ScoreResultModalProps) {
+  // max-sm (< 640px) でタイルを70%サイズにする
+  const [tileScale, setTileScale] = useState(1)
+  useEffect(() => {
+    const update = () => setTileScale(window.innerWidth < 640 ? 0.7 : 1)
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   if (!scoreResult) return null
 
   // 流局や引き分けなどのケース判定
@@ -114,20 +123,20 @@ export function ScoreResultModal({
                   />
                 </div>
               )}
-              <div className="flex gap-px flex-wrap items-center">
+              <div className="flex gap-px flex-nowrap items-center overflow-x-auto">
                 {winnerHand.slice(0, winnerHand.length - 1).map((tile, idx) => (
-                  <TileImage key={`winner-hand-${idx}`} tile={tile} />
+                  <TileImage key={`winner-hand-${idx}`} tile={tile} scale={tileScale} />
                 ))}
                 {/* 和了牌を右端にスペースを空けて表示 */}
                 {scoreResult.winningTile && (
                   <span className="flex items-center ml-4">
-                    <TileImage tile={scoreResult.winningTile} />
+                    <TileImage tile={scoreResult.winningTile} scale={tileScale} />
                   </span>
                 )}
                 {/* winningTileがなければ最後の牌を和了牌として表示 */}
                 {!scoreResult.winningTile && winnerHand.length > 0 && (
                   <span className="flex items-center ml-4">
-                    <TileImage tile={winnerHand[winnerHand.length - 1]} />
+                    <TileImage tile={winnerHand[winnerHand.length - 1]} scale={tileScale} />
                   </span>
                 )}
               </div>
@@ -156,7 +165,7 @@ export function ScoreResultModal({
                 </div>
                 <div className="flex gap-1.5 items-center">
                   {gameState.dora.indicators.map((tile, idx) => (
-                    <TileImage key={`dora-ind-${idx}`} tile={tile} />
+                    <TileImage key={`dora-ind-${idx}`} tile={tile} scale={tileScale} />
                   ))}
                 </div>
                 {gameState.dora.tiles && gameState.dora.tiles.length > 0 && (
@@ -164,7 +173,7 @@ export function ScoreResultModal({
                     <div className="text-xs text-gray-400">→</div>
                     <div className="flex gap-1.5 items-center">
                       {gameState.dora.tiles.map((tile, idx) => (
-                        <TileImage key={`dora-tile-${idx}`} tile={tile} />
+                        <TileImage key={`dora-tile-${idx}`} tile={tile} scale={tileScale} />
                       ))}
                     </div>
                   </>
@@ -181,7 +190,7 @@ export function ScoreResultModal({
                 </div>
                 <div className="flex gap-1.5 items-center">
                   {gameState.dora.uraIndicators.map((tile, idx) => (
-                    <TileImage key={`ura-ind-${idx}`} tile={tile} />
+                    <TileImage key={`ura-ind-${idx}`} tile={tile} scale={tileScale} />
                   ))}
                 </div>
                 {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
@@ -189,7 +198,7 @@ export function ScoreResultModal({
                     <div className="text-xs text-gray-400">→</div>
                     <div className="flex gap-1.5 items-center">
                       {gameState.dora.uraTiles.map((tile, idx) => (
-                        <TileImage key={`ura-tile-${idx}`} tile={tile} />
+                        <TileImage key={`ura-tile-${idx}`} tile={tile} scale={tileScale} />
                       ))}
                     </div>
                   </>
@@ -302,9 +311,9 @@ export function ScoreResultModal({
                               />
                             </div>
                           )}
-                          <div className="flex gap-px flex-wrap items-center">
+                          <div className="flex gap-px flex-nowrap items-center overflow-x-auto">
                             {hand.map((tile: Tile, idx: number) => (
-                              <TileImage key={`hand-${playerId}-${idx}`} tile={tile} faceDown={!isTenpai} />
+                              <TileImage key={`hand-${playerId}-${idx}`} tile={tile} faceDown={!isTenpai} scale={tileScale} />
                             ))}
                           </div>
                         </div>
