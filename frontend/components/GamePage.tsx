@@ -224,6 +224,10 @@ export default function GamePage({
   const userIdRef = useRef('')
   const gameStateRef = useRef<GameState | null>(null)
   const tilesRef = useRef<Record<string, any>>({})  // ゲーム状態の tiles を保持
+  const spectatorHandsAllowedRef = useRef(false)  // 観戦時手牌表示許可 (handleMessage用)
+  const spectatorShowHandsRef = useRef(false)  // 観戦時手牌表示フラグ (handleMessage用)
+  const handRevealedMapRef = useRef<Record<string, boolean>>({})  // プレイヤーごとの手牌公開状態 (handleMessage用)
+  const showOpponentHandRef = useRef(false)  // 相手の手牌表示フラグ (handleMessage用)
 
   useEffect(() => {
     onBackRef.current = onBack
@@ -256,6 +260,19 @@ export default function GamePage({
   useEffect(() => {
     gameStateRef.current = gameState
   }, [gameState])
+
+  useEffect(() => {
+    spectatorHandsAllowedRef.current = spectatorHandsAllowed
+  }, [spectatorHandsAllowed])
+  useEffect(() => {
+    spectatorShowHandsRef.current = spectatorShowHands
+  }, [spectatorShowHands])
+  useEffect(() => {
+    handRevealedMapRef.current = handRevealedMap
+  }, [handRevealedMap])
+  useEffect(() => {
+    showOpponentHandRef.current = showOpponentHand
+  }, [showOpponentHand])
 
   useEffect(() => {
     // gameState の tiles を保存しておき、gameFinished 時に使用する
@@ -779,10 +796,14 @@ export default function GamePage({
           if (lastInfo && lastInfo.userId !== myId && !lastInfo.isTsumogiri) {
             // 相手が手出しした → 手牌の中にランダムな位置で歯抜けを表示
             // 手牌が全表示されている場合（遅延観戦、観戦手牌表示、プレイヤー公開など）は歯抜けを無効化
+            // ※ Ref 経由で最新の state を取得する（useCallback([], []) のクロージャでは stale になるため）
+            const opponentIsCPU = payload.players?.some((p: any) => p.userId === lastInfo.userId && p.isCPU)
             const opponentHandVisible =
               payload.isDelayedMode === true ||
-              (spectatorHandsAllowed && spectatorShowHands) ||
-              !!(handRevealedMap[lastInfo.userId])
+              payload.transparentHand === true ||
+              (spectatorHandsAllowedRef.current && spectatorShowHandsRef.current) ||
+              !!(handRevealedMapRef.current[lastInfo.userId]) ||
+              (showOpponentHandRef.current && opponentIsCPU)
             const opponentHandLen = payload.tiles?.[lastInfo.userId]?.hand?.length ?? 0
             const gapPos = (!opponentHandVisible && opponentHandLen > 0) ? Math.floor(Math.random() * opponentHandLen) : -1
             setOpponentTedashiGapIdx(gapPos)
