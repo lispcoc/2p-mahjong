@@ -89,6 +89,9 @@ export default function GamePage({
   const [autoDrawMode, setAutoDrawMode] = useState(false)
   const [noMeldMode, setNoMeldMode] = useState(false)
   const [autoPlayMode, setAutoPlayMode] = useState(false)
+  const [tileScale, setTileScale] = useState<0.75 | 1>(() => {
+    try { const v = localStorage.getItem('mahjong-tile-scale'); return v === '0.75' ? 0.75 : 1 } catch { return 1 }
+  })
   const [hoveredTileIndex, setHoveredTileIndex] = useState<number | null>(null)
   const [selectedTileIndex, setSelectedTileIndex] = useState<number | null>(null) // 打牌確認モード: 選択中の牌
   const [confirmDiscardMode, setConfirmDiscardMode] = useState(false) // 打牌確認モード（2タップ打牌）
@@ -2543,6 +2546,7 @@ export default function GamePage({
                   seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
                   concealedMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.concealedMeldIndices ?? [])}
                   daiminkanMeldIndices={new Set(gameState.tiles?.[otherUserId ?? '']?.daiminkanMeldIndices ?? [])}
+                  scale={tileScale}
                 />
 
                 {/* 手牌（裏向きまたは表示） */}
@@ -2558,6 +2562,7 @@ export default function GamePage({
                       <div className="inline-block">
                         <TileImage
                           tile={tile}
+                          scale={tileScale}
                           faceDown={
                             isTransparentHandRule
                               ? !isTransparent
@@ -2580,6 +2585,7 @@ export default function GamePage({
                     <div className="inline-block ml-4 sm:ml-8">
                       <TileImage
                         tile={otherHand[otherDrawnTileIndex]}
+                        scale={tileScale}
                         faceDown={
                           isSpectator
                             ? (!(spectatorHandsAllowed && spectatorShowHands) && !handRevealedMap[otherUserId ?? ''] && !gameState?.isDelayedMode)
@@ -2909,6 +2915,7 @@ export default function GamePage({
                     >
                       <TileImage
                         tile={fullHand[idx]}
+                        scale={tileScale}
                         faceDown={
                           isTransparentHandRule && isSpectator
                             ? !myTransparentSet.has(idx)
@@ -3055,6 +3062,7 @@ export default function GamePage({
                     <div className={`relative ml-4 sm:ml-8 transition-transform ${selectedTileIndex === drawnTileIndex ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(drawnTileIndex) ? 'opacity-50' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
+                        scale={tileScale}
                         onClick={() => {
                           // リーチ中は手牌をクリックできない
                           if (isRiichi) {
@@ -3192,6 +3200,7 @@ export default function GamePage({
               seatWindOpponent={gameState.seatWinds?.[otherUserId ?? '']}
               concealedMeldIndices={new Set(gameState.tiles?.[effectiveUserId]?.concealedMeldIndices ?? [])}
               daiminkanMeldIndices={new Set(gameState.tiles?.[effectiveUserId]?.daiminkanMeldIndices ?? [])}
+              scale={tileScale}
             />
           </div>
         </div>
@@ -3338,12 +3347,24 @@ export default function GamePage({
               </button>
             </>
           )}
+          {(DEVELOPMENT_MODE || otherPlayer?.isCPU) && (
+            <button
+              onClick={() => toggleAutoDrawMode(!autoDrawMode)}
+              disabled={autoPlayMode}
+              className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+            >
+              ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
+            </button>
+          )}
           <button
-            onClick={() => toggleAutoDrawMode(!autoDrawMode)}
-            disabled={autoPlayMode}
-            className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${autoPlayMode ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed' : autoDrawMode ? 'bg-green-700 text-[#ffffff] border-green-800' : 'bg-white text-green-700 border-green-700'}`}
+            onClick={() => {
+              const newScale = tileScale === 1 ? 0.75 : 1;
+              setTileScale(newScale);
+              try { localStorage.setItem('mahjong-tile-scale', String(newScale)); } catch (e) {}
+            }}
+            className={`px-1 py-2 text-xs font-bold border-2 rounded cursor-pointer transition-all ${tileScale === 0.75 ? 'bg-indigo-600 text-[#ffffff] border-indigo-700' : 'bg-white text-indigo-600 border-indigo-600'}`}
           >
-            ツモ切り: {autoDrawMode ? 'ON' : 'OFF'}
+            牌: {tileScale === 1 ? '大' : '小'}
           </button>
           <button
             onClick={() => toggleNoMeldMode(!noMeldMode)}

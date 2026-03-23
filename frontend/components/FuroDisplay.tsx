@@ -12,6 +12,7 @@ interface FuroDisplayProps {
   seatWindOpponent?: number  // Opponent seat wind
   concealedMeldIndices?: Set<number>  // Indices of concealed kans (暗槓)
   daiminkanMeldIndices?: Set<number>  // Indices of daiminkan (大明槓)
+  scale?: number  // Tile scale factor (default 1)
 }
 
 export function FuroDisplay({
@@ -23,7 +24,8 @@ export function FuroDisplay({
   seatWindYou,
   seatWindOpponent,
   concealedMeldIndices,
-  daiminkanMeldIndices
+  daiminkanMeldIndices,
+  scale
 }: FuroDisplayProps) {
   if (!melds || melds.length === 0) {
     return null
@@ -68,6 +70,7 @@ export function FuroDisplay({
           <TileImage
             tile={tile}
             faceDown={tileIdx === 0 || tileIdx === 3}
+            scale={scale}
           />
         </div>
       ))
@@ -80,13 +83,13 @@ export function FuroDisplay({
       return (
         <>
           <div key={`meld-${meldIdx}-0`} className="inline-block">
-            <TileImage tile={meld[0]} />
+            <TileImage tile={meld[0]} scale={scale} />
           </div>
           <div key={`meld-${meldIdx}-2`} className="inline-block">
-            <TileImage tile={meld[2]} isRotated />
+            <TileImage tile={meld[2]} isRotated scale={scale} />
           </div>
           <div key={`meld-${meldIdx}-1`} className="inline-block">
-            <TileImage tile={meld[1]} />
+            <TileImage tile={meld[1]} scale={scale} />
           </div>
         </>
       )
@@ -102,16 +105,16 @@ export function FuroDisplay({
         return (
           <>
             <div key={`meld-${meldIdx}-0`} className="inline-block">
-              <TileImage tile={meld[0]} />
+              <TileImage tile={meld[0]} scale={scale} />
             </div>
             <div key={`meld-${meldIdx}-2`} className="inline-block">
-              <TileImage tile={meld[2]} isRotated />
+              <TileImage tile={meld[2]} isRotated scale={scale} />
             </div>
             <div key={`meld-${meldIdx}-1`} className="inline-block">
-              <TileImage tile={meld[1]} />
+              <TileImage tile={meld[1]} scale={scale} />
             </div>
             <div key={`meld-${meldIdx}-3`} className="inline-block">
-              <TileImage tile={meld[3]} />
+              <TileImage tile={meld[3]} scale={scale} />
             </div>
           </>
         )
@@ -123,7 +126,7 @@ export function FuroDisplay({
       return (
         <>
           <div key={`meld-${meldIdx}-0`} className="inline-block">
-            <TileImage tile={meld[0]} />
+            <TileImage tile={meld[0]} scale={scale} />
           </div>
           <div
             key={`meld-${meldIdx}-stack`}
@@ -131,15 +134,15 @@ export function FuroDisplay({
           >
             {/* 上: 加槓で追加した牌（横向き） */}
             <div>
-              <TileImage tile={meld[3]} isRotated />
+              <TileImage tile={meld[3]} isRotated scale={scale} />
             </div>
             {/* 下: 元のポンで鳴いた牌（横向き） */}
             <div>
-              <TileImage tile={meld[2]} isRotated />
+              <TileImage tile={meld[2]} isRotated scale={scale} />
             </div>
           </div>
           <div key={`meld-${meldIdx}-1`} className="inline-block">
-            <TileImage tile={meld[1]} />
+            <TileImage tile={meld[1]} scale={scale} />
           </div>
         </>
       )
@@ -148,7 +151,7 @@ export function FuroDisplay({
     // フォールバック: そのまま表示
     return meld.map((tile, tileIdx) => (
       <div key={`meld-${meldIdx}-${tileIdx}`} className="inline-block">
-        <TileImage tile={tile} />
+        <TileImage tile={tile} scale={scale} />
       </div>
     ))
   }
