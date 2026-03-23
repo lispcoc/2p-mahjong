@@ -1385,12 +1385,24 @@ class GameRoom {
     const delay = this.testMode ? 0 : (settings.cpuDelays.turnDelayMinMs + Math.random() * settings.cpuDelays.turnDelayRangeMs);
 
     setTimeout(() => {
+      // autoPlayが遅延中にOFFになっていた場合はスキップ（レースコンディション対策）
+      const freshPlayer = this.players.get(currentTurn);
+      if (!freshPlayer || !(freshPlayer.isCPU || freshPlayer.autoPlay)) {
+        console.log(`🤖 CPU turn cancelled for ${currentTurn}: autoPlay was toggled off during delay`);
+        return;
+      }
       this.executeCPUMainTurn(currentTurn, callback);
     }, delay);
   }
 
   // CPU通常ターンの処理（draw+discard または win）
   executeCPUMainTurn(userId, callback) {
+    // autoPlayが途中でOFFになっていた場合は中断
+    const currentPlayer = this.players.get(userId);
+    if (!currentPlayer || !(currentPlayer.isCPU || currentPlayer.autoPlay)) {
+      console.log(`🤖 executeCPUMainTurn cancelled for ${userId}: player is no longer autoPlay/CPU`);
+      return;
+    }
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const melds = this.gameLogic.players[userId].melds || [];
@@ -1430,10 +1442,22 @@ class GameRoom {
 
   // CPU ドロー後の処理（ツモ和了 or ディスカード）
   executeCPUAfterDraw(userId, callback) {
+    // autoPlayが途中でOFFになっていた場合は中断
+    const apPlayer = this.players.get(userId);
+    if (!apPlayer || !(apPlayer.isCPU || apPlayer.autoPlay)) {
+      console.log(`🤖 executeCPUAfterDraw cancelled for ${userId}: player is no longer autoPlay/CPU`);
+      return;
+    }
     const hand = this.gameLogic.getPlayerHand(userId);
     const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
     const drawnTile = this.gameLogic.players[userId].drawnTile;
     const aiPlayer = this.aiPlayers.get(userId);
+    // aiPlayerが存在しない場合はスキップ（レースコンディション対策）
+    if (!aiPlayer) {
+      console.log(`🤖 executeCPUAfterDraw: AI player not found for ${userId}, aborting`);
+      if (callback) callback();
+      return;
+    }
     const melds = this.gameLogic.players[userId].melds || [];
     const isRiichi = this.gameLogic.isPlayerRiichi(userId);
     const currentScore = this.gameLogic.getPlayerScore(userId);
@@ -1508,6 +1532,11 @@ class GameRoom {
   // CPU自動ロン処理
   executeCPURon(userId, callback) {
     const aiPlayer = this.aiPlayers.get(userId);
+    if (!aiPlayer) {
+      console.log(`🤖 executeCPURon: AI player not found for ${userId}, aborting`);
+      if (callback) callback();
+      return;
+    }
 
     if (!aiPlayer.shouldTakeRon()) {
       console.log('🤖 CPU declined ron, will draw instead');
@@ -1536,6 +1565,12 @@ class GameRoom {
     const melds = this.gameLogic.getPlayerMelds(userId);
     const lastDiscard = this.gameLogic.getLastDiscard();
     const aiPlayer = this.aiPlayers.get(userId);
+    if (!aiPlayer) {
+      console.log(`🤖 executeCPUPung: AI player not found for ${userId}, aborting`);
+      this.handlePlayerAction(userId, { type: 'draw' });
+      if (callback) callback();
+      return;
+    }
 
     console.log(`🤖 CPU ponging decision...`);
 
@@ -1598,6 +1633,11 @@ class GameRoom {
     const melds = this.gameLogic.getPlayerMelds(userId);
     const isRiichi = this.gameLogic.isPlayerRiichi(userId);
     const aiPlayer = this.aiPlayers.get(userId);
+    if (!aiPlayer) {
+      console.log(`🤖 executeCPUKan: AI player not found for ${userId}, aborting`);
+      if (callback) callback();
+      return;
+    }
 
     console.log(`🤖 CPU kan decision...`);
 

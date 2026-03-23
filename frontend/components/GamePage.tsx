@@ -1216,6 +1216,13 @@ export default function GamePage({
         setTenpaiStatus(null)
         setNotenPenalty(null)
         setGameState(payload)
+        // 再戦時はバックエンドが autoPlay を false にリセットするため、フロントエンド側も同期する
+        // これをしないと UI が ON のまま残り、ボタンを OFF→ON と 2 回押さないと有効化されない
+        if (payload.autoPlay?.[userIdRef.current] !== undefined) {
+          setAutoPlayMode(payload.autoPlay[userIdRef.current])
+        } else {
+          setAutoPlayMode(false)
+        }
         toast.success('再戦開始！', { duration: 3000 })
         break
       case 'opponentIcon':
