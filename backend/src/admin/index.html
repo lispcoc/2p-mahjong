@@ -378,16 +378,32 @@
 
     .user-card-header {
       display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      flex-wrap: wrap;
+      align-items: center;
       gap: 8px;
-      padding: 10px 16px 8px;
+      padding: 10px 16px;
       border-bottom: 1px solid var(--border2);
+      cursor: pointer;
+      user-select: none;
     }
 
-    .user-card-names { font-weight: 600; color: var(--text); font-size: 13px; }
+    .user-card-header:hover { background: #ffffff06; }
+
+    .user-card-info { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+    .user-card-names { font-weight: 600; color: var(--text); font-size: 13px; min-width: 0; word-break: break-all; }
     .user-card-meta  { font-size: 11px; color: var(--text3); white-space: nowrap; }
+    .user-card-badges { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
+    .user-card-toggle {
+      font-size: 12px;
+      color: var(--text3);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+    }
+
+    .user-card.collapsed .user-card-toggle { transform: rotate(-90deg); }
+    .user-card.collapsed .user-card-collapsible { display: none; }
 
     .user-card-table { margin: 0; }
     .user-card-table table { border-radius: 0; }
@@ -398,6 +414,7 @@
       display: flex;
       gap: 6px;
       justify-content: flex-end;
+      flex-wrap: wrap;
       background: var(--bg2);
     }
 
@@ -408,6 +425,24 @@
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 640px) {
+      .tab-nav { overflow-x: auto; gap: 0; }
+      .tab-btn { padding: 10px 10px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+      .tab-content { padding: 10px; }
+      .card-body { padding: 12px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-value { font-size: 22px; }
+      .top-bar { padding: 8px 12px; gap: 6px; }
+      .top-bar-title { font-size: 13px; }
+      .session-info { display: none; }
+      .login-box { padding: 28px 20px; width: calc(100% - 32px); }
+      th, td { padding: 6px 8px; }
+      .user-card-meta { white-space: normal; }
+      .user-card-badges { justify-content: flex-start; }
+    }
   </style>
 </head>
 <body>
@@ -763,6 +798,16 @@ async function deleteBan(id) {
 
 // ── USER DB ─────────────────────────────────────────────────────────────────
 
+function toggleUserCard(header) {
+  header.closest('.user-card').classList.toggle('collapsed');
+}
+
+function toggleAllCards(collapse) {
+  document.querySelectorAll('#user-db-container .user-card').forEach(c => {
+    c.classList.toggle('collapsed', collapse);
+  });
+}
+
 // ワイルドカードパターン（* を含む）に対して値がマッチするか判定
 function wildcardMatch(pattern, value) {
   if (!pattern || !value) return false;
@@ -837,30 +882,49 @@ async function loadUserDB() {
            </div>`
         : '';
 
+      // BAN済み数を集計（ヘッダーバッジ用）
+      const bannedIpCount = u.ips.filter(ip => banList.find(b => wildcardMatch(b.ip, ip) || b.ip === ip)).length;
+      const bannedFpCount = u.fingerprints.filter(fp => banList.find(b => wildcardMatch(b.fingerprint, fp) || b.fingerprint === fp)).length;
+      const totalBanned = bannedIpCount + bannedFpCount;
+      const ipBadge = u.ips.length > 0 ? `<span class="badge badge-yellow" style="font-size:10px">IP×${u.ips.length}</span>` : '';
+      const fpBadge = u.fingerprints.length > 0 ? `<span class="badge badge-blue" style="font-size:10px">FP×${u.fingerprints.length}</span>` : '';
+      const banBadge = totalBanned > 0 ? `<span class="badge badge-red" style="font-size:10px">BAN×${totalBanned}</span>` : '';
+
       return `
-        <div class="user-card">
-          <div class="user-card-header">
-            <div class="user-card-names">${esc(names)}</div>
-            <div class="user-card-meta">初: ${fmtDate(u.firstSeen)} / 最終: ${fmtDate(u.lastSeen)}</div>
+        <div class="user-card collapsed">
+          <div class="user-card-header" onclick="toggleUserCard(this)">
+            <span class="user-card-toggle">▼</span>
+            <div class="user-card-info">
+              <div class="user-card-names">${esc(names)}</div>
+              <div class="user-card-meta">初: ${fmtDate(u.firstSeen)} / 最終: ${fmtDate(u.lastSeen)}</div>
+            </div>
+            <div class="user-card-badges">${ipBadge}${fpBadge}${banBadge}</div>
           </div>
-          <div class="table-wrap user-card-table">
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:46px">種別</th>
-                  <th>値</th>
-                  <th style="width:200px">BAN状態</th>
-                  <th style="width:70px"></th>
-                </tr>
-              </thead>
-              <tbody>${ipRows}${fpRows}</tbody>
-            </table>
+          <div class="user-card-collapsible">
+            <div class="table-wrap user-card-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:46px">種別</th>
+                    <th>値</th>
+                    <th style="width:180px">BAN状態</th>
+                    <th style="width:70px"></th>
+                  </tr>
+                </thead>
+                <tbody>${ipRows}${fpRows}</tbody>
+              </table>
+            </div>
+            ${ipFpFooter}
           </div>
-          ${ipFpFooter}
         </div>`;
     }).join('');
 
-    container.innerHTML = `<div style="display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
+    container.innerHTML = `
+      <div style="display:flex;gap:6px;margin-bottom:8px;justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="toggleAllCards(false)">全展開</button>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAllCards(true)">全折りたたみ</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">${cards}</div>`;
   } catch (err) {
     container.innerHTML = `<div class="empty" style="color:var(--red)">読み込み失敗: ${esc(err.message)}</div>`;
   }
