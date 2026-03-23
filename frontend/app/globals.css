@@ -208,9 +208,9 @@ code {
   background: linear-gradient(
     105deg,
     transparent 20%,
-    rgba(255, 255, 255, 0.55) 45%,
-    rgba(255, 255, 255, 0.80) 50%,
-    rgba(255, 255, 255, 0.55) 55%,
+    rgba(255, 215, 0, 0.45) 40%,
+    rgba(255, 240, 120, 0.85) 50%,
+    rgba(255, 215, 0, 0.45) 60%,
     transparent 80%
   );
   animation: doraShineDiag var(--dora-shine-period) ease-in-out infinite;

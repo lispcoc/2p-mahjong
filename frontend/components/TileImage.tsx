@@ -5,6 +5,16 @@ import { getTileImageUrl } from '../utils/tileData'
 import { useTextMode } from '../contexts/TextModeContext'
 import { useWhiteMode } from '../contexts/WhiteModeContext'
 
+// ドラ牌アニメーション同期用: モジュールロード時に一度だけ計算する。
+// 全ドラ牌で同じ値を使うことでフェーズが揃い、負の値にすることで
+// React再レンダリング後もアニメーションが途中から即座に始まる（止まらない）。
+const _DORA_SHINE_PERIOD = 2 // 秒（globals.css の --dora-shine-period と一致させる）
+const _DORA_SYNC_DELAY = (() => {
+  if (typeof performance === 'undefined') return '0s'
+  const elapsed = (performance.now() / 1000) % _DORA_SHINE_PERIOD
+  return `${-elapsed.toFixed(3)}s`
+})()
+
 interface TileImageProps {
   tile: Tile
   onClick?: () => void
@@ -72,7 +82,7 @@ export function TileImage({
             textAlign: 'center',
             padding: '1px',
             fontSize: `${isRotated ? 10 * scale : 12 * scale}px`,
-            ...(isDora && !faceDown ? { '--dora-delay': `${((tile.suit.charCodeAt(0) * 7 + tile.number * 13 + (tile.isRed ? 3 : 0)) % 40) / 10}s` } as React.CSSProperties : {}),
+            ...(isDora && !faceDown ? { '--dora-delay': _DORA_SYNC_DELAY } as React.CSSProperties : {}),
           }}
         >
           {text}
@@ -112,8 +122,7 @@ export function TileImage({
           display: isRotated ? 'flex' : undefined,
           alignItems: isRotated ? 'center' : undefined,
           justifyContent: isRotated ? 'center' : undefined,
-          // 牌ごとにアニメーション開始タイミングをずらす（最大3.9秒オフセット）
-          ...(isDora && !faceDown ? { '--dora-delay': `${((tile.suit.charCodeAt(0) * 7 + tile.number * 13 + (tile.isRed ? 3 : 0)) % 40) / 10}s` } as React.CSSProperties : {}),
+          ...(isDora && !faceDown ? { '--dora-delay': _DORA_SYNC_DELAY } as React.CSSProperties : {}),
         }}
       >
         <img
