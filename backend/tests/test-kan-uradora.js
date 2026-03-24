@@ -37,12 +37,19 @@ section('カン裏ドラの実装テスト');
   assertEqual(game.doraTiles.length, 3, 'カン2回目: ドラが3枚');
   assertEqual(game.uraDoraTiles.length, 3, 'カン2回目: 裏ドラが3枚');
 
-  // 3回目のカン: ドラ・裏ドラ各+1 (2人麻雀の最大)
+  // 3回目のカン: ドラ・裏ドラ各+1
   game.addNewDora();
   assertEqual(game.doraIndicators.length, 4, 'カン3回目: ドラ表示牌が4枚');
   assertEqual(game.uraDoraIndicators.length, 4, 'カン3回目: 裏ドラ表示牌が4枚');
   assertEqual(game.doraTiles.length, 4, 'カン3回目: ドラが4枚');
   assertEqual(game.uraDoraTiles.length, 4, 'カン3回目: 裏ドラが4枚');
+
+  // 4回目のカン: ドラ・裏ドラ各+1 (最大)
+  game.addNewDora();
+  assertEqual(game.doraIndicators.length, 5, 'カン4回目: ドラ表示牌が5枚');
+  assertEqual(game.uraDoraIndicators.length, 5, 'カン4回目: 裏ドラ表示牌が5枚');
+  assertEqual(game.doraTiles.length, 5, 'カン4回目: ドラが5枚');
+  assertEqual(game.uraDoraTiles.length, 5, 'カン4回目: 裏ドラが5枚');
 })();
 
 // Test 2: 裏ドラ表示牌と裏ドラタイルの対応が正しいことを確認
@@ -53,7 +60,8 @@ section('カン裏ドラの実装テスト');
   game.initialize();
   game.dealTiles();
 
-  // 3回カンして全裏ドラを追加
+  // 4回カンして全裏ドラを追加
+  game.addNewDora();
   game.addNewDora();
   game.addNewDora();
   game.addNewDora();
@@ -105,6 +113,13 @@ section('カン裏ドラの実装テスト');
     game.uraDoraIndicators[3] === game.candidateUraDoraIndicators[3],
     'kan 3: uraDora indicator = candidate[3]'
   );
+
+  // カン4回目: 候補の4番目
+  game.addNewDora();
+  assert(
+    game.uraDoraIndicators[4] === game.candidateUraDoraIndicators[4],
+    'kan 4: uraDora indicator = candidate[4]'
+  );
 })();
 
 // Test 4: getDora() がカン裏ドラを含めて正しく返すことを確認
@@ -135,7 +150,7 @@ section('カン裏ドラの実装テスト');
   game.initialize();
   game.dealTiles();
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     assertEqual(
       game.doraIndicators.length,
       game.uraDoraIndicators.length,
@@ -146,7 +161,7 @@ section('カン裏ドラの実装テスト');
   assertEqual(
     game.doraIndicators.length,
     game.uraDoraIndicators.length,
-    'after 3 kan: doraCount(' + game.doraIndicators.length + ') = uraDoraCount(' + game.uraDoraIndicators.length + ')'
+    'after 4 kan: doraCount(' + game.doraIndicators.length + ') = uraDoraCount(' + game.uraDoraIndicators.length + ')'
   );
 })();
 

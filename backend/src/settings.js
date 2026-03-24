@@ -14,7 +14,7 @@ module.exports = {
     maxPlayersPerRoom: 2,       // ルームあたり最大プレイヤー数
     defaultInitialScore: 25000, // デフォルト初期持ち点
     tilesPerPlayer: 13,         // 配牌枚数
-    reservedTiles: 22,          // ドラ・嶺上牌などの予約枚数
+    reservedTiles: 26,          // ドラ・嶺上牌などの予約枚数
     dealTilesOffset: 27,        // 配牌分の牌数（13×2 + 親の1枚 = 27）
     riichiDeposit: 1000,        // リーチ供託点
     notenPenaltyAmount: 1500,   // ノーテン罰符（2人麻雀: 聴牌者 +3000 / ノーテン者 -3000）
@@ -26,7 +26,7 @@ module.exports = {
     maxTiles: 136,   // 最大壁牌枚数（全牌数）
     kanningWallSize: 3,       // 嶺上牌枚数
     kanningWallSupplySize: 3, // 嶺上牌補充枚数
-    candidateCount: 4,        // ドラ表示牌候補数（カン最大4回分）
+    candidateCount: 5,        // ドラ表示牌候補数（初期1枚＋カン最大4回分）
   },
 
   // ===== タイマー設定 =====
