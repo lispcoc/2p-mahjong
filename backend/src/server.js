@@ -987,6 +987,9 @@ async function handleMessage(ws, data, req = null) {
     case 'deleteRoom':
       handleDeleteRoom(ws);
       break;
+    case 'resetGame':
+      handleResetGame(ws);
+      break;
     case 'shareIcon':
       handleShareIcon(ws, payload);
       break;
@@ -2158,6 +2161,49 @@ function handleDeleteRoom(ws) {
   rooms.delete(roomId);
   activeBattleLogs.delete(roomId);
   console.log(`🗑️ Room ${roomId} deleted successfully`);
+}
+
+// Handle reset game - CPU battle only, host-only action to restart from round 1
+function handleResetGame(ws) {
+  const connection = connections.get(ws);
+  if (!connection) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not connected to a room' }));
+    return;
+  }
+
+  const { roomId, userId, playerName } = connection;
+  const room = rooms.get(roomId);
+
+  if (!room) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
+    return;
+  }
+
+  // CPU対戦のみ使用可能
+  const hasCPU = Array.from(room.players.values()).some(p => p.isCPU);
+  if (!hasCPU) {
+    ws.send(JSON.stringify({ type: 'error', message: 'CPU対戦時のみリセットできます' }));
+    return;
+  }
+
+  // ホストのみ使用可能
+  if (room.getHostId() !== userId) {
+    ws.send(JSON.stringify({ type: 'error', message: '部屋の作成者のみリセットできます' }));
+    return;
+  }
+
+  console.log(`🔄 CPU battle reset by host ${playerName} in room ${roomId}`);
+
+  room.resetForRematch();
+  room.start();
+
+  broadcastToRoom(roomId, {
+    type: 'rematchStart',
+    payload: room.getGameState(),
+  });
+
+  room.startInactivityTimer(createInactivityCallback(roomId));
+  executeCPUTurnIfNeeded(room);
 }
 
 /**

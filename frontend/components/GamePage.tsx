@@ -1719,6 +1719,23 @@ export default function GamePage({
     }
   }, [gameState, userId])
 
+  // CPU対戦リセット処理（テスト用）
+  const handleResetGame = React.useCallback(() => {
+    if (!window.confirm('ゲームをリセットしますか？')) return
+    try {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'resetGame' }))
+      } else {
+        toast.error('サーバーに接続されていません', { duration: 3000 })
+      }
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'リセットに失敗しました',
+        { duration: 4000 }
+      )
+    }
+  }, [])
+
   // CPU追加処理
   const handleAddCPU = React.useCallback(async () => {
     if (isAddingCPU) return
@@ -2455,6 +2472,15 @@ export default function GamePage({
                   className={`px-2 py-1 text-xs font-bold rounded border-none cursor-pointer transition-colors ${handRevealedToSpectators ? 'bg-green-600 text-white' : 'bg-gray-500 text-white hover:bg-gray-600'}`}
                 >
                   {handRevealedToSpectators ? '手牌公開中' : '手牌非公開'}
+                </button>
+              )}
+              {/* CPU対戦リセットボタン（テスト用・CPU対戦中のみ表示） */}
+              {!isSpectator && otherPlayer?.isCPU && (gameState.status === 'playing' || gameState.status === 'finished' || gameState.status === 'gameOver') && (
+                <button
+                  onClick={handleResetGame}
+                  className="px-2 py-1 text-[#ffffff] border-none rounded cursor-pointer font-bold text-xs transition-colors bg-purple-600 hover:bg-purple-700"
+                >
+                  リセット
                 </button>
               )}
               {/* CPU追加ボタン（待機中のみ表示） */}
