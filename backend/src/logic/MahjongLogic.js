@@ -3230,7 +3230,7 @@ class MahjongLogic {
    */
   getKanningWall() {
     return {
-      remaining: this.kanningWall.length + this.kanningWallSupply.length, // 残りスペース数（嶺上牌＋補充用）
+      remaining: this.kanningWall.length, // 残り嶺上牌数
       tiles: this.kanningWall.map((tile) => ({
         suit: tile.suit,
         number: tile.number,
