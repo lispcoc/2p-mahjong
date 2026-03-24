@@ -797,9 +797,46 @@ class MahjongLogic {
       return this.handleWin(userId);
     } else if (type === 'ron') {
       return this.handleRon(userId);
+    } else if (type === 'kyuushu') {
+      return this.handleKyuushu(userId);
     }
 
     return { success: false, message: 'Invalid action type' };
+  }
+
+  // 九種九牌の宣言可否チェック
+  canDeclareKyuushu(userId) {
+    const player = this.players[userId];
+    if (!player) return false;
+    // 捨て牌なし・副露なし・最初の巡目が保たれている・ツモ牌を持っている
+    if (player.discards.length > 0) return false;
+    if (player.melds.length > 0) return false;
+    if (!this.firstGoAroundIntact) return false;
+    if (player.drawnTileIndex < 0) return false;
+    // 手牌（14枚）から老頭牌・字牌の種類数が9以上か確認
+    const terminals = new Set();
+    for (const tile of player.hand) {
+      if (tile.suit === 'honor') {
+        terminals.add(`honor-${tile.number}`);
+      } else if (tile.number === 1 || tile.number === 9) {
+        terminals.add(`${tile.suit}-${tile.number}`);
+      }
+    }
+    return terminals.size >= 9;
+  }
+
+  // 九種九牌の処理
+  handleKyuushu(userId) {
+    if (!this.canDeclareKyuushu(userId)) {
+      return { success: false, message: '九種九牌の条件を満たしていません' };
+    }
+    return {
+      success: true,
+      finished: true,
+      isDraw: true,
+      message: '九種九牌 - 流局',
+      kyuushu: true,
+    };
   }
 
   handleDiscard(userId, tileIndexInput) {

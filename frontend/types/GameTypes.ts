@@ -25,6 +25,7 @@ export interface GameState {
   ronPossibleFor?: string
   // tiles[userId].daiminkanMeldIndices is sent from backend but typed loosely via Record<string, any>
   canWinFor?: string
+  canKyuushuFor?: string
   autoDrawMode?: Record<string, boolean>
   noMeldMode?: Record<string, boolean>
   autoPlay?: Record<string, boolean>

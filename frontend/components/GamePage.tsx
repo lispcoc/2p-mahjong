@@ -110,6 +110,7 @@ export default function GamePage({
   const [lastWinnerMelds, setLastWinnerMelds] = useState<Tile[][]>([])
   const [autoDiscardTimeLeft, setAutoDiscardTimeLeft] = useState<number | null>(null) // 自動ツモ切りまでの残り時間
   const [pendingPungTimeLeft, setPendingPungTimeLeft] = useState<number | null>(null) // ポン待ち自動引きまでの残り時間
+  const [showKyuushuConfirm, setShowKyuushuConfirm] = useState(false) // 九種九牌確認ダイアログ表示
   // タイマー一時停止用
   const [isTimerPaused, setIsTimerPaused] = useState(false)
   const pausedAutoDiscardTimeLeft = useRef<number | null>(null)
@@ -495,6 +496,7 @@ export default function GamePage({
           kanningWall: payload.gameState?.kanningWall,
           pendingPungFor: payload.gameState?.pendingPungFor,
           canWinFor: payload.gameState?.canWinFor,
+          canKyuushuFor: payload.gameState?.canKyuushuFor,
           scores: payload.gameState?.scores,
           initialScore: payload.gameState?.initialScore,
           roundWind: payload.gameState?.roundWind,
@@ -2149,6 +2151,8 @@ export default function GamePage({
   const totalTiles = fullHand.length + meldStructureTiles
   // Use backend's canWinFor flag for accurate win detection
   const canWin = isYourTurn && gameState.canWinFor === userId
+  // 九種九牌の宣言可否（バックエンド判定を使用）
+  const canKyuushu = isYourTurn && gameState.canKyuushuFor === userId
   const pendingPungFor = gameState.pendingPungFor
   const ronPossibleFor = gameState.ronPossibleFor
   const lastOpponentDiscard = otherDiscards.length > 0 ? otherDiscards[otherDiscards.length - 1] : null
@@ -3298,6 +3302,14 @@ export default function GamePage({
                 ツモ
               </button>
             )}
+            {canKyuushu && (
+              <button
+                onClick={() => setShowKyuushuConfirm(true)}
+                className="px-3 py-2 bg-orange-600 text-[#ffffff] text-xs font-bold border-2 border-orange-700 rounded cursor-pointer transition-all hover:bg-orange-700"
+              >
+                九種九牌
+              </button>
+            )}
             {/* リーチボタン - トグル式 */}
             {canDeclareRiichi && (
               <button
@@ -3416,6 +3428,36 @@ export default function GamePage({
         </div>
         )}
       </div>
+
+      {/* 九種九牌 確認ダイアログ */}
+      {showKyuushuConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white rounded-xl shadow-2xl p-6 mx-4 max-w-xs w-full text-center">
+            <div className="text-2xl font-bold text-orange-700 mb-2">九種九牌</div>
+            <div className="text-sm text-gray-700 mb-4">
+              九種九牌で流局しますか？<br />
+              <span className="text-gray-500">（取り消せません）</span>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => {
+                  setShowKyuushuConfirm(false);
+                  sendAction({ type: 'kyuushu' });
+                }}
+                className="px-5 py-2 bg-orange-600 text-white font-bold rounded-lg hover:bg-orange-700 transition-all"
+              >
+                流局する
+              </button>
+              <button
+                onClick={() => setShowKyuushuConfirm(false)}
+                className="px-5 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition-all"
+              >
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Score Result Modal */}
       {/* Score Result Modal */}

@@ -700,6 +700,7 @@ class GameRoom {
           previousScores: {},
           isDraw: result.isDraw === true,
           tenpai: tenpaiStatus,
+          kyuushu: result.kyuushu === true, // 九種九牌フラグ
         };
 
         // 各プレイヤーの前回点数を保存
@@ -714,8 +715,8 @@ class GameRoom {
           roundResult.scores[uid] = newScore;
         });
 
-        // ノーテン罰符の適用（流局時のみ）
-        if (result.isDraw === true && this.notenPenalty && tenpaiStatus) {
+        // ノーテン罰符の適用（流局時のみ、九種九牌は除く）
+        if (result.isDraw === true && !result.kyuushu && this.notenPenalty && tenpaiStatus) {
           const playerIds = Array.from(this.players.keys());
           const tenpaiPlayers = playerIds.filter(uid => tenpaiStatus[uid] === true);
           const notenPlayers = playerIds.filter(uid => tenpaiStatus[uid] !== true);
@@ -878,6 +879,7 @@ class GameRoom {
       autoDrawMode: {}, // Add auto-draw mode state for each player
       noMeldMode: {}, // Add no-meld mode state for each player
       canWinFor: null, // Player who can currently win (if any)
+      canKyuushuFor: null, // Player who can declare 九種九牌
       scores: this.gameLogic.getScores(), // 持ち点
       riichi: this.gameLogic.getRiichiStatus(), // リーチ状態
       riichiDeposits: this.gameLogic.getRiichiDeposits(), // 供託点
@@ -929,6 +931,10 @@ class GameRoom {
           // Check if this player can win
           if (this.gameLogic.getCurrentTurn() === userId && this.gameLogic.isWinningHand(userId)) {
             state.canWinFor = userId;
+          }
+          // Check if this player can declare 九種九牌
+          if (this.gameLogic.getCurrentTurn() === userId && this.gameLogic.canDeclareKyuushu(userId)) {
+            state.canKyuushuFor = userId;
           }
         } catch (err) {
           console.error(`Error getting game state for player ${userId}:`, err.message);
@@ -1097,10 +1103,13 @@ class GameRoom {
     // 2人麻雀の局進行ルール：
     // 1. 和了の場合：親が和了したら親が続く、仔が和了したら親が変わる（局進）
     // 2. 流局の場合：親が聴牌したら親が続く、親が聴牌しなかったら親が変わる（局進）
+    // 3. 九種九牌（途中流局）：親が常に続く
     if (!dealerId) {
       return false;
     }
     if (roundResult.isDraw) {
+      // 九種九牌（途中流局）は常に連荘
+      if (roundResult.kyuushu === true) return true;
       // 流局時の処理：親が聴牌していたら親が続く
       const dealerTenpai = roundResult.tenpai && roundResult.tenpai[dealerId];
       return dealerTenpai === true;
