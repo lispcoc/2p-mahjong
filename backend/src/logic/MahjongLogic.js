@@ -21,12 +21,12 @@ class MahjongLogic {
     this.doraTiles = []; // ドラ（表示牌の次の牌）
     this.uraDoraIndicators = []; // 裏ドラ表示牌
     this.uraDoraTiles = []; // 裏ドラ（裏ドラ表示牌の次の牌）
-    this.kanningWall = []; // 嶺上牌（かん牌スペース：3枚）
-    this.kanningWallSupply = []; // かん牌補充用（3枚：最大3回のカン補充）
+    this.kanningWall = []; // 嶺上牌（かん牌スペース：4枚）
+    this.kanningWallSupply = []; // かん牌補充用（3枚）
     this.candidateDoraIndicators = []; // ドラ表示牌の候補（5枚：初期1枚＋カン最大4回分）
-    this.candidateDoraTiles = []; // ドラタイルの候補（4枚）
-    this.candidateUraDoraIndicators = []; // 裏ドラ表示牌の候補（4枚）
-    this.candidateUraDoraTiles = []; // 裏ドラタイルの候補（4枚）
+    this.candidateDoraTiles = []; // ドラタイルの候補（5枚）
+    this.candidateUraDoraIndicators = []; // 裏ドラ表示牌の候補（5枚）
+    this.candidateUraDoraTiles = []; // 裏ドラタイルの候補（5枚）
     this.winner = null;
     this.finished = false;
     this.lastDiscard = null;
@@ -185,9 +185,9 @@ class MahjongLogic {
     });
 
     // Set up dora indicator and dora tile candidates
-    // 壁の最後に予約する牌（合計22枚）：
-    // - かん牌スペース（嶺上牌）：3枚
-    // - かん牌補充用：3枚（最大3回のカン補充）
+    // 壁の最後に予約する牌（合計27枚）：
+    // - かん牌スペース（嶺上牌）：4枚
+    // - かん牌補充用：3枚
     // - ドラ表示牌候補：5枚（初期1枚＋最大4回のカン増加）
     // - ドラタイル候補：5枚
     // - 裏ドラ表示牌候補：5枚
@@ -3230,7 +3230,7 @@ class MahjongLogic {
    */
   getKanningWall() {
     return {
-      remaining: this.kanningWall.length, // 残りスペース数
+      remaining: this.kanningWall.length + this.kanningWallSupply.length, // 残りスペース数（嶺上牌＋補充用）
       tiles: this.kanningWall.map((tile) => ({
         suit: tile.suit,
         number: tile.number,
