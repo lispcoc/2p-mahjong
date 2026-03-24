@@ -744,12 +744,12 @@ export default function HomePage({
                     <img
                       src={playerIcon}
                       alt="アイコン"
-                      className="w-22 h-22 object-cover rounded-full border-2 border-white group-hover:opacity-70 transition-opacity shadow"
+                      className="w-22 h-22 object-cover border-2 border-white group-hover:opacity-70 transition-opacity shadow"
                     />
-                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3d6b20] rounded-full border border-white flex items-center justify-center text-white text-[9px] leading-none">✎</span>
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3d6b20] border border-white flex items-center justify-center text-white text-[9px] leading-none">✎</span>
                   </>
                 ) : (
-                  <div className="w-22 h-22 rounded-full border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
+                  <div className="w-22 h-22 border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
                 )}
               </button>
               <div className='text-gray-300 text-xs'>
