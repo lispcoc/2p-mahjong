@@ -1063,6 +1063,15 @@ class MahjongLogic {
         const kanUserId = this.pendingKanUserId;
         this.pendingKanUserId = null;
         if (kanUserId) {
+          // 四開槓チェック（槍槓が見逃された後、嶺上牌ドロー前）
+          const suukaikanResultChankan = this.checkSuukaikan();
+          if (suukaikanResultChankan) {
+            this.pendingPungFor = null;
+            this.lastDiscard = null;
+            this.lastDiscardBy = null;
+            return suukaikanResultChankan;
+          }
+
           const kanDrawnTile = this.drawFromKanningWall();
           if (kanDrawnTile) {
             this.players[kanUserId].hand.push(kanDrawnTile);
@@ -1201,6 +1210,61 @@ class MahjongLogic {
     return { success: true, message: 'Pung successful' };
   }
 
+  /**
+   * Count the number of kans (槓) a specific player has formed.
+   * A kan meld has exactly 4 tiles that are all identical.
+   */
+  getPlayerKanCount(userId) {
+    const melds = this.players[userId].melds;
+    let count = 0;
+    for (const meld of melds) {
+      if (meld.length === 4 && meld[0].equals(meld[1]) && meld[0].equals(meld[2]) && meld[0].equals(meld[3])) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Count total kans across all players.
+   */
+  getTotalKanCount() {
+    let total = 0;
+    for (const userId of this.playerIds) {
+      total += this.getPlayerKanCount(userId);
+    }
+    return total;
+  }
+
+  /**
+   * Check for 四開槓 (Suukaikan) - abortive draw when 4 kans have been declared.
+   * Exception: If one player has all 4 kans, the game continues (四槓子 yakuman attempt).
+   * Returns a draw result object if suukaikan should trigger, or null otherwise.
+   */
+  checkSuukaikan() {
+    const totalKans = this.getTotalKanCount();
+    if (totalKans < 4) return null;
+
+    // Exception: if one player has all 4 kans, allow play to continue (四槓子)
+    for (const userId of this.playerIds) {
+      if (this.getPlayerKanCount(userId) === 4) {
+        console.log(`[checkSuukaikan] Player ${userId} has all 4 kans - 四槓子 possible, no abortive draw`);
+        return null;
+      }
+    }
+
+    // 四開槓: 2人以上が合計4回の槓 → 流局
+    console.log(`[checkSuukaikan] 四開槓 detected (total kans: ${totalKans}) - abortive draw`);
+    this.finished = true;
+    return {
+      success: true,
+      finished: true,
+      message: '四開槓 - 流局',
+      isDraw: true,
+      isSuukaikan: true,
+    };
+  }
+
   handleKong(userId) {
     // Kan can be:
     // 1. Daiminkan (大明槓) - calling kan on opponent's discard with 3 matching tiles
@@ -1305,6 +1369,12 @@ class MahjongLogic {
           };
         }
 
+        // 四開槓チェック（嶺上牌ドロー前）
+        const suukaikanResult = this.checkSuukaikan();
+        if (suukaikanResult) {
+          return suukaikanResult;
+        }
+
         // Draw a tile from the kanning wall to restore hand size
         const drawnTile = this.drawFromKanningWall();
         if (drawnTile) {
@@ -1387,6 +1457,13 @@ class MahjongLogic {
               kanType: 'added',
               pendingChankan: true,
             };
+          }
+
+          // 四開槓チェック（嶺上牌ドロー前）
+          // 注意: 槍槓が発生する場合はここに到達しない（上のpendingChankan分岐で返る）
+          const suukaikanResultAdded = this.checkSuukaikan();
+          if (suukaikanResultAdded) {
+            return suukaikanResultAdded;
           }
 
           // Draw a tile from the kanning wall to restore hand size
@@ -1493,6 +1570,12 @@ class MahjongLogic {
         // リーチ宣言牌が鳴かれた場合、riichiDiscardIndex はそのまま保持する。
         // 次にこのインデックスへ捨て牌が追加されたとき、自動的に横向き表示される。
       }
+    }
+
+    // 四開槓チェック（嶺上牌ドロー前）
+    const suukaikanResultDmk = this.checkSuukaikan();
+    if (suukaikanResultDmk) {
+      return suukaikanResultDmk;
     }
 
     // Draw from kanning wall (嶺上牌)
