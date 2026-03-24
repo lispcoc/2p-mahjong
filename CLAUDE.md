@@ -361,6 +361,29 @@ if (result === expected) {
 
 ---
 
+## 実行環境
+
+**OS: Windows（PowerShell）**
+
+このプロジェクトはWindows環境で動作している。ターミナルコマンドを実行する際は**必ずPowerShell構文を使用**すること。Bashコマンドは動作しない。
+
+| Bashコマンド（使用不可） | PowerShell代替（使用すること） |
+|----------------------|------------------------------|
+| `tail -f file.log` | `Get-Content file.log -Wait` |
+| `tail -n 50 file.log` | `Get-Content file.log -Tail 50` |
+| `cat file.txt` | `Get-Content file.txt` |
+| `grep "pattern" file` | `Select-String "pattern" file` |
+| `ls` / `ls -la` | `Get-ChildItem` / `Get-ChildItem -Force` |
+| `rm -rf dir/` | `Remove-Item dir -Recurse -Force` |
+| `cp src dst` | `Copy-Item src dst` |
+| `mv src dst` | `Move-Item src dst` |
+| `mkdir -p dir/sub` | `New-Item -ItemType Directory -Force dir/sub` |
+| `cmd1 && cmd2` | `cmd1 ; cmd2` |
+| `export VAR=val` | `$env:VAR = "val"` |
+| `echo $VAR` | `$env:VAR` または `Write-Host $env:VAR` |
+
+---
+
 ## 重要な開発ルール
 
 ### 変更前に必ず確認
