@@ -169,11 +169,41 @@ export default function HomePage({
   const [customPresets, setCustomPresets] = useState<RulePreset[]>(createDefaultPresets)
   const [editingPresetIndex, setEditingPresetIndex] = useState<number | null>(null)
   const [presetName, setPresetName] = useState('')
+  const [serverReady, setServerReady] = useState(false)
 
   // ホームページ表示時にフィンガープリントをバックグラウンドで事前生成する
   // WebSocket接続より先に取得しておくことで、join時に即座に送信できる
   useEffect(() => {
     prefetchFingerprint()
+  }, [])
+
+  // サーバー疎通確認: 10秒ごとにバックエンドへ通信し、成功したら停止
+  useEffect(() => {
+    let cancelled = false
+    let timerId: ReturnType<typeof setTimeout> | null = null
+
+    const checkServer = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(8000) })
+        if (res.ok && !cancelled) {
+          setServerReady(true)
+          return // 成功したら停止
+        }
+      } catch {
+        // 通信失敗 → 再試行
+      }
+      if (!cancelled) {
+        timerId = setTimeout(checkServer, 10000)
+      }
+    }
+
+    checkServer()
+
+    return () => {
+      cancelled = true
+      if (timerId) clearTimeout(timerId)
+    }
   }, [])
 
   useEffect(() => {
@@ -1419,6 +1449,20 @@ export default function HomePage({
           </div>
         </div>
       )}
+
+      {/* サーバー疎通確認インジケーター */}
+      <div className="fixed mt-2 ml-2 left-0 -translate-x-1 z-[100] pointer-events-none">
+        <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all duration-500 ${
+          serverReady
+            ? 'bg-green-800/90 text-green-200 border border-green-500'
+            : 'bg-yellow-900/90 text-yellow-200 border border-yellow-500 animate-pulse'
+        }`}>
+          <span className={`inline-block w-2.5 h-2.5 rounded-full ${
+            serverReady ? 'bg-green-400' : 'bg-yellow-400 animate-ping-slow'
+          }`} style={!serverReady ? { animation: 'pulse 1.5s ease-in-out infinite' } : undefined} />
+          {serverReady ? 'サーバー準備完了' : '通信中…'}
+        </div>
+      </div>
     </div>
   )
 }
