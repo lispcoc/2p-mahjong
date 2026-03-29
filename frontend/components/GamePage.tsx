@@ -232,10 +232,21 @@ export default function GamePage({
   const spectatorShowHandsRef = useRef(false)  // 観戦時手牌表示フラグ (handleMessage用)
   const handRevealedMapRef = useRef<Record<string, boolean>>({})  // プレイヤーごとの手牌公開状態 (handleMessage用)
   const showOpponentHandRef = useRef(false)  // 相手の手牌表示フラグ (handleMessage用)
+  const selectedTileIndexRef = useRef<number | null>(null)  // 予約選択用: selectedTileIndex のRef
+  const confirmDiscardModeRef = useRef(false)  // 予約選択用: confirmDiscardMode のRef
+  const prevHandRef = useRef<Tile[]>([])  // 予約選択のインデックス補正用: 前回の手牌
 
   useEffect(() => {
     onBackRef.current = onBack
   }, [onBack])
+
+  useEffect(() => {
+    selectedTileIndexRef.current = selectedTileIndex
+  }, [selectedTileIndex])
+
+  useEffect(() => {
+    confirmDiscardModeRef.current = confirmDiscardMode
+  }, [confirmDiscardMode])
 
   useEffect(() => {
     userIdRef.current = userId
@@ -309,10 +320,55 @@ export default function GamePage({
     }
   }, [])
 
-  // 選択中の牌をターン変更・ステータス変更・手牌変更時にリセット
+  // 選択中の牌をステータス変更時にリセット
   useEffect(() => {
     setSelectedTileIndex(null)
-  }, [gameState?.currentTurn, gameState?.status])
+  }, [gameState?.status])
+
+  // 手牌が変わった時、予約選択中の牌のインデックスを補正する（ソート順変動対策）
+  const currentHand = gameState?.tiles?.[userId]?.hand as Tile[] | undefined
+  useEffect(() => {
+    const prevHand = prevHandRef.current
+    const newHand = currentHand || []
+    // 手牌の参照が変わった場合のみ処理
+    if (prevHand !== newHand && prevHand.length > 0 && newHand.length > 0) {
+      const idx = selectedTileIndexRef.current
+      if (idx !== null && idx >= 0 && idx < prevHand.length) {
+        const selectedTile = prevHand[idx]
+        if (selectedTile) {
+          // 旧手牌で選択牌と同種の牌が何枚目だったか数える
+          const tileKey = `${selectedTile.suit}_${selectedTile.number}_${!!selectedTile.isRed}`
+          let occurrenceInOld = 0
+          for (let i = 0; i < idx; i++) {
+            const t = prevHand[i]
+            if (`${t.suit}_${t.number}_${!!t.isRed}` === tileKey) occurrenceInOld++
+          }
+          // 新手牌で同種の牌のn番目を探す
+          let count = 0
+          let newIdx = -1
+          for (let i = 0; i < newHand.length; i++) {
+            const t = newHand[i]
+            if (`${t.suit}_${t.number}_${!!t.isRed}` === tileKey) {
+              if (count === occurrenceInOld) {
+                newIdx = i
+                break
+              }
+              count++
+            }
+          }
+          if (newIdx >= 0 && newIdx !== idx) {
+            console.log(`🔄 [PreSelect] Correcting selectedTileIndex: ${idx} → ${newIdx} (tile: ${tileKey})`)
+            setSelectedTileIndex(newIdx)
+          } else if (newIdx < 0) {
+            // 選択していた牌が新手牌に見つからない（打牌された等）→ リセット
+            console.log(`🔄 [PreSelect] Selected tile no longer in hand, resetting`)
+            setSelectedTileIndex(null)
+          }
+        }
+      }
+    }
+    prevHandRef.current = newHand
+  }, [currentHand, userId])
 
   const triggerOpponentActionModal = React.useCallback((text: string) => {
     if (!text) return
@@ -1980,11 +2036,20 @@ export default function GamePage({
       autoDiscardIntervalRef.current = interval;
 
       const timer = setTimeout(() => {
-        // Auto-discard after N seconds (drawn tile or last tile after pon)
-        const discardTile = drawnTileIndex >= 0 ? fullHand[drawnTileIndex] : fullHand[fullHand.length - 1];
+        // 予約選択中の牌があればそれを打牌、なければツモ切り
+        const preSelectedIdx = selectedTileIndexRef.current;
+        const isConfirmMode = confirmDiscardModeRef.current;
+        let discardTile;
+        if (isConfirmMode && preSelectedIdx !== null && fullHand[preSelectedIdx]) {
+          discardTile = fullHand[preSelectedIdx];
+          console.log(`⏱️ Auto-discard: using pre-selected tile index ${preSelectedIdx}`);
+        } else {
+          discardTile = drawnTileIndex >= 0 ? fullHand[drawnTileIndex] : fullHand[fullHand.length - 1];
+        }
         if (discardTile) {
           sendAction({ type: 'discard', tileId: getTileId(discardTile) });
         }
+        setSelectedTileIndex(null);
         setAutoDiscardTimeLeft(null);
         autoDiscardDeadlineRef.current = null;
       }, initialDiscard * 1000);
@@ -2906,10 +2971,11 @@ export default function GamePage({
       {/* Hand display with tile images and actions - unified horizontal layout */}
       <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] sm:min-h-[168px] flex flex-col shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         {/* Fixed tenpai panel - for confirm discard mode / mobile */}
-        {confirmDiscardMode && selectedTileIndex !== null && isYourTurn && gameState.status === 'playing' && (() => {
+        {confirmDiscardMode && selectedTileIndex !== null && gameState.status === 'playing' && (() => {
           const info = tenpaiInfoMap[selectedTileIndex];
+          const isPreSelect = !isYourTurn;
           return (
-            <div className="w-full mt-1 mb-1 bg-[#1a2e0a]/80 border border-green-700 rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap">
+            <div className={`w-full mt-1 mb-1 ${isPreSelect ? 'bg-[#0a1a2e]/80 border-blue-700' : 'bg-[#1a2e0a]/80 border-green-700'} border rounded-lg px-3 py-2 flex items-center gap-3 flex-wrap`}>
               {info?.isTenpai && info.winningTiles.length > 0 ? (
                 <>
                   <div className="text-white text-xs font-bold whitespace-nowrap">待ち:</div>
@@ -2924,10 +2990,14 @@ export default function GamePage({
                       <div className="text-white text-xs ml-1">+{info.winningTiles.length - 12}</div>
                     )}
                   </div>
-                  <div className="text-yellow-300 text-xs font-bold ml-auto whitespace-nowrap">{riichiMode ? 'もう一度タップでリーチ' : 'もう一度タップで打牌'}</div>
+                  <div className="text-yellow-300 text-xs font-bold ml-auto whitespace-nowrap">
+                    {isPreSelect ? '予約選択中（ツモ切りタイマーで自動打牌）' : riichiMode ? 'もう一度タップでリーチ' : 'もう一度タップで打牌'}
+                  </div>
                 </>
               ) : (
-                <div className="text-gray-400 text-xs">{riichiMode ? '聴牌なし' : '聴牌なし（もう一度タップで打牌）'}</div>
+                <div className="text-gray-400 text-xs">
+                  {isPreSelect ? '予約選択中（ツモ切りタイマーで自動打牌）' : riichiMode ? '聴牌なし' : '聴牌なし（もう一度タップで打牌）'}
+                </div>
               )}
             </div>
           );
@@ -2956,6 +3026,24 @@ export default function GamePage({
                         onClick={() => {
                           // リーチ中は手牌をクリックできない
                           if (isRiichi) {
+                            return;
+                          }
+                          // 打牌確認モード: 自分のターン以外でも予約選択可能
+                          if (confirmDiscardMode && !isYourTurn && gameState.status === 'playing') {
+                            if (selectedTileIndex === idx) {
+                              // 同じ牌をタップ → 選択解除（打牌タイミング外なので打牌はしない）
+                              setSelectedTileIndex(null);
+                              setTenpaiInfo(null);
+                            } else {
+                              // 予約選択
+                              setSelectedTileIndex(idx);
+                              const cached = tenpaiInfoMap[idx];
+                              if (cached) {
+                                setTenpaiInfo(cached);
+                              } else {
+                                checkTenpai(idx);
+                              }
+                            }
                             return;
                           }
                           if (isYourTurn && gameState.status === 'playing') {
