@@ -42,7 +42,7 @@ section('緑一色: マンズ含む → 不成立');
   assert(!calc.isRyokuisshoku(hand), '不正な手牌はfalse');
 }
 
-section('大車輪: 筒子2-8全対子');
+section('大車輪: 筒子2-8全対子（七対子形）');
 {
   const hand = [
     new Tile('pin', 2), new Tile('pin', 2),
@@ -51,9 +51,23 @@ section('大車輪: 筒子2-8全対子');
     new Tile('pin', 5), new Tile('pin', 5),
     new Tile('pin', 6), new Tile('pin', 6),
     new Tile('pin', 7), new Tile('pin', 7),
-    new Tile('pin', 8), new Tile('pin', 2),
+    new Tile('pin', 8), new Tile('pin', 8),
   ];
   assert(calc.isDaisharin(hand), '大車輪が検出される');
+}
+
+section('大車輪: 枚数が不正（pin2が3枚）→ 不成立');
+{
+  const hand = [
+    new Tile('pin', 2), new Tile('pin', 2), new Tile('pin', 2),
+    new Tile('pin', 3), new Tile('pin', 3),
+    new Tile('pin', 4), new Tile('pin', 4),
+    new Tile('pin', 5), new Tile('pin', 5),
+    new Tile('pin', 6), new Tile('pin', 6),
+    new Tile('pin', 7), new Tile('pin', 7),
+    new Tile('pin', 8),
+  ];
+  assert(!calc.isDaisharin(hand), '各2枚ずつでない手牌はfalse');
 }
 
 section('大車輪: pin 1含む → 不成立');

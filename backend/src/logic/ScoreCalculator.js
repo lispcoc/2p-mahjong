@@ -359,8 +359,8 @@ class ScoreCalculator {
       yakumanList.push({ name: '緑一色', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
-    // 大車輪（ダイシャリン）
-    if (this.isDaisharin(allTiles)) {
+    // 大車輪（ダイシャリン）- 門前のみ・七対子形
+    if (menzen && melds.length === 0 && this.isDaisharin(allTiles)) {
       yakumanList.push({ name: '大車輪', han: 13, isYakuman: true, yakumanValue: 1 });
     }
 
@@ -2223,6 +2223,9 @@ class ScoreCalculator {
    * @returns {boolean}
    */
   isDaisharin(tiles) {
+    // 七対子形なので14枚ちょうどであること
+    if (tiles.length !== 14) return false;
+
     // すべての牌が筒子（pin）の2～8に含まれるかチェック
     const isAllValidTile = tiles.every(tile => {
       return tile.suit === 'pin' && tile.number >= 2 && tile.number <= 8;
@@ -2232,16 +2235,21 @@ class ScoreCalculator {
       return false;
     }
 
-    // 2～8の各数字が少なくとも1つ存在するかチェック
-    const numberSet = new Set();
+    // 各数字の枚数をカウント
+    const counts = {};
+    for (let i = 2; i <= 8; i++) counts[i] = 0;
     tiles.forEach(tile => {
       if (tile.suit === 'pin' && tile.number >= 2 && tile.number <= 8) {
-        numberSet.add(tile.number);
+        counts[tile.number]++;
       }
     });
 
-    // 7種類すべてが含まれているか確認
-    return numberSet.size === 7;
+    // 2～8の各数字がちょうど2枚ずつ（七対子形）であること
+    for (let i = 2; i <= 8; i++) {
+      if (counts[i] !== 2) return false;
+    }
+
+    return true;
   }
 }
 
