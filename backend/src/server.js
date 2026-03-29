@@ -201,23 +201,27 @@ app.post('/mjadmin/api/change-password', requireAdmin, (req, res) => {
 // サーバー統計
 app.get('/mjadmin/api/stats', requireAdmin, (req, res) => {
   const activeRooms = [];
+  const allRooms = [];
   rooms.forEach((room, roomId) => {
     const players = room.getPlayers();
     const connectedCount = room.getConnectedPlayersCount();
+    const roomInfo = {
+      roomId,
+      status: room.getStatus(),
+      players: players.map(p => p.playerName),
+      connectedCount,
+      spectatorCount: room.getSpectatorCount(),
+      createdAt: room.createdAt,
+    };
+    allRooms.push(roomInfo);
     if (connectedCount > 0 || room.getStatus() === 'playing') {
-      activeRooms.push({
-        roomId,
-        status: room.getStatus(),
-        players: players.map(p => p.playerName),
-        connectedCount,
-        spectatorCount: room.getSpectatorCount(),
-        createdAt: room.createdAt,
-      });
+      activeRooms.push(roomInfo);
     }
   });
   res.json({
     totalRooms: rooms.size,
     activeRooms,
+    allRooms,
     totalConnections: connections.size,
     adminSessions: adminSessions.size,
   });
@@ -321,6 +325,81 @@ app.get('/mjadmin/api/user-database', requireAdmin, (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to build user database', detail: err.message });
   }
+});
+
+// ---- 管理者 役満記録 API (認証保護) ----------------------------------------
+
+// 役満記録一覧（管理者用）
+app.get('/mjadmin/api/yakuman-records', requireAdmin, (req, res) => {
+  try {
+    if (!fs.existsSync(YAKUMAN_LOG_FILE)) {
+      return res.json({ records: [] });
+    }
+    const content = fs.readFileSync(YAKUMAN_LOG_FILE, 'utf8');
+    const records = JSON.parse(content);
+    // インデックスをIDとして付与
+    const withId = records.map((r, i) => ({ ...r, _index: i }));
+    withId.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+    res.json({ records: withId });
+  } catch (err) {
+    console.error('❌ Failed to read yakuman records:', err.message);
+    res.status(500).json({ error: 'Failed to read yakuman records' });
+  }
+});
+
+// 役満記録を選択削除（インデックス配列で指定）
+app.post('/mjadmin/api/yakuman-records/delete', requireAdmin, (req, res) => {
+  const { indices } = req.body || {};
+  if (!Array.isArray(indices) || indices.length === 0) {
+    return res.status(400).json({ error: '削除するインデックスの配列が必要です' });
+  }
+  try {
+    if (!fs.existsSync(YAKUMAN_LOG_FILE)) {
+      return res.status(404).json({ error: '役満記録ファイルが存在しません' });
+    }
+    const content = fs.readFileSync(YAKUMAN_LOG_FILE, 'utf8');
+    let records = JSON.parse(content);
+    const deleteSet = new Set(indices);
+    const before = records.length;
+    records = records.filter((_, i) => !deleteSet.has(i));
+    fs.writeFileSync(YAKUMAN_LOG_FILE, JSON.stringify(records, null, 2), 'utf8');
+    const deleted = before - records.length;
+    console.log(`🏆 [admin] Deleted ${deleted} yakuman record(s)`);
+    res.json({ success: true, deleted, remaining: records.length });
+  } catch (err) {
+    console.error('❌ Failed to delete yakuman records:', err.message);
+    res.status(500).json({ error: 'Failed to delete yakuman records' });
+  }
+});
+
+// ---- 管理者 ルーム強制削除 API (認証保護) ------------------------------------
+
+app.delete('/mjadmin/api/rooms/:roomId', requireAdmin, (req, res) => {
+  const { roomId } = req.params;
+  const room = rooms.get(roomId);
+  if (!room) {
+    return res.status(404).json({ error: 'ルームが見つかりません' });
+  }
+
+  console.log(`🗑️ [admin] Force deleting room ${roomId}`);
+
+  // 全プレイヤーにルーム削除を通知
+  broadcastToRoom(roomId, {
+    type: 'roomDeleted',
+    payload: { message: '管理者によってルームが強制削除されました' },
+  });
+
+  // タイマーをクリア
+  room.clearAutoReadyTimer();
+  room.clearGameOverTimer();
+  room.clearInactivityTimer();
+
+  // ルームを削除
+  rooms.delete(roomId);
+  activeBattleLogs.delete(roomId);
+
+  console.log(`🗑️ [admin] Room ${roomId} force deleted successfully`);
+  res.json({ success: true });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

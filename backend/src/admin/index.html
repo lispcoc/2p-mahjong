@@ -477,6 +477,7 @@
   <div class="tab-nav">
     <button class="tab-btn active" id="tab-ban" onclick="switchTab('ban')">🚫 BANリスト</button>
     <button class="tab-btn" id="tab-users" onclick="switchTab('users')">👥 ユーザーDB</button>
+    <button class="tab-btn" id="tab-yakuman" onclick="switchTab('yakuman')">🏆 役満履歴</button>
     <button class="tab-btn" id="tab-stats" onclick="switchTab('stats')">📊 サーバー状況</button>
     <button class="tab-btn" id="tab-settings" onclick="switchTab('settings')">⚙️ 設定</button>
   </div>
@@ -536,6 +537,22 @@
           <button class="btn btn-ghost btn-sm" onclick="loadUserDB()">↻ 更新</button>
         </div>
         <div class="card-body" id="user-db-container">
+          <div class="empty">読み込み中…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════ YAKUMAN RECORDS ══════════ -->
+    <div class="tab-panel" id="panel-yakuman">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🏆 役満履歴</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-danger btn-sm" id="yakuman-delete-btn" style="display:none;" onclick="deleteSelectedYakuman()">🗑 選択を削除</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadYakumanRecords()">↻ 更新</button>
+          </div>
+        </div>
+        <div id="yakuman-container">
           <div class="empty">読み込み中…</div>
         </div>
       </div>
@@ -676,6 +693,7 @@ function switchTab(tab) {
 
   if (tab === 'ban') loadBanList();
   if (tab === 'users') loadUserDB();
+  if (tab === 'yakuman') loadYakumanRecords();
   if (tab === 'stats') loadStats();
 }
 
@@ -945,6 +963,120 @@ async function quickBan(ip, fp, names) {
   }
 }
 
+// ── YAKUMAN RECORDS ──────────────────────────────────────────────────────────
+
+let yakumanRecords = [];
+let yakumanSelected = new Set();
+
+async function loadYakumanRecords() {
+  const container = document.getElementById('yakuman-container');
+  container.innerHTML = '<div class="empty">読み込み中…</div>';
+  yakumanSelected.clear();
+  updateYakumanDeleteBtn();
+  try {
+    const data = await apiFetch('GET', `${API}/mjadmin/api/yakuman-records`);
+    yakumanRecords = data.records || [];
+    if (yakumanRecords.length === 0) {
+      container.innerHTML = '<div class="empty">役満記録はありません</div>';
+      return;
+    }
+
+    const rows = yakumanRecords.map((r, i) => `
+      <tr>
+        <td style="text-align:center;">
+          <input type="checkbox" data-yakuman-index="${r._index}" onchange="toggleYakumanSelect(${r._index}, this.checked)"
+            style="width:16px;height:16px;cursor:pointer;accent-color:var(--blue);">
+        </td>
+        <td style="white-space:nowrap;color:var(--text2);">${esc(r.date || '—')}</td>
+        <td>${esc(r.playerName || '—')}</td>
+        <td style="font-weight:600;color:var(--yellow);">${esc(Array.isArray(r.yakuNames) ? r.yakuNames.join(', ') : (r.yakuNames || '—'))}</td>
+        <td>${esc(r.scoreType || '—')}</td>
+        <td>
+          <button class="btn btn-danger btn-xs" onclick="deleteSingleYakuman(${r._index})">削除</button>
+        </td>
+      </tr>
+    `).join('');
+
+    container.innerHTML = `
+      <div style="padding:8px 16px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--border2);">
+        <label style="font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="yakuman-select-all" onchange="toggleYakumanSelectAll(this.checked)"
+            style="width:16px;height:16px;cursor:pointer;accent-color:var(--blue);">
+          全選択
+        </label>
+        <span style="font-size:11px;color:var(--text3);" id="yakuman-select-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px;text-align:center;">選択</th>
+              <th>日付</th>
+              <th>プレイヤー</th>
+              <th>役名</th>
+              <th>スコア種別</th>
+              <th style="width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<div class="empty" style="color:var(--red)">読み込み失敗: ${esc(err.message)}</div>`;
+  }
+}
+
+function toggleYakumanSelect(index, checked) {
+  if (checked) yakumanSelected.add(index);
+  else yakumanSelected.delete(index);
+  updateYakumanDeleteBtn();
+}
+
+function toggleYakumanSelectAll(checked) {
+  const checkboxes = document.querySelectorAll('#yakuman-container input[data-yakuman-index]');
+  yakumanSelected.clear();
+  checkboxes.forEach(cb => {
+    cb.checked = checked;
+    if (checked) yakumanSelected.add(parseInt(cb.dataset.yakumanIndex));
+  });
+  updateYakumanDeleteBtn();
+}
+
+function updateYakumanDeleteBtn() {
+  const btn = document.getElementById('yakuman-delete-btn');
+  const countEl = document.getElementById('yakuman-select-count');
+  if (yakumanSelected.size > 0) {
+    btn.style.display = '';
+    btn.textContent = `🗑 選択を削除 (${yakumanSelected.size})`;
+    if (countEl) countEl.textContent = `${yakumanSelected.size}件選択中`;
+  } else {
+    btn.style.display = 'none';
+    if (countEl) countEl.textContent = '';
+  }
+}
+
+async function deleteSingleYakuman(index) {
+  if (!confirm('この役満記録を削除しますか？')) return;
+  try {
+    await apiFetch('POST', `${API}/mjadmin/api/yakuman-records/delete`, { indices: [index] });
+    await loadYakumanRecords();
+  } catch (err) {
+    alert(`削除失敗: ${err.message}`);
+  }
+}
+
+async function deleteSelectedYakuman() {
+  if (yakumanSelected.size === 0) return;
+  if (!confirm(`${yakumanSelected.size}件の役満記録を削除しますか？`)) return;
+  try {
+    await apiFetch('POST', `${API}/mjadmin/api/yakuman-records/delete`, { indices: [...yakumanSelected] });
+    await loadYakumanRecords();
+  } catch (err) {
+    alert(`削除失敗: ${err.message}`);
+  }
+}
+
 // ── STATS ────────────────────────────────────────────────────────────────────
 async function loadStats() {
   const container = document.getElementById('stats-container');
@@ -953,26 +1085,30 @@ async function loadStats() {
     const s = await apiFetch('GET', `${API}/mjadmin/api/stats`);
 
     let activeRoomsHtml = '';
-    if (s.activeRooms && s.activeRooms.length > 0) {
-      const rows = s.activeRooms.map(r => `
+    const roomsList = s.allRooms && s.allRooms.length > 0 ? s.allRooms : [];
+    if (roomsList.length > 0) {
+      const rows = roomsList.map(r => `
         <tr>
           <td><code>${esc(r.roomId)}</code></td>
           <td>${r.players.map(p => esc(p)).join(', ')}</td>
           <td>${r.connectedCount} / 2</td>
           <td>${r.spectatorCount || 0}</td>
-          <td><span class="badge ${r.status === 'playing' ? 'badge-blue' : 'badge-gray'}">${esc(r.status)}</span></td>
+          <td><span class="badge ${r.status === 'playing' ? 'badge-blue' : r.connectedCount > 0 ? 'badge-green' : 'badge-gray'}">${esc(r.status)}</span></td>
           <td style="color:var(--text2);font-size:11px;">${fmtDate(new Date(r.createdAt).toISOString())}</td>
+          <td>
+            <button class="btn btn-danger btn-xs" onclick="forceDeleteRoom('${esc(r.roomId)}')">強制削除</button>
+          </td>
         </tr>
       `).join('');
       activeRoomsHtml = `
         <div class="card">
           <div class="card-header">
-            <span class="card-title">アクティブルーム</span>
+            <span class="card-title">全ルーム一覧</span>
             <button class="btn btn-ghost btn-sm" onclick="loadStats()">↻ 更新</button>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>ルームID</th><th>プレイヤー</th><th>接続数</th><th>観戦者</th><th>ステータス</th><th>作成日時</th></tr></thead>
+              <thead><tr><th>ルームID</th><th>プレイヤー</th><th>接続数</th><th>観戦者</th><th>ステータス</th><th>作成日時</th><th></th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
@@ -982,10 +1118,10 @@ async function loadStats() {
       activeRoomsHtml = `
         <div class="card">
           <div class="card-header">
-            <span class="card-title">アクティブルーム</span>
+            <span class="card-title">全ルーム一覧</span>
             <button class="btn btn-ghost btn-sm" onclick="loadStats()">↻ 更新</button>
           </div>
-          <div class="empty">アクティブなルームはありません</div>
+          <div class="empty">ルームはありません</div>
         </div>
       `;
     }
@@ -1015,6 +1151,16 @@ async function loadStats() {
     `;
   } catch (err) {
     container.innerHTML = `<div class="empty" style="color:var(--red)">読み込み失敗: ${esc(err.message)}</div>`;
+  }
+}
+
+async function forceDeleteRoom(roomId) {
+  if (!confirm(`ルーム ${roomId} を強制削除しますか？\n接続中のプレイヤーは全員切断されます。`)) return;
+  try {
+    await apiFetch('DELETE', `${API}/mjadmin/api/rooms/${roomId}`);
+    await loadStats();
+  } catch (err) {
+    alert(`ルーム削除失敗: ${err.message}`);
   }
 }
 
