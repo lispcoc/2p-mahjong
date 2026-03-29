@@ -60,12 +60,12 @@ export function ScoreResultModal({
   // playerOrder があればその順、なければ起家優先でソート
   const orderedPlayers = playerOrder
     ? playerOrder
-        .map((id) => allPlayers.find((p) => p.userId === id))
-        .filter(Boolean) as Array<{ userId: string; playerName: string }>
+      .map((id) => allPlayers.find((p) => p.userId === id))
+      .filter(Boolean) as Array<{ userId: string; playerName: string }>
     : [
-        ...allPlayers.filter((p) => p.userId === dealerId),
-        ...allPlayers.filter((p) => p.userId !== dealerId),
-      ]
+      ...allPlayers.filter((p) => p.userId === dealerId),
+      ...allPlayers.filter((p) => p.userId !== dealerId),
+    ]
   const dealerPlayer = orderedPlayers.find((p) => p.userId === dealerId) ?? orderedPlayers[0]
   const nonDealerPlayer = orderedPlayers.find((p) => p.userId !== dealerPlayer?.userId) ?? orderedPlayers[1]
 
@@ -146,12 +146,12 @@ export function ScoreResultModal({
 
         <h2 className={`text-2xl font-bold text-center mb-2 ${
           isDrawOrAbort ? 'text-yellow-300' : (scoreResult.valid ? 'text-green-300' : 'text-red-400')
-        }`}>
+          }`}>
           {isDrawOrAbort
             ? (scoreResult.scoreType?.includes('Draw') ? '流局' : (scoreResult.scoreType || 'ゲーム終了'))
             : (scoreResult.valid
-                ? null
-                : '役なし')}
+              ? null
+              : '役なし')}
         </h2>
 
         {/* ドラ・裏ドラ表示 */}
@@ -184,27 +184,27 @@ export function ScoreResultModal({
             {/* 裏ドラ表示 (リーチ和了時のみ) */}
             {gameState.dora && gameState.dora.uraIndicators && gameState.dora.uraIndicators.length > 0 &&
               scoreResult.yaku?.some((y: any) => ['リーチ', '立直', 'ダブルリーチ', 'W立直', 'ダブル立直'].includes(y.name)) && (
-              <div className="w-full flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
-                <div className="text-xs text-gray-600 font-bold w-[65px]">
-                  裏ドラ
+                <div className="w-full flex items-center gap-3 px-3 py-2 bg-yellow-200 rounded border border-yellow-700">
+                  <div className="text-xs text-gray-600 font-bold w-[65px]">
+                    裏ドラ
+                  </div>
+                  <div className="flex gap-1.5 items-center">
+                    {gameState.dora.uraIndicators.map((tile, idx) => (
+                      <TileImage key={`ura-ind-${idx}`} tile={tile} scale={tileScale} />
+                    ))}
+                  </div>
+                  {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
+                    <>
+                      <div className="text-xs text-gray-400">→</div>
+                      <div className="flex gap-1.5 items-center">
+                        {gameState.dora.uraTiles.map((tile, idx) => (
+                          <TileImage key={`ura-tile-${idx}`} tile={tile} scale={tileScale} />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-                <div className="flex gap-1.5 items-center">
-                  {gameState.dora.uraIndicators.map((tile, idx) => (
-                    <TileImage key={`ura-ind-${idx}`} tile={tile} scale={tileScale} />
-                  ))}
-                </div>
-                {gameState.dora.uraTiles && gameState.dora.uraTiles.length > 0 && (
-                  <>
-                    <div className="text-xs text-gray-400">→</div>
-                    <div className="flex gap-1.5 items-center">
-                      {gameState.dora.uraTiles.map((tile, idx) => (
-                        <TileImage key={`ura-tile-${idx}`} tile={tile} scale={tileScale} />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+              )}
           </div>
         )}
 
@@ -258,22 +258,16 @@ export function ScoreResultModal({
           </>
         ) : isDrawOrAbort ? (
           <>
-            <div className="mt-4 p-4 bg-yellow-900/60 border-2 border-yellow-300 text-center">
-              <p className="text-base text-yellow-300 my-2.5">
-                {scoreResult.scoreType || 'ゲームが終了しました'}
-              </p>
-              <p className="text-sm text-gray-300 my-2.5">
-                (このラウンドは引き分けです)
-              </p>
-              {notenPenalty && (
+            {notenPenalty && (
+              <div className="mt-4 p-4 bg-yellow-900/60 border-2 border-yellow-300 text-center">
                 <div className="mt-3 p-3 bg-yellow-800/50 border border-yellow-400 rounded">
                   <p className="text-sm text-yellow-300 font-bold m-0 mb-1">ノーテン缰符</p>
                   <p className="text-sm text-white m-0">
                     {playerNames?.[notenPenalty.notenPlayer] || notenPenalty.notenPlayer} → {playerNames?.[notenPenalty.tenpaiPlayer] || notenPenalty.tenpaiPlayer}: {notenPenalty.amount.toLocaleString()}点
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* 流局時の手牌と聴牌情報表示 */}
             {gameState?.players && playerOrder && tenpaiStatus && (
@@ -394,7 +388,7 @@ export function ScoreResultModal({
               nextRoundReady
                 ? 'bg-gray-600 cursor-not-allowed text-white'
                 : 'bg-mahjong-dark-secondary hover:bg-green-700 text-white cursor-pointer'
-            }`}
+              }`}
           >
             {nextRoundReady ? '準備完了' : '次へ'}
           </button>

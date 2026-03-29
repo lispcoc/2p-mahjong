@@ -2797,7 +2797,7 @@ export default function GamePage({
             </div>
 
             {/* Dora and Kanning Wall */}
-            <div className="w-full mb-3 flex justify-left items-center flex-wrap">
+            <div className="w-full mb-1 sm:mb-3 flex justify-left items-center flex-wrap origin-top-left scale-[0.7] sm:scale-100 h-[35px] sm:h-auto">
               {/* Dora Indicator */}
               {gameState.dora && gameState.dora.indicators && gameState.dora.indicators.length > 0 && (
                 <div className="flex items-center gap-3">
