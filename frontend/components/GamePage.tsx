@@ -2,6 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
+// Telop notification queue system (custom, supplements react-hot-toast)
+type TelopItem = {
+  id: number
+  message: string | React.ReactNode
+  type: 'success' | 'error' | 'info'
+  duration: number // ms
+}
 import { TenpaiChecker } from '../utils/TenpaiChecker'
 import { Tile, GamePageProps, GameState, CheatType, CheatResult, CheatAccusationResult } from '../types/GameTypes'
 import { normalizeTile, getTileId } from '../utils/TileUtils'
@@ -81,7 +88,70 @@ export default function GamePage({
   onBanned,
 }: GamePageProps) {
   const [gameState, setGameState] = useState<GameState | null>(null)
-  // Toast notifications via react-hot-toast (no local state needed)
+  // ===== Telop notification queue =====
+  const [activeTelop, setActiveTelop] = useState<TelopItem | null>(null)
+  const telopQueueRef = useRef<TelopItem[]>([])
+  const telopTimerRef = useRef<number | null>(null)
+  const telopIdCounter = useRef(0)
+  const telopDismissAllRef = useRef(false)
+  const activeTelopRef = useRef<TelopItem | null>(null)
+
+  const processTelopQueue = React.useCallback(() => {
+    if (telopDismissAllRef.current) {
+      telopDismissAllRef.current = false
+      telopQueueRef.current = []
+      activeTelopRef.current = null
+      setActiveTelop(null)
+      return
+    }
+    if (telopQueueRef.current.length === 0) {
+      activeTelopRef.current = null
+      setActiveTelop(null)
+      return
+    }
+    const next = telopQueueRef.current.shift()!
+    // When there are more items queued, halve the display duration
+    const effectiveDuration = telopQueueRef.current.length > 0
+      ? Math.max(next.duration / 2, 300)
+      : next.duration
+    activeTelopRef.current = next
+    setActiveTelop(next)
+    if (effectiveDuration > 0) {
+      telopTimerRef.current = window.setTimeout(() => {
+        telopTimerRef.current = null
+        processTelopQueue()
+      }, effectiveDuration)
+    }
+  }, [])
+
+  const showTelop = React.useCallback((message: string | React.ReactNode, type: TelopItem['type'] = 'info', duration = 3000) => {
+    const item: TelopItem = { id: ++telopIdCounter.current, message, type, duration }
+    telopQueueRef.current.push(item)
+    // If nothing is being displayed and no timer running, start processing immediately
+    if (!telopTimerRef.current && activeTelopRef.current === null) {
+      processTelopQueue()
+    }
+  }, [processTelopQueue])
+
+  const dismissTelop = React.useCallback(() => {
+    telopDismissAllRef.current = true
+    if (telopTimerRef.current) {
+      clearTimeout(telopTimerRef.current)
+      telopTimerRef.current = null
+    }
+    telopQueueRef.current = []
+    activeTelopRef.current = null
+    setActiveTelop(null)
+  }, [])
+
+  // Cleanup telop timer on unmount
+  useEffect(() => {
+    return () => {
+      if (telopTimerRef.current) clearTimeout(telopTimerRef.current)
+    }
+  }, [])
+  // ===== End Telop system =====
+
   const [userId, setUserId] = useState('')
   const { textMode, toggleTextMode } = useTextMode()
   const { whiteMode, toggleWhiteMode } = useWhiteMode()
@@ -379,9 +449,8 @@ export default function GamePage({
       opponentActionDelayRef.current = null
     }
 
-    // Schedule toast with 500ms delay
+    // Schedule toast with 300ms delay
     opponentActionDelayRef.current = window.setTimeout(() => {
-      // Clear any previous toasts
       toast.dismiss()
 
       toast.custom(
@@ -477,8 +546,8 @@ export default function GamePage({
 
   const clearInvalidSession = React.useCallback(() => {
     localStorage.removeItem('mahjong-session')
-    toast.dismiss()
-  }, [])
+    dismissTelop()
+  }, [dismissTelop])
 
   // Get the other player
   const otherPlayer = gameState?.players?.find(p => p.userId !== userId)
@@ -601,11 +670,11 @@ export default function GamePage({
         }
 
         if (payload.isReconnecting) {
-          toast.success('ゲームに再接続しました', { duration: 3000 })
+          showTelop('ゲームに再接続しました', 'success', 3000)
         } else {
-          toast.success(
+          showTelop(
             `${payload.playerName}はゲームに参加しました（${payload.players.length}/2）`,
-            { duration: 3000 }
+            'success', 3000
           )
         }
         // 観戦者リストを復元
@@ -667,7 +736,7 @@ export default function GamePage({
               setDelayedCountdownSec(rem)
             }
           }, 500)
-          toast(`⏳ 遅延観戦モードで参加しました。約${Math.round(delayMs / 1000)}秒後から観戦が始まります。`, { duration: 5000 })
+          showTelop(`⏳ 遅延観戦モードで参加しました。約${Math.round(delayMs / 1000)}秒後から観戦が始まります。`, 'info', 5000)
         } else {
           setDelayedSpectatorWaiting(false)
           if (payload.gameState) {
@@ -685,9 +754,9 @@ export default function GamePage({
           }
 
           if (payload.isDelayedMode) {
-            toast.success(`遅延観戦モードで参加しました（${Math.round((payload.delayMs || 60000) / 1000)}秒遅延・手牌公開）`, { duration: 4000 })
+            showTelop(`遅延観戦モードで参加しました（${Math.round((payload.delayMs || 60000) / 1000)}秒遅延・手牌公開）`, 'success', 4000)
           } else {
-            toast.success(`観戦モードで参加しました`, { duration: 3000 })
+            showTelop(`観戦モードで参加しました`, 'success', 3000)
           }
         }
 
@@ -735,7 +804,7 @@ export default function GamePage({
           setSpectatorNames(payload.spectators)
         }
         if (toastSettings.spectatorJoinedNotify) {
-          toast(`👀 ${payload.spectatorName}が観戦中`, { duration: 2000 })
+          showTelop(`👀 ${payload.spectatorName}が観戦中`, 'info', 2000)
         }
         break
       case 'spectatorLeft':
@@ -769,7 +838,7 @@ export default function GamePage({
             players: payload.players,
           }
         })
-        toast.success(`プレイヤーが参加しました（${payload.players.length}/2）`, { duration: 3000 })
+        showTelop(`プレイヤーが参加しました（${payload.players.length}/2）`, 'success', 3000)
         break
       case 'gameStarted':
         debugLog(`🎮 Game started with status=${payload.status}, players=${payload.players.length}`)
@@ -834,7 +903,7 @@ export default function GamePage({
           setAutoActionTimerSeconds(payload.autoActionTimerSeconds)
         }
 
-        toast.success('対局開始', { duration: 3000 })
+        showTelop('対局開始', 'success', 3000)
         break
       case 'gameStateUpdate':
         debugLog(`♻️ Game state updated`)
@@ -968,7 +1037,7 @@ export default function GamePage({
           payload?.scoreResult?.valid === false ||
           (typeof payload?.scoreResult?.error === 'string' && payload.scoreResult.error.includes('役がありません'))
         if (noYaku) {
-          toast.error(payload?.scoreResult?.error || '役がありません', { duration: 4000 })
+          showTelop(payload?.scoreResult?.error || '役がありません', 'error', 4000)
           if (autoNextTimerRef.current !== null) {
             clearTimeout(autoNextTimerRef.current)
             autoNextTimerRef.current = null
@@ -1188,7 +1257,7 @@ export default function GamePage({
         console.log('✅ Action response:', payload)
         if (payload.success === false) {
           // エラーメッセージを表示
-          toast.error(payload.message || 'アクションに失敗しました', { duration: 4000 })
+          showTelop(payload.message || 'アクションに失敗しました', 'error', 4000)
           if (payload.message && payload.message.includes('役がありません')) {
             if (autoNextTimerRef.current !== null) {
               clearTimeout(autoNextTimerRef.current)
@@ -1213,7 +1282,7 @@ export default function GamePage({
           if (onBanned) {
             onBanned(reason)
           } else {
-            toast.error(`⛔ 利用禁止: ${reason}`, { duration: 0 })
+            showTelop(`⛔ 利用禁止: ${reason}`, 'error', 15000)
           }
           break
         }
@@ -1232,12 +1301,12 @@ export default function GamePage({
 
         // 自分が参加中のルームを観戦しようとした場合、ホームに戻す
         if (errorMessage.includes('観戦できません')) {
-          toast.error(errorMessage, { duration: 3000 })
+          showTelop(errorMessage, 'error', 3000)
           setTimeout(() => onBackRef.current(), 1500)
           break
         }
 
-        toast.error(errorMessage, { duration: 5000 })
+        showTelop(errorMessage, 'error', 5000)
         break
       }
       case 'playerDisconnected':
@@ -1249,7 +1318,7 @@ export default function GamePage({
         debugLog(`🔄 Player reconnected: ${payload.playerName}`)
         console.log('🔄 Player reconnected:', payload)
         setOpponentDisconnected(false)
-        toast.success(`${payload.playerName}さんが再接続しました`, { duration: 3000 })
+        showTelop(`${payload.playerName}さんが再接続しました`, 'success', 3000)
         break
       case 'rematchReadyUpdate':
         console.log('🔄 Rematch ready update:', payload)
@@ -1284,7 +1353,7 @@ export default function GamePage({
         } else {
           setAutoPlayMode(false)
         }
-        toast.success('再戦開始！', { duration: 3000 })
+        showTelop('再戦開始！', 'success', 3000)
         break
       case 'opponentIcon':
         if (payload?.iconData) {
@@ -1303,7 +1372,7 @@ export default function GamePage({
         break
       case 'roomDeleted':
         console.log('🗑️ Room deleted:', payload)
-        toast('部屋が削除されました', { icon: '🗑️', duration: 4000 })
+        showTelop('🗑️ 部屋が削除されました', 'info', 4000)
         setTimeout(() => onBackRef.current(), 1500)
         break
       case 'cheatResult':
@@ -1311,9 +1380,9 @@ export default function GamePage({
         console.log('🃏 Cheat result:', payload)
         setLastCheatResult(payload)
         if (payload?.success) {
-          toast('イカサマ実行', { icon: '🃏', duration: 2000 })
+          showTelop('🃏 イカサマ実行', 'info', 2000)
         } else {
-          toast.error(payload?.message || 'イカサマ失敗', { duration: 2000 })
+          showTelop(payload?.message || 'イカサマ失敗', 'error', 2000)
         }
         break
       case 'cheatAccusationResult':
@@ -1321,9 +1390,9 @@ export default function GamePage({
         console.log('🚨 Cheat accusation result:', payload)
         setLastAccusationResult(payload)
         if (payload?.caught) {
-          toast(payload.message, { icon: '🚨', duration: 5000 })
+          showTelop(`🚨 ${payload.message}`, 'info', 5000)
         } else {
-          toast(payload.message, { icon: '❌', duration: 5000 })
+          showTelop(`❌ ${payload.message}`, 'info', 5000)
         }
         break
       default:
@@ -1411,7 +1480,7 @@ export default function GamePage({
     ws.onopen = async () => {
       debugLog('✅ WebSocket connected successfully')
       console.log('✅ WebSocket connected successfully')
-      toast.dismiss()
+      dismissTelop()
 
       const joinPayload: any = {
         roomId,
@@ -1538,7 +1607,7 @@ export default function GamePage({
     ws.onerror = (event) => {
       debugLog(`❌ WebSocket error: ${event}`)
       console.error('❌ WebSocket error:', event)
-      toast.error('接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）', { duration: 5000 })
+      showTelop('接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）', 'error', 5000)
     }
 
     ws.onclose = () => {
@@ -1782,22 +1851,22 @@ export default function GamePage({
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'resetGame' }))
       } else {
-        toast.error('サーバーに接続されていません', { duration: 3000 })
+        showTelop('サーバーに接続されていません', 'error', 3000)
       }
     } catch (err) {
-      toast.error(
+      showTelop(
         err instanceof Error ? err.message : 'リセットに失敗しました',
-        { duration: 4000 }
+        'error', 4000
       )
     }
-  }, [])
+  }, [showTelop])
 
   // CPU追加処理
   const handleAddCPU = React.useCallback(async () => {
     if (isAddingCPU) return
 
     setIsAddingCPU(true)
-    toast.dismiss()
+    dismissTelop()
 
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
@@ -1811,37 +1880,37 @@ export default function GamePage({
       }
 
       const data = await response.json()
-      toast.success(`${data.cpuName}が参加しました`, { duration: 3000 })
+      showTelop(`${data.cpuName}が参加しました`, 'success', 3000)
     } catch (err) {
-      toast.error(
+      showTelop(
         err instanceof Error
           ? err.message
           : 'CPU追加に失敗しました',
-        { duration: 4000 }
+        'error', 4000
       )
     } finally {
       setIsAddingCPU(false)
     }
-  }, [roomId, isAddingCPU])
+  }, [roomId, isAddingCPU, showTelop, dismissTelop])
 
   // 部屋削除処理
   const handleDeleteRoom = React.useCallback(() => {
     try {
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'deleteRoom' }))
-        toast.success('部屋を削除しました', { duration: 2000 })
+        showTelop('部屋を削除しました', 'success', 2000)
       } else {
-        toast.error('サーバーに接続されていません', { duration: 3000 })
+        showTelop('サーバーに接続されていません', 'error', 3000)
       }
     } catch (err) {
-      toast.error(
+      showTelop(
         err instanceof Error
           ? err.message
           : '部屋削除に失敗しました',
-        { duration: 4000 }
+        'error', 4000
       )
     }
-  }, [])
+  }, [showTelop])
 
   // N-second auto-action timer (configurable per game)
   React.useEffect(() => {
@@ -2131,7 +2200,7 @@ export default function GamePage({
             <div className="text-left text-gray-600 text-xs bg-gray-100 p-2 rounded mb-2 font-mono max-h-48 overflow-auto">
               <div><strong>プレイヤー:</strong> {playerName}</div>
               <div><strong>ルーム:</strong> {roomId}</div>
-              <div><strong>エラー:</strong> {'(toast表示)'}</div>
+              <div><strong>エラー:</strong> {'(テロップ表示)'}</div>
               <div><strong>WebSocket状態:</strong> {wsRef.current?.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)</div>
               <div><strong>gameState:</strong> {gameState === null ? '❌ null（待機中）' : JSON.stringify(gameState, null, 2)}</div>
             </div>
@@ -2416,25 +2485,33 @@ export default function GamePage({
           </div>
         </div>
       )}
-      <Toaster
-        position="top-center"
-        reverseOrder={false}
-        toastOptions={{
-          style: {
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            maxWidth: '24rem',
-          },
-          success: {
-            style: { background: '#22c55e', color: '#fff' },
-            iconTheme: { primary: '#fff', secondary: '#22c55e' },
-          },
-          error: {
-            style: { background: '#ef4444', color: '#fff' },
-            iconTheme: { primary: '#fff', secondary: '#ef4444' },
-          },
-        }}
-      />
+      {/* Toaster for opponent action display (top-center popup via toast.custom) */}
+      <Toaster position="top-center" toastOptions={{ custom: { style: { padding: 0, background: 'transparent', boxShadow: 'none' } } }} />
+      {/* Telop notification bar */}
+      {activeTelop && (
+        <div
+          key={activeTelop.id}
+          className="fixed bottom-0 left-0 right-0 flex items-center justify-center w-full whitespace-nowrap"
+          style={{
+            zIndex: 9999,
+            padding: '10px 24px',
+            fontWeight: 700,
+            fontSize: '0.95rem',
+            textAlign: 'center',
+            boxShadow: '0 -2px 12px rgba(0,0,0,0.3)',
+            animation: 'telopSlideUp 0.3s ease-out',
+            borderTop: activeTelop.type === 'error' ? '2px solid #b91c1c'
+              : activeTelop.type === 'success' ? '2px solid #15803d'
+              : '2px solid #4ade80',
+            background: activeTelop.type === 'error' ? 'rgba(220,38,38,0.92)'
+              : activeTelop.type === 'success' ? 'rgba(22,163,74,0.92)'
+              : 'rgba(26,46,10,0.93)',
+            color: '#fff',
+          }}
+        >
+          <span>{activeTelop.message}</span>
+        </div>
+      )}
       <div className="bg-[#2d5016] sm:border-2 border-white shadow-xl sm:p-2 w-full max-w-4xl flex-1 min-h-0 overflow-y-auto">
         {/* Header */}
         <div className="flex gap-2 justify-end">
@@ -2592,7 +2669,7 @@ export default function GamePage({
           </div>
         </div>
 
-        {/* Toast notifications are handled by react-hot-toast <Toaster /> */}
+        {/* Telop notifications are rendered as a fixed bar at the bottom */}
 
         {/* Game Content */}
         {(gameState.status === 'playing' || gameState.status === 'finished' || gameState.status === 'gameOver') ? (
@@ -3669,7 +3746,7 @@ export default function GamePage({
                 isRed: t.isRed || false,
               })),
             })
-            toast.success('手牌を変更しました', { duration: 2000 })
+            showTelop('手牌を変更しました', 'success', 2000)
           }}
           onClose={() => setShowHandEditor(false)}
         />

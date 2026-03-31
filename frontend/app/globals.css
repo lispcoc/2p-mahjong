@@ -198,6 +198,30 @@ code {
   overflow: hidden;
 }
 
+/* ===== Telop-style toast notification animation ===== */
+@keyframes telopSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ===== Opponent action popup animation ===== */
+@keyframes opponentActionPop {
+  from {
+    transform: translateY(-8px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
 .dora-shine::before {
   content: '';
   position: absolute;
