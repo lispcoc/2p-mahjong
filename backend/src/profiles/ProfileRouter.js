@@ -48,7 +48,7 @@ function verifyPassword(profile, password) {
 /** 公開用の簡易プロフィール（パスワードハッシュを除外） */
 function toPublicSummary(profile) {
   const { passwordHash, activeHours, bio2, ...summary } = profile;
-  return summary;
+  return { ...summary, aliases: profile.aliases || [] };
 }
 
 /** 公開用の詳細プロフィール（パスワードハッシュを除外） */
@@ -73,6 +73,24 @@ function validateProfileFields(body, requirePassword = true) {
   const name = (body.name || '').trim();
   if (!name) errors.push('名前は必須です');
   else if (name.length > MAX_NAME_LEN) errors.push(`名前は${MAX_NAME_LEN}文字以内にしてください`);
+
+  // aliases バリデーション
+  if (body.aliases !== undefined) {
+    if (!Array.isArray(body.aliases)) {
+      errors.push('aliasesは配列で指定してください');
+    } else {
+      const VALID_GENDERS = ['male', 'female', 'other', ''];
+      body.aliases.forEach((a, i) => {
+        const aName = (a.name || '').trim();
+        if (!aName) errors.push(`aliases[${i}].name は必須です`);
+        else if (aName.length > MAX_NAME_LEN) errors.push(`aliases[${i}].name は${MAX_NAME_LEN}文字以内にしてください`);
+        const aOrigin = (a.origin || '').trim();
+        if (aOrigin.length > 50) errors.push(`aliases[${i}].origin は50文字以内にしてください`);
+        const aGender = a.gender || '';
+        if (!VALID_GENDERS.includes(aGender)) errors.push(`aliases[${i}].gender の値が不正です`);
+      });
+    }
+  }
 
   if (requirePassword) {
     const password = body.password || '';
@@ -172,6 +190,13 @@ router.post('/', (req, res) => {
     });
   }
 
+  const rawAliases = Array.isArray(req.body.aliases) ? req.body.aliases : [];
+  const cleanAliases = rawAliases.map(a => ({
+    name:   (a.name   || '').trim(),
+    origin: (a.origin || '').trim(),
+    gender: (a.gender || ''),
+  })).filter(a => a.name);
+
   const now = new Date().toISOString();
   const newProfile = {
     id:          uuidv4(),
@@ -181,6 +206,7 @@ router.post('/', (req, res) => {
     bio:         (req.body.bio         || '').trim(),
     activeHours: (req.body.activeHours || '').trim(),
     bio2:        (req.body.bio2        || '').trim(),
+    aliases:     cleanAliases,
     passwordHash: hashPassword(req.body.password),
     createdAt:   now,
     updatedAt:   now,
@@ -220,6 +246,13 @@ router.put('/:id', (req, res) => {
     return res.status(409).json({ error: `「${newName}」という名前はすでに登録されています` });
   }
 
+  let updatedAliases = profile.aliases || [];
+  if (Array.isArray(req.body.aliases)) {
+    updatedAliases = req.body.aliases
+      .map(a => ({ name: (a.name || '').trim(), origin: (a.origin || '').trim(), gender: (a.gender || '') }))
+      .filter(a => a.name);
+  }
+
   const updated = {
     ...profile,
     name:        newName,
@@ -228,6 +261,7 @@ router.put('/:id', (req, res) => {
     bio:         req.body.bio         !== undefined ? (req.body.bio         || '').trim() : profile.bio,
     activeHours: req.body.activeHours !== undefined ? (req.body.activeHours || '').trim() : profile.activeHours,
     bio2:        req.body.bio2        !== undefined ? (req.body.bio2        || '').trim() : profile.bio2,
+    aliases:     updatedAliases,
     updatedAt:   new Date().toISOString(),
   };
 

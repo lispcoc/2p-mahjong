@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ProfileDetail, ProfileFormData, Gender } from '../../../types/ProfileTypes'
+import { ProfileDetail, ProfileFormData, AliasEntry, Gender } from '../../../types/ProfileTypes'
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
 
@@ -128,12 +128,29 @@ function EditForm({
     name: profile.name, password: '',
     gender: profile.gender, origin: profile.origin,
     bio: profile.bio, activeHours: profile.activeHours, bio2: profile.bio2,
+    aliases: profile.aliases || [],
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleAliasChange = (idx: number, field: keyof AliasEntry, value: string) => {
+    setForm(prev => {
+      const next = [...prev.aliases]
+      next[idx] = { ...next[idx], [field]: value }
+      return { ...prev, aliases: next }
+    })
+  }
+
+  const addAlias = () => {
+    setForm(prev => ({ ...prev, aliases: [...prev.aliases, { name: '', origin: '', gender: '' }] }))
+  }
+
+  const removeAlias = (idx: number) => {
+    setForm(prev => ({ ...prev, aliases: prev.aliases.filter((_, i) => i !== idx) }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -156,7 +173,75 @@ function EditForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-1">
       {error && <div className="bg-red-50 border border-red-300 text-red-700 rounded px-3 py-2 text-sm mb-2">{error}</div>}
-      <Field label="名前" name="name" value={form.name} onChange={handleChange} required maxLength={30} />
+
+      {/* 名前・出身のセット（メイン） */}
+      <div className="border border-gray-200 rounded-lg p-3 mb-2 bg-gray-50">
+        <p className="text-xs font-semibold text-gray-500 mb-2">メイン キャラクター</p>
+        <Field label="名前" name="name" value={form.name} onChange={handleChange} required maxLength={30} />
+        <Field label="出身" name="origin" value={form.origin} onChange={handleChange} maxLength={50} />
+        <div className="mb-1">
+          <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+          <select name="gender" value={form.gender} onChange={handleChange}
+            className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+            <option value="female">♀</option>
+            <option value="male">♂</option>
+            <option value="other">♂♀</option>
+          </select>
+        </div>
+      </div>
+
+      {/* aliases（追加キャラ） */}
+      {form.aliases.map((alias, idx) => (
+        <div key={idx} className="border border-green-200 rounded-lg p-3 mb-2 bg-green-50 relative">
+          <p className="text-xs font-semibold text-green-700 mb-2">キャラクター {idx + 2}</p>
+          <button
+            type="button"
+            onClick={() => removeAlias(idx)}
+            className="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-lg leading-none font-bold"
+            title="削除"
+          >×</button>
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">名前<span className="text-red-500 ml-1">*</span></label>
+            <input
+              type="text" value={alias.name} maxLength={30} required
+              onChange={e => handleAliasChange(idx, 'name', e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+            />
+            <p className="text-right text-xs text-gray-400 mt-0.5">{alias.name.length} / 30</p>
+          </div>
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">出身(作品)</label>
+            <input
+              type="text" value={alias.origin} maxLength={50}
+              onChange={e => handleAliasChange(idx, 'origin', e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+            />
+            <p className="text-right text-xs text-gray-400 mt-0.5">{alias.origin.length} / 50</p>
+          </div>
+          <div className="mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
+            <select
+              value={alias.gender}
+              onChange={e => handleAliasChange(idx, 'gender', e.target.value)}
+              className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+            >
+              <option value="">―</option>
+              <option value="female">♀</option>
+              <option value="male">♂</option>
+              <option value="other">♂♀</option>
+            </select>
+          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={addAlias}
+        className="w-full border border-dashed border-green-400 text-green-700 hover:bg-green-50 rounded py-1.5 text-sm font-medium mb-2"
+      >
+        ＋ キャラクターを追加
+      </button>
+
       {!savedPassword && (
         <Field label="パスワード（認証用）" name="password" type="password" value={form.password} onChange={handleChange} required maxLength={64} placeholder="変更・削除時に必要なパスワード" />
       )}
@@ -165,16 +250,6 @@ function EditForm({
           ✅ 認証済み（パスワード入力不要）
         </p>
       )}
-      <div className="mb-3">
-        <label className="block text-sm font-medium text-gray-700 mb-1">性別</label>
-        <select name="gender" value={form.gender} onChange={handleChange}
-          className="w-full bg-white border border-gray-300 rounded px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
-          <option value="female">♀</option>
-          <option value="male">♂</option>
-          <option value="other">♂♀</option>
-        </select>
-      </div>
-      <Field label="出身" name="origin" value={form.origin} onChange={handleChange} maxLength={50} />
       <Field label="自己紹介" name="bio" value={form.bio} onChange={handleChange} maxLength={500} textarea />
       <Field label="活動時間" name="activeHours" value={form.activeHours} onChange={handleChange} maxLength={500} textarea />
       <Field label="その他" name="bio2" value={form.bio2} onChange={handleChange} maxLength={500} textarea />
@@ -495,7 +570,21 @@ export default function ProfileDetailPage() {
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
             {/* 名前 + URLコピー */}
             <div className="flex items-start justify-between gap-3 mb-4">
-              <h2 className="text-2xl font-bold text-green-800">{profile.name}</h2>
+              <div>
+                <h2 className="text-2xl font-bold text-green-800">{profile.name}</h2>
+                {profile.origin && <p className="text-sm text-gray-500">{profile.origin}</p>}
+                {profile.aliases && profile.aliases.length > 0 && (
+                  <div className="mt-1 space-y-0.5">
+                    {profile.aliases.map((a, i) => (
+                      <div key={i} className="text-sm text-gray-700">
+                        <span className="font-medium">{a.name}</span>
+                        {a.gender && <span className="text-gray-500 ml-1">{genderLabel(a.gender)}</span>}
+                        {a.origin && <span className="text-gray-500 ml-1">({a.origin})</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <CopyUrlButton profileId={profile.id} />
             </div>
 
@@ -531,12 +620,6 @@ export default function ProfileDetailPage() {
                 <>
                   <dt className="font-medium text-gray-500">性別</dt>
                   <dd className="text-gray-800">{genderLabel(profile.gender)}</dd>
-                </>
-              )}
-              {profile.origin && (
-                <>
-                  <dt className="font-medium text-gray-500">出身</dt>
-                  <dd className="text-gray-800">{profile.origin}</dd>
                 </>
               )}
               <dt className="font-medium text-gray-500">登録日</dt>
