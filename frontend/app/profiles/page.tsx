@@ -851,8 +851,8 @@ function TableView({
       <table className="min-w-full border-collapse text-sm">
         <thead>
           <tr>
-            {th('name', '名前')}
-            {th('bio', '自己紹介')}
+            {th('name', '名前', 'w-[100px] min-w-[40px] max-w-[120px]')}
+            {th('bio', '自己紹介', 'w-auto')}
           </tr>
         </thead>
         <tbody>
@@ -862,7 +862,7 @@ function TableView({
               onClick={() => onRowClick(profile.id)}
               className={`cursor-pointer hover:bg-green-50 transition-colors ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
             >
-              <td className="px-3 py-2 border border-gray-200 font-medium text-gray-800 whitespace-nowrap">
+              <td className="px-2 py-2 border border-gray-200 font-medium text-gray-800 w-[100px] min-w-[40px] max-w-[120px] break-words">
                 <div>
                   {profile.name} {GENDER_LABEL[profile.gender] ?? ''}
                 </div>
@@ -1001,7 +1001,7 @@ export default function ProfilesPage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-1 py-6">
         {/* 成功メッセージ */}
         {successMsg && (
           <div className="bg-green-50 border border-green-300 text-green-800 rounded px-4 py-2 mb-4 text-sm">
