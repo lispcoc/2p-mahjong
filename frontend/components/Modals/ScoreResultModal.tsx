@@ -340,6 +340,17 @@ export function ScoreResultModal({
               {dealerCurrentScore !== null && (
                 <div className="text-lg font-bold text-white">
                   {dealerCurrentScore.toLocaleString()}点
+                  {(() => {
+                    const initScore = gameState?.initialScore ?? 25000
+                    const diff = dealerCurrentScore - initScore
+                    const diffInThousands = diff >= 0 ? Math.ceil(diff / 1000) : -Math.ceil(Math.abs(diff) / 1000)
+                    const diffStr = diffInThousands >= 0 ? `+${diffInThousands}` : `${diffInThousands}`
+                    return (
+                      <span className={`ml-1.5 text-xs font-bold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                        ({diffStr})
+                      </span>
+                    )
+                  })()}
                 </div>
               )}
               {dealerChange !== null && (
@@ -361,6 +372,17 @@ export function ScoreResultModal({
               {nonDealerCurrentScore !== null && (
                 <div className="text-lg font-bold text-white">
                   {nonDealerCurrentScore.toLocaleString()}点
+                  {(() => {
+                    const initScore = gameState?.initialScore ?? 25000
+                    const diff = nonDealerCurrentScore - initScore
+                    const diffInThousands = diff >= 0 ? Math.ceil(diff / 1000) : -Math.ceil(Math.abs(diff) / 1000)
+                    const diffStr = diffInThousands >= 0 ? `+${diffInThousands}` : `${diffInThousands}`
+                    return (
+                      <span className={`ml-1.5 text-xs font-bold ${diff > 0 ? 'text-green-400' : diff < 0 ? 'text-red-400' : 'text-gray-400'}`}>
+                        ({diffStr})
+                      </span>
+                    )
+                  })()}
                 </div>
               )}
               {nonDealerChange !== null && (
