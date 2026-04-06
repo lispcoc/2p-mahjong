@@ -18,6 +18,7 @@ export interface ProfileSummary {
   origin: string
   bio: string
   aliases: AliasEntry[]
+  trip: string
   createdAt: string
   updatedAt: string
 }
@@ -36,4 +37,5 @@ export interface ProfileFormData {
   activeHours: string
   bio2: string
   aliases: AliasEntry[]
+  trip: string
 }

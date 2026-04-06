@@ -175,6 +175,7 @@ function ProfileForm({
     activeHours: initial?.activeHours || '',
     bio2:        initial?.bio2        || '',
     aliases:     initial?.aliases     || [],
+    trip:        initial?.trip        || '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -304,6 +305,7 @@ function ProfileForm({
           ✅ 認証済み（パスワード入力不要）
         </p>
       )}
+      <Field label="トリップ" name="trip" value={form.trip} onChange={handleChange} maxLength={16} placeholder="◆XXXXXXXXXX（先頭は◆固定・16文字以内）" />
       <Field label="自己紹介" name="bio" value={form.bio} onChange={handleChange} maxLength={500} placeholder="好きなプレイ、NGなど（任意）" textarea />
       <Field label="活動時間" name="activeHours" value={form.activeHours} onChange={handleChange} maxLength={500} placeholder="主に遅い時間帯、平日は夜など（任意）" textarea />
       <Field label="その他" name="bio2" value={form.bio2} onChange={handleChange} maxLength={500} placeholder="その他アピールしたいこと（任意）" textarea />
@@ -642,6 +644,7 @@ function DetailPanel({
               <div>
                 <h3 className="text-2xl font-bold text-green-800">{profile.name}</h3>
                 {profile.origin && <p className="text-sm text-gray-500">{profile.origin}</p>}
+                {profile.trip && <p className="text-xs text-gray-400 font-mono mt-0.5">{profile.trip}</p>}
                 {profile.aliases && profile.aliases.length > 0 && (
                   <div className="mt-1 space-y-0.5">
                     {profile.aliases.map((a, i) => (
@@ -869,6 +872,9 @@ function TableView({
                 <div className='text-xs text-gray-500'>
                   ({profile.origin})
                 </div>
+                {profile.trip && (
+                  <div className='text-xs text-gray-400 font-mono mt-0.5'>{profile.trip}</div>
+                )}
                 {profile.aliases && profile.aliases.length > 0 && profile.aliases.map((a, i) => (
                   <div key={i} className='text-xs text-gray-600'>
                     <p className='mt-1'>
@@ -1076,6 +1082,9 @@ export default function ProfilesPage() {
                   </div>
                   {profile.origin && (
                     <p className="text-gray-500 text-xs truncate">{profile.origin}</p>
+                  )}
+                  {profile.trip && (
+                    <p className="text-gray-400 text-xs font-mono truncate">{profile.trip}</p>
                   )}
                   {profile.aliases && profile.aliases.length > 0 && (
                     <div className="mt-0.5 space-y-0.5">

@@ -48,7 +48,7 @@ function verifyPassword(profile, password) {
 /** 公開用の簡易プロフィール（パスワードハッシュを除外） */
 function toPublicSummary(profile) {
   const { passwordHash, activeHours, bio2, ...summary } = profile;
-  return { ...summary, aliases: profile.aliases || [] };
+  return { ...summary, aliases: profile.aliases || [], trip: profile.trip || '' };
 }
 
 /** 公開用の詳細プロフィール（パスワードハッシュを除外） */
@@ -66,6 +66,7 @@ const MAX_DISCORD_LEN  = 100;
 const MAX_FAVORITE_LEN = 100;
 const MIN_PASS_LEN     = 4;
 const MAX_PASS_LEN     = 64;
+const MAX_TRIP_LEN     = 16;
 
 function validateProfileFields(body, requirePassword = true) {
   const errors = [];
@@ -73,6 +74,13 @@ function validateProfileFields(body, requirePassword = true) {
   const name = (body.name || '').trim();
   if (!name) errors.push('名前は必須です');
   else if (name.length > MAX_NAME_LEN) errors.push(`名前は${MAX_NAME_LEN}文字以内にしてください`);
+
+  // trip バリデーション
+  const trip = (body.trip || '').trim();
+  if (trip.length > 0) {
+    if (!trip.startsWith('◆')) errors.push('トリップは「◆」で始まる必要があります');
+    else if (trip.length > MAX_TRIP_LEN) errors.push(`トリップは${MAX_TRIP_LEN}文字以内にしてください`);
+  }
 
   // aliases バリデーション
   if (body.aliases !== undefined) {
@@ -207,6 +215,7 @@ router.post('/', (req, res) => {
     activeHours: (req.body.activeHours || '').trim(),
     bio2:        (req.body.bio2        || '').trim(),
     aliases:     cleanAliases,
+    trip:        (req.body.trip        || '').trim(),
     passwordHash: hashPassword(req.body.password),
     createdAt:   now,
     updatedAt:   now,
@@ -262,6 +271,7 @@ router.put('/:id', (req, res) => {
     activeHours: req.body.activeHours !== undefined ? (req.body.activeHours || '').trim() : profile.activeHours,
     bio2:        req.body.bio2        !== undefined ? (req.body.bio2        || '').trim() : profile.bio2,
     aliases:     updatedAliases,
+    trip:        req.body.trip !== undefined ? (req.body.trip || '').trim() : (profile.trip || ''),
     updatedAt:   new Date().toISOString(),
   };
 

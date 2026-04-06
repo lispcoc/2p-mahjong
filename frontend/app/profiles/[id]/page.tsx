@@ -129,6 +129,7 @@ function EditForm({
     gender: profile.gender, origin: profile.origin,
     bio: profile.bio, activeHours: profile.activeHours, bio2: profile.bio2,
     aliases: profile.aliases || [],
+    trip: profile.trip || '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -250,6 +251,7 @@ function EditForm({
           ✅ 認証済み（パスワード入力不要）
         </p>
       )}
+      <Field label="トリップ" name="trip" value={form.trip} onChange={handleChange} maxLength={16} placeholder="◆XXXXXXXXXX（先頭は◆固定・16文字以内）" />
       <Field label="自己紹介" name="bio" value={form.bio} onChange={handleChange} maxLength={500} textarea />
       <Field label="活動時間" name="activeHours" value={form.activeHours} onChange={handleChange} maxLength={500} textarea />
       <Field label="その他" name="bio2" value={form.bio2} onChange={handleChange} maxLength={500} textarea />
@@ -573,6 +575,7 @@ export default function ProfileDetailPage() {
               <div>
                 <h2 className="text-2xl font-bold text-green-800">{profile.name}</h2>
                 {profile.origin && <p className="text-sm text-gray-500">{profile.origin}</p>}
+                {profile.trip && <p className="text-xs text-gray-400 font-mono mt-0.5">{profile.trip}</p>}
                 {profile.aliases && profile.aliases.length > 0 && (
                   <div className="mt-1 space-y-0.5">
                     {profile.aliases.map((a, i) => (
