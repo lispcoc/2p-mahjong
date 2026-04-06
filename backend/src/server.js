@@ -372,6 +372,46 @@ app.post('/mjadmin/api/yakuman-records/delete', requireAdmin, (req, res) => {
   }
 });
 
+// 役満記録を手動追加
+app.post('/mjadmin/api/yakuman-records/add', requireAdmin, (req, res) => {
+  const { date, playerName, yakuNames, scoreType } = req.body || {};
+  if (!date || !playerName || !yakuNames || !scoreType) {
+    return res.status(400).json({ error: 'date, playerName, yakuNames, scoreType は必須です' });
+  }
+  // 日付形式チェック (YYYY-MM-DD)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: '日付は YYYY-MM-DD 形式で指定してください' });
+  }
+  try {
+    let records = [];
+    if (fs.existsSync(YAKUMAN_LOG_FILE)) {
+      const content = fs.readFileSync(YAKUMAN_LOG_FILE, 'utf8');
+      records = JSON.parse(content);
+    }
+    const newRecord = {
+      date: date.trim(),
+      playerName: playerName.trim(),
+      yakuNames: yakuNames.trim(),
+      scoreType: scoreType.trim(),
+    };
+    records.unshift(newRecord);
+    fs.writeFileSync(YAKUMAN_LOG_FILE, JSON.stringify(records, null, 2), 'utf8');
+    console.log(`🏆 [admin] Manually added yakuman: ${playerName} - ${yakuNames} (${date})`);
+    res.json({ success: true, record: newRecord, total: records.length });
+  } catch (err) {
+    console.error('❌ Failed to add yakuman record:', err.message);
+    res.status(500).json({ error: 'Failed to add yakuman record' });
+  }
+});
+
+// ---- 管理者 サーバー再起動 API (認証保護) -----------------------------------
+
+app.post('/mjadmin/api/restart', requireAdmin, (req, res) => {
+  res.json({ success: true, message: 'サーバーを再起動します…' });
+  console.log('🔄 [admin] Server restart requested');
+  setTimeout(() => process.exit(0), 500);
+});
+
 // ---- 管理者 ルーム強制削除 API (認証保護) ------------------------------------
 
 app.delete('/mjadmin/api/rooms/:roomId', requireAdmin, (req, res) => {

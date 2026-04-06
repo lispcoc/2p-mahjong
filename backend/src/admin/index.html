@@ -544,6 +544,44 @@
 
     <!-- ══════════ YAKUMAN RECORDS ══════════ -->
     <div class="tab-panel" id="panel-yakuman">
+      <!-- 手動追加フォーム -->
+      <div class="card" style="max-width:640px;margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title">➕ 役満記録を手動追加</span>
+          <button class="btn btn-ghost btn-sm" onclick="toggleYakumanAddForm()" id="yakuman-add-toggle-btn">▼ 展開</button>
+        </div>
+        <div id="yakuman-add-form" style="display:none;padding:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="field">
+              <label class="label" for="yakuman-add-date">日付</label>
+              <input class="input" type="date" id="yakuman-add-date">
+            </div>
+            <div class="field">
+              <label class="label" for="yakuman-add-player">プレイヤー名</label>
+              <input class="input" type="text" id="yakuman-add-player" placeholder="例: プロ太郎">
+            </div>
+            <div class="field">
+              <label class="label" for="yakuman-add-yaku">役名</label>
+              <input class="input" type="text" id="yakuman-add-yaku" placeholder="例: 大三元, 役満">
+            </div>
+            <div class="field">
+              <label class="label" for="yakuman-add-score-type">スコア種別</label>
+              <select class="input" id="yakuman-add-score-type">
+                <option value="ロン">ロン</option>
+                <option value="ツモ">ツモ</option>
+                <option value="ダブルロン">ダブルロン</option>
+                <option value="連荘">連荘</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="addYakumanRecord()">追加</button>
+            <span id="yakuman-add-status" style="font-size:12px;color:var(--text2);"></span>
+          </div>
+        </div>
+      </div>
+      <!-- 一覧 -->
       <div class="card">
         <div class="card-header">
           <span class="card-title">🏆 役満履歴</span>
@@ -567,6 +605,18 @@
 
     <!-- ══════════ SETTINGS ══════════ -->
     <div class="tab-panel" id="panel-settings">
+      <div class="card" style="max-width:460px;margin-bottom:16px;">
+        <div class="card-header">
+          <span class="card-title">🔄 サーバー再起動</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+          <p style="font-size:13px;color:var(--text2);">バックエンドプロセスを再起動します。接続中のプレイヤーは切断されます。プロセスマネージャー（nodemon / Render）が自動的に再起動します。</p>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-danger btn-sm" id="restart-btn" onclick="restartServer()">🔄 今すぐ再起動</button>
+            <span id="restart-status" style="font-size:12px;color:var(--text2);"></span>
+          </div>
+        </div>
+      </div>
       <div class="card" style="max-width:460px;">
         <div class="card-header">
           <span class="card-title">🔑 パスワード変更</span>
@@ -1077,6 +1127,55 @@ async function deleteSelectedYakuman() {
   }
 }
 
+function toggleYakumanAddForm() {
+  const form = document.getElementById('yakuman-add-form');
+  const btn = document.getElementById('yakuman-add-toggle-btn');
+  const visible = form.style.display !== 'none';
+  if (visible) {
+    form.style.display = 'none';
+    btn.textContent = '▼ 展開';
+  } else {
+    form.style.display = 'block';
+    btn.textContent = '▲ 閉じる';
+    // デフォルト日付を今日にセット
+    const today = new Date().toISOString().slice(0, 10);
+    const dateInput = document.getElementById('yakuman-add-date');
+    if (!dateInput.value) dateInput.value = today;
+  }
+}
+
+async function addYakumanRecord() {
+  const date = document.getElementById('yakuman-add-date').value.trim();
+  const playerName = document.getElementById('yakuman-add-player').value.trim();
+  const yakuNames = document.getElementById('yakuman-add-yaku').value.trim();
+  const scoreType = document.getElementById('yakuman-add-score-type').value;
+  const statusEl = document.getElementById('yakuman-add-status');
+
+  if (!date || !playerName || !yakuNames) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = '日付・プレイヤー名・役名は必須です';
+    return;
+  }
+
+  statusEl.style.color = 'var(--text2)';
+  statusEl.textContent = '追加中…';
+  try {
+    await apiFetch('POST', `${API}/mjadmin/api/yakuman-records/add`, { date, playerName, yakuNames, scoreType });
+    statusEl.style.color = 'var(--green)';
+    statusEl.textContent = '✓ 追加しました';
+    // フォームをリセット
+    document.getElementById('yakuman-add-player').value = '';
+    document.getElementById('yakuman-add-yaku').value = '';
+    document.getElementById('yakuman-add-score-type').value = 'ロン';
+    // 一覧を更新
+    await loadYakumanRecords();
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  } catch (err) {
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = `追加失敗: ${esc(err.message)}`;
+  }
+}
+
 // ── STATS ────────────────────────────────────────────────────────────────────
 async function loadStats() {
   const container = document.getElementById('stats-container');
@@ -1165,6 +1264,23 @@ async function forceDeleteRoom(roomId) {
 }
 
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
+async function restartServer() {
+  if (!confirm('サーバーを再起動しますか？\n接続中のプレイヤーは全員切断されます。')) return;
+  const btn = document.getElementById('restart-btn');
+  const statusEl = document.getElementById('restart-status');
+  btn.disabled = true;
+  statusEl.style.color = 'var(--text2)';
+  statusEl.textContent = '再起動シグナルを送信中…';
+  try {
+    await apiFetch('POST', `${API}/mjadmin/api/restart`);
+  } catch (_) {
+    // プロセスが落ちることでネットワークエラーになる場合も「正常」
+  }
+  statusEl.style.color = 'var(--yellow)';
+  statusEl.textContent = '✓ 再起動しています。4秒後にページを再読み込みします…';
+  setTimeout(() => { window.location.reload(); }, 4000);
+}
+
 async function changePassword() {
   const cur = document.getElementById('pw-current').value;
   const nw  = document.getElementById('pw-new').value;
