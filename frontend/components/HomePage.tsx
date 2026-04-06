@@ -208,18 +208,31 @@ export default function HomePage({
     const startTime = Date.now()
 
     const checkServer = async () => {
+      const controller = new AbortController()
+      // Render のコールドスタートは最大60秒かかるため十分長いタイムアウトを設定
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-        // Render のコールドスタートは最大60秒かかるため十分長いタイムアウトを設定
-        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(30000) })
+        const res = await fetch(`${backendUrl}/api/rooms`, { signal: controller.signal })
+        clearTimeout(timeoutId)
         if (res.ok && !cancelled) {
-          setServerReady(true)
+          // レスポンスボディを確認して本当にバックエンドが正常稼働しているか検証
+          // { rooms: [...] } 形式であることを確認する
+          let data: { rooms?: unknown } | null = null
+          try { data = await res.json() } catch { /* パース失敗は無視 */ }
+          if (!data || !Array.isArray(data.rooms)) {
+            // 想定外のレスポンス（プロキシや別サービスが返している可能性）→ 再試行
+            if (!cancelled) timerId = setTimeout(checkServer, 5000)
+            return
+          }
+          setRooms(data.rooms as RoomInfo[])
           if (elapsedTimer) clearInterval(elapsedTimer)
-          // サーバーが起動したらルーム一覧を即時更新
-          fetchRooms()
+          setWakeUpElapsedSeconds(0)
+          setServerReady(true)
           return // 成功したら停止
         }
       } catch {
+        clearTimeout(timeoutId)
         // 通信失敗 → 再試行
       }
       if (!cancelled) {
@@ -240,7 +253,7 @@ export default function HomePage({
       if (timerId) clearTimeout(timerId)
       if (elapsedTimer) clearInterval(elapsedTimer)
     }
-  }, [fetchRooms])
+  }, []) // fetchRooms への依存不要（レスポンスを直接利用するため）
 
   useEffect(() => {
     try {
@@ -847,7 +860,7 @@ export default function HomePage({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <h2 className="text-lg text-[#ffffff] m-0 font-bold">新しい部屋を作成</h2>
-            {!serverReady && (
+            {!serverReady && wakeUpElapsedSeconds > 0 && (
               <div className="text-sm text-yellow-200 bg-yellow-900/60 border border-yellow-600 rounded px-3 py-2">
                 ⏳ サーバーを起動中です（{wakeUpElapsedSeconds}秒経過）。しばらくお待ちください…
                 {wakeUpElapsedSeconds >= 20 && (
@@ -857,20 +870,20 @@ export default function HomePage({
             )}
             <button
               onClick={handleOpenCreateRoomModal}
-              disabled={isCreating || !serverReady}
+              disabled={isCreating || (!serverReady && wakeUpElapsedSeconds > 0)}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
-              {isCreating ? '作成中...' : !serverReady ? 'サーバー起動待ち...' : '基本ルールで部屋を作成'}
+              {isCreating ? '作成中...' : (!serverReady && wakeUpElapsedSeconds > 0) ? 'サーバー起動待ち...' : '基本ルールで部屋を作成'}
             </button>
           </div>
 
           <div className="flex flex-col gap-4">
             <button
               onClick={() => setIsCustomPresetsOpen(true)}
-              disabled={isCreating || !serverReady}
+              disabled={isCreating || (!serverReady && wakeUpElapsedSeconds > 0)}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
-              {!serverReady ? 'サーバー起動待ち...' : 'カスタムルールで部屋を作成'}
+              {(!serverReady && wakeUpElapsedSeconds > 0) ? 'サーバー起動待ち...' : 'カスタムルールで部屋を作成'}
             </button>
           </div>
 
@@ -1468,7 +1481,8 @@ export default function HomePage({
         </div>
       )}
 
-      {/* サーバー疎通確認インジケーター */}
+      {/* サーバー疎通確認インジケーター：起動中のときだけ表示 */}
+      {(serverReady || (!serverReady && wakeUpElapsedSeconds > 0)) && (
       <div className="fixed mt-2 ml-2 left-0 -translate-x-1 z-[100] pointer-events-none">
         <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all duration-500 ${
           serverReady
@@ -1481,6 +1495,7 @@ export default function HomePage({
           {serverReady ? 'サーバー準備完了' : `起動中… (${wakeUpElapsedSeconds}秒)`}
         </div>
       </div>
+      )}
     </div>
   )
 }
