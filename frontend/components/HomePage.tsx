@@ -170,6 +170,7 @@ export default function HomePage({
   const [editingPresetIndex, setEditingPresetIndex] = useState<number | null>(null)
   const [presetName, setPresetName] = useState('')
   const [serverReady, setServerReady] = useState(false)
+  const [wakeUpElapsedSeconds, setWakeUpElapsedSeconds] = useState(0)
 
   // ホームページ表示時にフィンガープリントをバックグラウンドで事前生成する
   // WebSocket接続より先に取得しておくことで、join時に即座に送信できる
@@ -177,38 +178,72 @@ export default function HomePage({
     prefetchFingerprint()
   }, [])
 
-  // サーバー疎通確認: 10秒ごとにバックエンドへ通信し、成功したら停止
+  const fetchRooms = React.useCallback(async () => {
+    setRoomsLoading(true)
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`)
+      if (!response.ok) {
+        throw new Error('ルーム一覧の取得に失敗しました')
+      }
+      const data = await response.json()
+      setRooms(Array.isArray(data.rooms) ? data.rooms : [])
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'ルーム一覧の取得に失敗しました'
+      )
+    } finally {
+      setRoomsLoading(false)
+    }
+  }, [])
+
+  // サーバー疎通確認: 5秒ごとにバックエンドへ通信し、成功したら停止
+  // Render Free プランではコールドスタートに最大60秒かかるため経過時間も表示する
   useEffect(() => {
     let cancelled = false
     let timerId: ReturnType<typeof setTimeout> | null = null
+    let elapsedTimer: ReturnType<typeof setInterval> | null = null
+    const startTime = Date.now()
 
     const checkServer = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(8000) })
+        // Render のコールドスタートは最大60秒かかるため十分長いタイムアウトを設定
+        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(30000) })
         if (res.ok && !cancelled) {
           setServerReady(true)
+          if (elapsedTimer) clearInterval(elapsedTimer)
+          // サーバーが起動したらルーム一覧を即時更新
+          fetchRooms()
           return // 成功したら停止
         }
       } catch {
         // 通信失敗 → 再試行
       }
       if (!cancelled) {
-        timerId = setTimeout(checkServer, 10000)
+        timerId = setTimeout(checkServer, 5000)
       }
     }
+
+    // 起動中は1秒ごとに経過時間を更新してユーザーに進捗を示す
+    elapsedTimer = setInterval(() => {
+      if (cancelled) { clearInterval(elapsedTimer!); return }
+      setWakeUpElapsedSeconds(Math.floor((Date.now() - startTime) / 1000))
+    }, 1000)
 
     checkServer()
 
     return () => {
       cancelled = true
       if (timerId) clearTimeout(timerId)
+      if (elapsedTimer) clearInterval(elapsedTimer)
     }
-  }, [])
+  }, [fetchRooms])
 
   useEffect(() => {
     try {
-      // アイコンライブラリから現在選択中のアイコンを読み込む
       const saved = localStorage.getItem('mahjong-player-icon')
       if (saved) setPlayerIcon(saved)
     } catch {}
@@ -235,31 +270,6 @@ export default function HomePage({
     setPlayerIcon(icon)
   }
 
-  const fetchRooms = async () => {
-    setRoomsLoading(true)
-    try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-      const response = await fetch(`${backendUrl}/api/rooms`)
-      if (!response.ok) {
-        throw new Error('ルーム一覧の取得に失敗しました')
-      }
-      const data = await response.json()
-      setRooms(Array.isArray(data.rooms) ? data.rooms : [])
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'ルーム一覧の取得に失敗しました'
-      )
-    } finally {
-      setRoomsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchRooms()
-  }, [])
-
   useEffect(() => {
     // Refresh rooms list when returning from game
     if (shouldRefresh) {
@@ -267,7 +277,7 @@ export default function HomePage({
       fetchRooms()
       onRefreshed?.()
     }
-  }, [shouldRefresh, onRefreshed])
+  }, [shouldRefresh, onRefreshed, fetchRooms])
 
   const handleOpenCreateRoomModal = () => {
     setError('')
@@ -837,22 +847,30 @@ export default function HomePage({
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-4">
             <h2 className="text-lg text-[#ffffff] m-0 font-bold">新しい部屋を作成</h2>
+            {!serverReady && (
+              <div className="text-sm text-yellow-200 bg-yellow-900/60 border border-yellow-600 rounded px-3 py-2">
+                ⏳ サーバーを起動中です（{wakeUpElapsedSeconds}秒経過）。しばらくお待ちください…
+                {wakeUpElapsedSeconds >= 20 && (
+                  <span className="block mt-1 text-yellow-300">コールドスタートに最大60秒かかる場合があります。</span>
+                )}
+              </div>
+            )}
             <button
               onClick={handleOpenCreateRoomModal}
-              disabled={isCreating}
-              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70 w-full"
+              disabled={isCreating || !serverReady}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
-              {isCreating ? '作成中...' : '基本ルールで部屋を作成'}
+              {isCreating ? '作成中...' : !serverReady ? 'サーバー起動待ち...' : '基本ルールで部屋を作成'}
             </button>
           </div>
 
           <div className="flex flex-col gap-4">
             <button
               onClick={() => setIsCustomPresetsOpen(true)}
-              disabled={isCreating}
-              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-70 w-full"
+              disabled={isCreating || !serverReady}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#3d6b20] text-[#ffffff] hover:bg-[#2d5016] disabled:opacity-50 disabled:cursor-not-allowed w-full"
             >
-              カスタムルールで部屋を作成
+              {!serverReady ? 'サーバー起動待ち...' : 'カスタムルールで部屋を作成'}
             </button>
           </div>
 
@@ -1460,7 +1478,7 @@ export default function HomePage({
           <span className={`inline-block w-2.5 h-2.5 rounded-full ${
             serverReady ? 'bg-green-400' : 'bg-yellow-400 animate-ping-slow'
           }`} style={!serverReady ? { animation: 'pulse 1.5s ease-in-out infinite' } : undefined} />
-          {serverReady ? 'サーバー準備完了' : '通信中…'}
+          {serverReady ? 'サーバー準備完了' : `起動中… (${wakeUpElapsedSeconds}秒)`}
         </div>
       </div>
     </div>
