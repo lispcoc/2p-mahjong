@@ -2821,7 +2821,7 @@ export default function GamePage({
                   <img
                     src={opponentIcon}
                     alt="相手アイコン"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'top center', filter: opponentDisconnected ? 'brightness(0.4)' : 'none', transition: 'filter 0.3s' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', filter: opponentDisconnected ? 'brightness(0.4)' : 'none', transition: 'filter 0.3s' }}
                   />
                   {opponentDisconnected && (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -2961,7 +2961,7 @@ export default function GamePage({
                   >
                     <img
                       src={playerIcon}
-                      style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'top center' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       className="group-hover:opacity-70 transition-opacity"
                     />
                     <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2972,7 +2972,7 @@ export default function GamePage({
                   <div className="w-1/4 overflow-hidden rounded-lg border border-gray-300" style={{ aspectRatio: '3 / 4' }}>
                     <img
                       src={playerIcon}
-                      style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'top center' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
                   </div>
                 )

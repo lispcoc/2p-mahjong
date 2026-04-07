@@ -797,12 +797,13 @@ export default function HomePage({
                     <img
                       src={playerIcon}
                       alt="アイコン"
-                      className="w-22 h-22 object-cover border-2 border-white group-hover:opacity-70 transition-opacity shadow"
+                      className="object-cover border-2 border-white group-hover:opacity-70 transition-opacity shadow"
+                      style={{ height: '5.5rem', aspectRatio: '3 / 4' }}
                     />
                     <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#3d6b20] border border-white flex items-center justify-center text-white text-[9px] leading-none">✎</span>
                   </>
                 ) : (
-                  <div className="w-22 h-22 border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors">+</div>
+                  <div className="border-2 border-dashed border-white flex items-center justify-center text-white text-lg group-hover:bg-white/10 transition-colors" style={{ height: '5.5rem', aspectRatio: '3 / 4' }}>+</div>
                 )}
               </button>
               <div className='text-gray-300 text-xs'>
