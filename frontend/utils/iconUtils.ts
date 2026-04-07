@@ -96,13 +96,22 @@ export function generateIconId(): string {
 /**
  * 元画像を保存前に最大解像度にリサイズ (トリミング情報保持のため縦横は変えない)
  * fileSize が閾値以下ならそのまま返す
+ * @param maxDim  長辺の最大ピクセル数
+ * @param quality JPEG 品質 (0.0〜1.0)
  */
-export function precompressForStorage(dataUrl: string, maxDim = 640): Promise<string> {
+export function precompressForStorage(dataUrl: string, maxDim = 640, quality = 0.85): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => {
       if (img.naturalWidth <= maxDim && img.naturalHeight <= maxDim) {
-        resolve(dataUrl)
+        // リサイズ不要でも品質指定があれば再エンコード
+        const canvas = document.createElement('canvas')
+        canvas.width = img.naturalWidth
+        canvas.height = img.naturalHeight
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { reject(new Error('canvas error')); return }
+        ctx.drawImage(img, 0, 0)
+        resolve(canvas.toDataURL('image/jpeg', quality))
         return
       }
       const ratio = maxDim / Math.max(img.naturalWidth, img.naturalHeight)
@@ -114,8 +123,7 @@ export function precompressForStorage(dataUrl: string, maxDim = 640): Promise<st
       const ctx = canvas.getContext('2d')
       if (!ctx) { reject(new Error('canvas error')); return }
       ctx.drawImage(img, 0, 0, w, h)
-      // localStorage 節約のため JPEG 0.85 に圧縮
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
+      resolve(canvas.toDataURL('image/jpeg', quality))
     }
     img.onerror = () => reject(new Error('load error'))
     img.src = dataUrl

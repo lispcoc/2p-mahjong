@@ -74,6 +74,15 @@ function EntryPreview({ entry, className }: { entry: IconEntry; className?: stri
   )
 }
 
+// ─── 画質レベル定義 ──────────────────────────────────────────────────────────
+const QUALITY_LEVELS = [
+  { label: '最低', maxDim: 256, quality: 0.50 },
+  { label: '低',   maxDim: 360, quality: 0.65 },
+  { label: '中',   maxDim: 480, quality: 0.75 },
+  { label: '高',   maxDim: 640, quality: 0.85 },
+  { label: '最高', maxDim: 800, quality: 0.93 },
+] as const
+
 // ─── Props ───────────────────────────────────────────────────────────────────
 interface IconPickerModalProps {
   /** 現在選択中のアイコン (data URL or null) – 表示のみに使用 */
@@ -100,6 +109,7 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
 
   const [compressing, setCompressing] = useState(false)
   const [error, setError] = useState('')
+  const [qualityIdx, setQualityIdx] = useState(3) // デフォルト: 高
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const updateLibrary = (next: IconEntry[], onQuotaError?: () => void) => {
@@ -131,7 +141,8 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
       try {
         setCompressing(true)
         // localStorage 節約のため常にプレ圧縮
-        const precompressed = await precompressForStorage(raw)
+        const { maxDim, quality } = QUALITY_LEVELS[qualityIdx]
+        const precompressed = await precompressForStorage(raw, maxDim, quality)
         setCompressing(false)
         setCropState({ imageData: precompressed, editIdx: null })
       } catch {
@@ -433,6 +444,30 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
                   ? '「×」で削除 / 「✎」で表示位置編集 / タップして掴み移動先タップで並べ替え'
                   : 'アイコンをタップして選択・切替、「編集」で削除・並べ替え・トリミング'}
             </p>
+            {/* 画質設定 */}
+            <div className="mt-2">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] text-gray-400">登録画質</span>
+                <span className="text-[10px] text-gray-400">
+                  {QUALITY_LEVELS[qualityIdx].maxDim}px / JPEG {Math.round(QUALITY_LEVELS[qualityIdx].quality * 100)}%
+                </span>
+              </div>
+              <div className="flex gap-1">
+                {QUALITY_LEVELS.map((lv, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setQualityIdx(i)}
+                    className={`flex-1 py-1 text-[11px] font-semibold rounded transition-colors ${
+                      i === qualityIdx
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    {lv.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {storageUsage && (
               <div className="mt-2">
                 <div className="flex justify-between items-center text-[10px] text-gray-400 mb-0.5">
