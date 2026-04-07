@@ -2,26 +2,34 @@
   "name": "mahjong-server-manager",
   "version": "1.0.0",
   "description": "Server Manager for Mahjong Game",
-  "main": "index.html",
-  "window": {
-    "title": "Server Manager - Mahjong Game",
-    "width": 640,
-    "height": 720,
-    "min_width": 500,
-    "min_height": 500,
-    "icon": "icon.png",
-    "position": "center",
-    "resizable": true
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "nw": "0.92.0",
-    "@yao-pkg/pkg": "^6.0.0"
-  },
+  "main": "electron-main.js",
   "scripts": {
-    "start": "nw .",
-    "start:standalone": "node standalone.js",
+    "start": "electron .",
     "deploy": "node deploy.js",
-    "clean": "node -e \"const fs=require('fs');const p=require('path');const r=p.resolve(__dirname,'..');try{fs.unlinkSync(p.join(r,'ServerManager.exe'))}catch(_){};console.log('Clean done')\""
+    "clean": "node -e \"const fs=require('fs');const p=require('path');const r=p.resolve(__dirname,'..');['ServerManager.exe','dist-manager'].forEach(f=>{try{fs.rmSync(p.join(r,f),{recursive:true,force:true})}catch(_){}});console.log('Clean done')\""
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mahjong.server-manager",
+    "productName": "ServerManager",
+    "directories": {
+      "output": "../dist-manager"
+    },
+    "win": {
+      "target": [{ "target": "dir", "arch": ["x64"] }],
+      "icon": "icon.png"
+    },
+    "files": [
+      "electron-main.js",
+      "electron-preload.js",
+      "index.html",
+      "style.css",
+      "app.js"
+    ],
+    "asar": true
   }
 }
+

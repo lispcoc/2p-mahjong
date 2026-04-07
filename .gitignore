@@ -31,6 +31,8 @@ build/
 
 # ServerManager deploy output
 ServerManager.exe
+dist-manager/
+ServerManager.bat
 
 # Testing
 coverage/

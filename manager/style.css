@@ -250,6 +250,8 @@ body {
   font-size: 12px;
   line-height: 1.6;
   min-height: 0;
+  user-select: text;
+  cursor: text;
 }
 
 .log-box::-webkit-scrollbar {
