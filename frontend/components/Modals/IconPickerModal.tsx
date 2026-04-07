@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import type { IconEntry } from '../../types/IconTypes'
