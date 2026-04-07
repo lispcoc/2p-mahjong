@@ -105,8 +105,16 @@ export function ScoreResultModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-50">
-      <div className="bg-mahjong-dark-primary p-2 max-w-[95vw] w-[1200px] max-h-[90vh] overflow-auto shadow-2xl border-4 border-white">
+    <div
+      className="fixed inset-0 bg-black/70 flex justify-center overflow-y-auto z-50"
+      style={{
+        paddingTop: 'max(1rem, env(safe-area-inset-top))',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
+      <div className="bg-mahjong-dark-primary p-2 max-w-[95vw] w-[1200px] shadow-2xl border-4 border-white h-fit my-auto">
         {(winnerName || winnerId) && !isDrawOrAbort && scoreResult.valid && (hasWinnerTiles || scoreResult.winningTile) && (
           <div className="mb-3 p-3 bg-mahjong-dark-secondary border-2 border-white">
             <div className="flex gap-3 items-start flex-wrap">

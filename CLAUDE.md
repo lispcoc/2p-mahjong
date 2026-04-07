@@ -10,7 +10,7 @@
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
 - **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,383行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約8,897行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約8,905行）
 - **テスト**: 22ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -116,7 +116,7 @@ npm run task:generate  # タスク生成
 | `frontend/components/Modals/HandEditorModal.tsx` | 181 |
 | `frontend/components/Modals/IconPickerModal.tsx` | 388 |
 | `frontend/components/Modals/MatchHistoryModal.tsx` | 94 |
-| `frontend/components/Modals/ScoreResultModal.tsx` | 422 |
+| `frontend/components/Modals/ScoreResultModal.tsx` | 430 |
 | `frontend/components/Modals/YakuListModal.tsx` | 692 |
 | `frontend/components/Modals/YakumanListModal.tsx` | 87 |
 | `frontend/components/profiles/shared.tsx` | 523 |
