@@ -11,6 +11,7 @@ interface ConnectingScreenProps {
 export function ConnectingScreen({ playerName, roomId, error, wsReadyState }: ConnectingScreenProps) {
   const debugLogs = getDebugLogs()
   const lastLog = debugLogs[debugLogs.length - 1]?.message || 'No logs yet'
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'ws://localhost:3001'
 
   return (
     <div className="p-5 text-center">
@@ -21,6 +22,7 @@ export function ConnectingScreen({ playerName, roomId, error, wsReadyState }: Co
       <div className="text-left text-gray-600 text-xs bg-gray-100 p-2.5 rounded-none mb-2.5 font-mono max-h-[200px] overflow-auto">
         <div><strong>プレイヤー:</strong> {playerName}</div>
         <div><strong>ルーム:</strong> {roomId}</div>
+        <div><strong>バックエンドURL:</strong> {backendUrl}</div>
         <div><strong>エラー:</strong> {error || 'なし'}</div>
         <div><strong>WebSocket状態:</strong> {wsReadyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)</div>
         <div><strong>gameState:</strong> ❌ null（待機中）</div>

@@ -53,7 +53,7 @@ export default function Page() {
     const checkServer = async () => {
       try {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
-        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(8000) })
+        const res = await fetch(`${backendUrl}/api/rooms`, { signal: AbortSignal.timeout(15000) })
         if (res.ok && !cancelled) {
           setServerReady(true)
           return

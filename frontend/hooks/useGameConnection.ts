@@ -282,6 +282,8 @@ export function useGameConnection({
         }
         break
       default:
+        // pongはサーバー側keepalive応答 - ノイズ発生を防ぎサイレントに無視
+        if (type === 'pong') break
         debugLog(`⚠️ Unknown message type: ${type}`)
         console.log('⚠️ Unknown message type:', type)
     }
@@ -433,12 +435,14 @@ export function useGameConnection({
     ws.onerror = (event) => {
       debugLog(`❌ WebSocket error: ${event}`)
       console.error('❌ WebSocket error:', event)
-      setError(`接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）`)
+      const targetUrl = (event.target as WebSocket)?.url || wsUrl
+      setError(`接続エラー: WebSocket接続に失敗しました（${targetUrl}）`)
     }
 
-    ws.onclose = () => {
-      debugLog('🔌 WebSocket disconnected')
-      console.log('🔌 WebSocket disconnected')
+    ws.onclose = (event) => {
+      const codeInfo = `code=${event.code}${event.reason ? ` reason=${event.reason}` : ''}`
+      debugLog(`🔌 WebSocket disconnected (${codeInfo})`)
+      console.log(`🔌 WebSocket disconnected (${codeInfo}) wasClean=${event.wasClean}`)
       connectionAttempted.current = false
     }
 

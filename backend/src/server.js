@@ -446,7 +446,9 @@ app.delete('/mjadmin/api/rooms/:roomId', requireAdmin, (req, res) => {
 
 // Create HTTP server for both Express and WebSocket
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+// perMessageDeflate: false → 一部モバイルキャリア（ドコモ等）のプロキシが
+// WebSocket圧縮拡張を正しく処理できない問題を回避する
+const wss = new WebSocket.Server({ server, perMessageDeflate: false });
 
 // Room management
 const rooms = new Map(); // roomId -> GameRoom
@@ -1036,7 +1038,8 @@ app.get('/api/rooms/:roomId/match-history', (req, res) => {
 });
 
 // WebSocket ハートビート（ping/pong）：アイドル接続がNAT/ロードバランサーに切断されるのを防ぐ
-const HEARTBEAT_INTERVAL_MS = 30000; // 30秒ごとにping
+// 20秒に短縮（ドコモ等モバイルキャリアのCGNATは30秒以下でセッションを切る場合があるため）
+const HEARTBEAT_INTERVAL_MS = 20000; // 20秒ごとにping
 const HEARTBEAT_TIMEOUT_MS = 10000;  // pongが10秒以内に来なければ切断
 
 function setupHeartbeat(ws) {
@@ -1123,6 +1126,10 @@ async function handleMessage(ws, data, req = null) {
       break;
     case 'accuseCheat':
       handleAccuseCheat(ws);
+      break;
+    case 'ping':
+      // クライアントからのアプリケーションレベルpingに応答（CGNAT/キャリアプロキシ対策）
+      try { ws.send(JSON.stringify({ type: 'pong', timestamp: payload?.timestamp })); } catch (_) {}
       break;
     default:
       ws.send(JSON.stringify({ type: 'error', message: 'Unknown message type' }));

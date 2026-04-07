@@ -9,8 +9,8 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,383行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約9,428行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,390行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約9,455行）
 - **テスト**: 22ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -95,7 +95,7 @@ npm run task:generate  # タスク生成
 | `frontend/types/GameTypes.ts` | 126 |
 | `frontend/types/IconTypes.ts` | 34 |
 | `frontend/types/ProfileTypes.ts` | 42 |
-| `frontend/hooks/useGameConnection.ts` | 482 |
+| `frontend/hooks/useGameConnection.ts` | 486 |
 | `frontend/utils/DebugUtils.ts` | 34 |
 | `frontend/utils/fingerprint.ts` | 330 |
 | `frontend/utils/iconUtils.ts` | 232 |
@@ -104,14 +104,14 @@ npm run task:generate  # タスク生成
 | `frontend/utils/TileUtils.ts` | 138 |
 | `frontend/components/CheatPanel.tsx` | 171 |
 | `frontend/components/FuroDisplay.tsx` | 169 |
-| `frontend/components/GameBoard/ConnectingScreen.tsx` | 43 |
+| `frontend/components/GameBoard/ConnectingScreen.tsx` | 45 |
 | `frontend/components/GameBoard/DebugPanel.tsx` | 35 |
 | `frontend/components/GameBoard/DoraAndKanning.tsx` | 80 |
 | `frontend/components/GameBoard/GameHeader.tsx` | 57 |
 | `frontend/components/GameBoard/GameInfo.tsx` | 111 |
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 46 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 38 |
-| `frontend/components/GamePage.tsx` | 3,799 |
+| `frontend/components/GamePage.tsx` | 3,824 |
 | `frontend/components/HomePage.tsx` | 1,504 |
 | `frontend/components/LoginPage.tsx` | 83 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |
@@ -419,4 +419,4 @@ if (result === expected) {
 - **バックエンドにlint設定なし**: フロントエンドのみESLint（`next/core-web-vitals`）
 - **`manager/`はnw.jsアプリ**: バックエンド/フロントエンドの起動管理GUIで、ゲームロジックとは独立
 - **遅延観戦モード**: `wantDelayedSpectator: true`でjoinすると手牌公開・1分遅延で観戦。バッファは`GameRoom.delayedSpectatorBuffer`に1時間分保持され`dispatchDelayedSpectatorEvents()`が500msごとに配信する
-- **WebSocketハートビート**: 30秒ごとにpingを送り、10秒以内にpongが来なければ切断・`handleDisconnect`呼び出し。`setupHeartbeat(ws)`で初期化
+- **WebSocketハートビート**: 20秒ごとにpingを送り（旧:30秒。モバイルキャリアCGNAT対策で短縮）、10秒以内にpongが来なければ切断・`handleDisconnect`呼び出し。`setupHeartbeat(ws)`で初期化。`perMessageDeflate: false`でキャリアプロキシ互換性向上。クライアントも20秒ごとにアプリレベルpingを送信してCGNATセッションを維持

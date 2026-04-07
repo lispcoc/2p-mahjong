@@ -291,6 +291,7 @@ export default function GamePage({
   const noMeldAutoDrawRef = useRef<string | null>(null)  // ノーメルドモード自動ツモの状態フラグ
   const attemptedReconnectUserId = useRef<string | null>(null)  // Track if we tried to reconnect with a specific userId
   const reconnectTimerRef = useRef<number | null>(null)  // 再接続タイマー
+  const keepaliveTimerRef = useRef<number | null>(null)  // クライアント→サーバーkeepaliveタイマー（CGNAT対策）
   const onBackRef = useRef(onBack)
   const opponentActionDelayRef = useRef<number | null>(null)
   const opponentActionHideRef = useRef<number | null>(null)
@@ -1395,6 +1396,9 @@ export default function GamePage({
           showTelop(`❌ ${payload.message}`, 'info', 5000)
         }
         break
+      case 'pong':
+        // サーバーからのkeepalive pong応答 - 接続維持確認のみ（ノイズを出さない）
+        break
       default:
         debugLog(`⚠️ Unknown message type: ${type}`)
         console.log('⚠️ Unknown message type:', type)
@@ -1607,12 +1611,20 @@ export default function GamePage({
     ws.onerror = (event) => {
       debugLog(`❌ WebSocket error: ${event}`)
       console.error('❌ WebSocket error:', event)
-      showTelop('接続エラー: WebSocket接続に失敗しました（バックエンドを確認してください）', 'error', 5000)
+      const targetUrl = (event.target as WebSocket)?.url || wsUrl
+      showTelop(`接続エラー: WebSocket接続に失敗（${targetUrl}）`, 'error', 8000)
     }
 
-    ws.onclose = () => {
-      debugLog('🔌 WebSocket disconnected')
-      console.log('🔌 WebSocket disconnected')
+    ws.onclose = (event) => {
+      // キャリアプロキシによる切断の場合 code=1006 (異常切断、ドコモ等CGNATタイムアウト)
+      const codeInfo = `code=${event.code}${event.reason ? ` reason=${event.reason}` : ''}`
+      debugLog(`🔌 WebSocket disconnected (${codeInfo})`)
+      console.log(`🔌 WebSocket disconnected (${codeInfo}) wasClean=${event.wasClean}`)
+      // keepaliveタイマーを停止
+      if (keepaliveTimerRef.current !== null) {
+        clearInterval(keepaliveTimerRef.current)
+        keepaliveTimerRef.current = null
+      }
       // 接続フラグをリセットして再接続を許可する
       connectionAttempted.current = false
       // タブが表示中なら自動再接続（2秒待機）
@@ -1624,9 +1636,22 @@ export default function GamePage({
       }
     }
 
+    // クライアント側keepalive: 20秒ごとにアプリケーションレベルpongを送信しCGNATセッションを画採りする
+    keepaliveTimerRef.current = window.setInterval(() => {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }))
+        } catch (_) {}
+      }
+    }, 20000)
+
     wsRef.current = ws
 
     return () => {
+      if (keepaliveTimerRef.current !== null) {
+        clearInterval(keepaliveTimerRef.current)
+        keepaliveTimerRef.current = null
+      }
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close()
       }
