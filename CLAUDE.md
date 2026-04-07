@@ -9,8 +9,8 @@
 <!-- AUTO:OVERVIEW:START -->
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
-- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,256行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約8,115行）
+- **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,383行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約8,897行）
 - **テスト**: 22ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -82,7 +82,7 @@ npm run task:generate  # タスク生成
 | `AIPlayer.js` | 1,254 |
 | `GameRoom.js` | 2,066 |
 | `MahjongLogic.js` | 3,565 |
-| `ScoreCalculator.js` | 2,249 |
+| `ScoreCalculator.js` | 2,257 |
 | `TenpaiChecker.js` | 445 |
 | `Tile.js` | 67 |
 <!-- AUTO:BACKEND_MODULES:END -->
@@ -93,7 +93,7 @@ npm run task:generate  # タスク生成
 | パス | 行数 |
 |------|------|
 | `frontend/types/GameTypes.ts` | 126 |
-| `frontend/types/ProfileTypes.ts` | 31 |
+| `frontend/types/ProfileTypes.ts` | 42 |
 | `frontend/hooks/useGameConnection.ts` | 482 |
 | `frontend/utils/DebugUtils.ts` | 34 |
 | `frontend/utils/fingerprint.ts` | 330 |
@@ -109,16 +109,17 @@ npm run task:generate  # タスク生成
 | `frontend/components/GameBoard/GameInfo.tsx` | 111 |
 | `frontend/components/GameBoard/OpponentDiscards.tsx` | 46 |
 | `frontend/components/GameBoard/YourDiscards.tsx` | 38 |
-| `frontend/components/GamePage.tsx` | 3,633 |
-| `frontend/components/HomePage.tsx` | 1,426 |
+| `frontend/components/GamePage.tsx` | 3,799 |
+| `frontend/components/HomePage.tsx` | 1,503 |
 | `frontend/components/LoginPage.tsx` | 83 |
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |
 | `frontend/components/Modals/HandEditorModal.tsx` | 181 |
 | `frontend/components/Modals/IconPickerModal.tsx` | 388 |
 | `frontend/components/Modals/MatchHistoryModal.tsx` | 94 |
-| `frontend/components/Modals/ScoreResultModal.tsx` | 406 |
+| `frontend/components/Modals/ScoreResultModal.tsx` | 422 |
 | `frontend/components/Modals/YakuListModal.tsx` | 692 |
 | `frontend/components/Modals/YakumanListModal.tsx` | 87 |
+| `frontend/components/profiles/shared.tsx` | 523 |
 | `frontend/components/TileImage.tsx` | 154 |
 | `frontend/components/TileInline.tsx` | 58 |
 <!-- AUTO:FRONTEND_STRUCTURE:END -->
@@ -343,20 +344,21 @@ if (result === expected) {
 
 | パッケージ | バージョン | 種類 |
 |-----------|-----------|------|
+| @tailwindcss/postcss | ^4.1.18 | dependencies |
+| @types/node | 25.2.2 | dependencies |
+| @types/react | 19.2.13 | dependencies |
+| autoprefixer | ^10.4.24 | dependencies |
 | next | ^14.0.0 | dependencies |
+| postcss | ^8.5.6 | dependencies |
 | react | ^18.2.0 | dependencies |
 | react-dom | ^18.2.0 | dependencies |
 | react-hot-toast | ^2.6.0 | dependencies |
+| sharp | ^0.33.5 | dependencies |
+| tailwindcss | ^4.1.18 | dependencies |
+| typescript | ^5.0.0 | dependencies |
 | ws | ^8.14.2 | dependencies |
-| @tailwindcss/postcss | ^4.1.18 | devDependencies |
-| @types/node | 25.2.2 | devDependencies |
-| @types/react | 19.2.13 | devDependencies |
-| autoprefixer | ^10.4.24 | devDependencies |
 | eslint | ^8.50.0 | devDependencies |
 | eslint-config-next | ^14.0.0 | devDependencies |
-| postcss | ^8.5.6 | devDependencies |
-| sharp | ^0.33.5 | devDependencies |
-| tailwindcss | ^4.1.18 | devDependencies |
 <!-- AUTO:TECH_STACK:END -->
 
 ---

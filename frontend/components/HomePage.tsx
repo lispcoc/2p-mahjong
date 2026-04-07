@@ -1483,16 +1483,16 @@ export default function HomePage({
 
       {/* サーバー疎通確認インジケーター：起動中のときだけ表示 */}
       {(serverReady || (!serverReady && wakeUpElapsedSeconds > 0)) && (
-      <div className="fixed mt-2 ml-2 left-0 -translate-x-1 z-[100] pointer-events-none">
+      <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-[100] pointer-events-none">
         <div className={`flex items-center gap-2 px-4 py-2 rounded-full shadow-lg text-sm font-bold transition-all duration-500 ${
           serverReady
             ? 'bg-green-800/90 text-green-200 border border-green-500'
             : 'bg-yellow-900/90 text-yellow-200 border border-yellow-500 animate-pulse'
         }`}>
           <span className={`inline-block w-2.5 h-2.5 rounded-full ${
-            serverReady ? 'bg-green-400' : 'bg-yellow-400 animate-ping-slow'
+            serverReady ? 'bg-green-400' : 'bg-yellow-400'
           }`} style={!serverReady ? { animation: 'pulse 1.5s ease-in-out infinite' } : undefined} />
-          {serverReady ? 'サーバー準備完了' : `起動中… (${wakeUpElapsedSeconds}秒)`}
+          {serverReady ? 'サーバー準備完了' : '通信中…'}
         </div>
       </div>
       )}
