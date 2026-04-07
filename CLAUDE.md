@@ -10,7 +10,7 @@
 二人麻雀のフルスタックリアルタイム対戦ゲーム。Next.js 14 フロントエンド + Express/WebSocket バックエンドのモノレポ構成。
 
 - **バックエンド**: `backend/` — Node.js (Express + ws), CommonJS, ビルドステップなし（約12,383行）
-- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約9,356行）
+- **フロントエンド**: `frontend/` — Next.js 14 + React 18 + TypeScript + Tailwind CSS 4（約9,393行）
 - **テスト**: 22ファイル
 - **ポート**: バックエンド `http://localhost:3001`, フロントエンド `http://localhost:3000`
 <!-- AUTO:OVERVIEW:END -->
@@ -98,7 +98,7 @@ npm run task:generate  # タスク生成
 | `frontend/hooks/useGameConnection.ts` | 482 |
 | `frontend/utils/DebugUtils.ts` | 34 |
 | `frontend/utils/fingerprint.ts` | 330 |
-| `frontend/utils/iconUtils.ts` | 221 |
+| `frontend/utils/iconUtils.ts` | 224 |
 | `frontend/utils/TenpaiChecker.ts` | 449 |
 | `frontend/utils/tileData.ts` | 59 |
 | `frontend/utils/TileUtils.ts` | 138 |
@@ -117,7 +117,7 @@ npm run task:generate  # タスク生成
 | `frontend/components/Modals/FinalResultModal.tsx` | 163 |
 | `frontend/components/Modals/HandEditorModal.tsx` | 181 |
 | `frontend/components/Modals/IconCropModal.tsx` | 405 |
-| `frontend/components/Modals/IconPickerModal.tsx` | 433 |
+| `frontend/components/Modals/IconPickerModal.tsx` | 470 |
 | `frontend/components/Modals/MatchHistoryModal.tsx` | 94 |
 | `frontend/components/Modals/ScoreResultModal.tsx` | 430 |
 | `frontend/components/Modals/YakuListModal.tsx` | 692 |

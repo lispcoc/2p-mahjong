@@ -21,10 +21,13 @@ export function loadIconLibraryV2(): IconEntry[] {
   return []
 }
 
-export function saveIconLibraryV2(library: IconEntry[]): void {
+export function saveIconLibraryV2(library: IconEntry[]): boolean {
   try {
     localStorage.setItem(ICON_LIBRARY_V2_KEY, JSON.stringify(library))
-  } catch {}
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** 旧ライブラリ (string[]) から V2 形式へマイグレーション */

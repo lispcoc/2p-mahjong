@@ -29,7 +29,6 @@ export function saveIconLibrary(library: string[]): void {
   try { localStorage.setItem(ICON_LIBRARY_KEY, JSON.stringify(library)) } catch {}
 }
 
-const MAX_ICONS = 12
 // ─── アイコン表示コンポーネント (CSS 計算版) ─────────────────────────────────
 function EntryPreview({ entry, className }: { entry: IconEntry; className?: string }) {
   const frameRef = useRef<HTMLDivElement>(null)
@@ -103,9 +102,14 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const updateLibrary = (next: IconEntry[]) => {
-    setLibrary(next)
-    saveIconLibraryV2(next)
+  const updateLibrary = (next: IconEntry[], onQuotaError?: () => void) => {
+    const ok = saveIconLibraryV2(next)
+    if (ok) {
+      setLibrary(next)
+    } else {
+      setError('localStorage の容量が不足しています。不要なアイコンを削除してから再試行してください。')
+      onQuotaError?.()
+    }
   }
 
   useEffect(() => {
@@ -150,7 +154,9 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
     } else {
       next = library.map((e, i) => (i === editIdx ? entry : e))
     }
-    updateLibrary(next)
+    let savedOk = true
+    updateLibrary(next, () => { savedOk = false })
+    if (!savedOk) return
 
     // 新規追加 or アクティブなエントリを編集した場合は再レンダリング
     if (isNew || entry.id === activeId) {
@@ -215,7 +221,23 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
     setGrabIdx(null)
   }
 
-  const canAdd = library.length < MAX_ICONS && !compressing
+  // localStorage 使用量計算 (アイコンライブラリ分)
+  const storageUsage = useMemo(() => {
+    try {
+      const bytes = new TextEncoder().encode(JSON.stringify(library)).length
+      const LIMIT = 5 * 1024 * 1024 // 5 MB (一般的な上限)
+      const pct = Math.min(100, (bytes / LIMIT) * 100)
+      let label: string
+      if (bytes < 1024) label = `${bytes} B`
+      else if (bytes < 1024 * 1024) label = `${(bytes / 1024).toFixed(1)} KB`
+      else label = `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+      return { label, pct }
+    } catch {
+      return null
+    }
+  }, [library])
+
+  const canAdd = !compressing
 
   return (
     <>
@@ -400,9 +422,6 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
             </div>
 
             {error && <p className="mt-3 text-center text-sm text-red-500">{error}</p>}
-            {library.length >= MAX_ICONS && (
-              <p className="mt-3 text-center text-xs text-gray-400">アイコンは最大{MAX_ICONS}枚まで保存できます。削除してから追加してください。</p>
-            )}
           </div>
 
           {/* フッター */}
@@ -414,6 +433,24 @@ export function IconPickerModal({ activeIcon, onSelect, onClose }: IconPickerMod
                   ? '「×」で削除 / 「✎」で表示位置編集 / タップして掴み移動先タップで並べ替え'
                   : 'アイコンをタップして選択・切替、「編集」で削除・並べ替え・トリミング'}
             </p>
+            {storageUsage && (
+              <div className="mt-2">
+                <div className="flex justify-between items-center text-[10px] text-gray-400 mb-0.5">
+                  <span>アイコンデータ使用量</span>
+                  <span>{storageUsage.label} / ~5 MB</span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      storageUsage.pct >= 90 ? 'bg-red-500' :
+                      storageUsage.pct >= 70 ? 'bg-yellow-400' :
+                      'bg-blue-400'
+                    }`}
+                    style={{ width: `${storageUsage.pct}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
