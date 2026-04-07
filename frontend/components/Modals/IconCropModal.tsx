@@ -94,6 +94,7 @@ export function IconCropModal({ imageData, initial, onConfirm, onCancel }: IconC
       top:  Math.min(0, Math.max(top,  fh - dh)),
       width: dw,
       height: dh,
+      maxWidth: 'none',
       touchAction: 'none',
       userSelect: 'none' as const,
       WebkitUserSelect: 'none' as const,

@@ -213,6 +213,7 @@ export function calcIconImageStyle(
     top,
     width: displayW,
     height: displayH,
+    maxWidth: 'none',
     pointerEvents: 'none',
     userSelect: 'none',
   }

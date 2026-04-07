@@ -58,6 +58,7 @@ function EntryPreview({ entry, className }: { entry: IconEntry; className?: stri
       top:  Math.min(0, Math.max(top,  frameSize.h - dh)),
       width: dw,
       height: dh,
+      maxWidth: 'none',
     }
   }, [imgSize, frameSize, entry.scale, entry.offsetX, entry.offsetY])
 
