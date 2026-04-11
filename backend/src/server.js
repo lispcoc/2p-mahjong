@@ -738,6 +738,9 @@ app.post('/api/fingerprint', (req, res) => {
   }
   const ip = req.headers['x-forwarded-for']?.split(',').shift().trim() || req.socket?.remoteAddress || 'unknown';
 
+  // IP/FP情報を常に記録（BAN済みでも新しい情報があれば追跡する）
+  updateIPDatabase(ip, playerName, fingerprint);
+
   // BANチェック
   const banEntry = findBanEntry(ip, fingerprint);
   if (banEntry) {
@@ -745,7 +748,6 @@ app.post('/api/fingerprint', (req, res) => {
     return res.status(403).json({ error: 'banned', reason: banEntry.reason || '利用が禁止されています' });
   }
 
-  updateIPDatabase(ip, playerName, fingerprint);
   console.log(`🔏 [/api/fingerprint] Recorded for ${playerName}: ${fingerprint} (IP: ${ip})`);
   res.json({ success: true });
 });
@@ -1433,6 +1435,14 @@ function handleJoin(ws, payload, req = null) {
   // 再接続時も更新することで、IP変更やフィンガープリントの最新情報を保持する
   const playerIP = req?.headers['x-forwarded-for']?.split(',').shift().trim() || req?.socket?.remoteAddress || 'unknown';
 
+  // IP/FP情報を常に記録（BAN済みでも新しい情報があれば追跡する）
+  if (fingerprint && typeof fingerprint === 'string' && /^[0-9a-f]{32}$/i.test(fingerprint)) {
+    updateIPDatabase(playerIP, playerName, fingerprint);
+    console.log(`🔏 [handleJoin] IP/FP recorded before ban check for ${playerName}: ${fingerprint} (IP: ${playerIP})`);
+  } else {
+    updateIPDatabase(playerIP, playerName, null);
+  }
+
   // BANチェック：IP・フィンガープリントのどちらかがBANリストに一致する場合は接続を拒否
   const banEntry = findBanEntry(playerIP, fingerprint || null);
   if (banEntry) {
@@ -1458,9 +1468,6 @@ function handleJoin(ws, payload, req = null) {
   } else {
     console.log(`🔏 No fingerprint in join payload for ${playerName} (payload keys: ${Object.keys(payload).join(', ')})`);
   }
-
-  // IPデータベース（全接続者）を更新 ─ 新規参加・再接続ともに実行
-  updateIPDatabase(playerIP, playerName, fingerprint || null);
 
   connections.set(ws, { userId, roomId, playerName });
 
