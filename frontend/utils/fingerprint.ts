@@ -201,6 +201,47 @@ async function sha256(str: string): Promise<string> {
 }
 
 /**
+ * ハードウェアレベルのシグナルのみを使用したブラウザ非依存フィンガープリントを生成する。
+ *
+ * Chrome / Firefox / Edge / Safari が変わっても同じ値を返す。
+ * Canvas描画・Audio・UA・プラグインなどのレンダリングエンジン依存シグナルを除外し、
+ * GPU情報・画面サイズ・CPU/メモリ・タイムゾーンなどOS/ハードウェア固有の値のみを使用。
+ *
+ * 欠点: 通常フィンガープリントより識別エントロピーが低い。
+ *
+ * @returns 32文字の16進数ハッシュ文字列
+ */
+export async function generateHardwareFingerprint(): Promise<string> {
+  const signals: Record<string, string | number> = {
+    // OS レベル（ブラウザ非依存）
+    platform: navigator.platform || '',
+    language: navigator.language || '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    timezoneOffset: new Date().getTimezoneOffset(),
+    // ハードウェアスペック
+    hardwareConcurrency: navigator.hardwareConcurrency || 0,
+    deviceMemory: (navigator as any).deviceMemory || 0,
+    maxTouchPoints: navigator.maxTouchPoints || 0,
+    // ディスプレイ
+    screenW: screen.width,
+    screenH: screen.height,
+    screenAvailW: screen.availWidth,
+    screenAvailH: screen.availHeight,
+    colorDepth: screen.colorDepth,
+    pixelDepth: screen.pixelDepth,
+    devicePixelRatio: window.devicePixelRatio || 1,
+    // GPU（最も識別力の高いハードウェアシグナル）
+    webgl: getWebGLInfo(),
+  }
+
+  const raw = Object.entries(signals)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('||')
+
+  return sha256(raw)
+}
+
+/**
  * ブラウザフィンガープリントを生成して返す。
  *
  * @returns 32文字の16進数ハッシュ文字列
@@ -250,6 +291,7 @@ export async function generateFingerprint(): Promise<string> {
 // ─── キャッシング ───────────────────────────────────────────────────────────
 
 const LS_KEY = 'mahjong-fingerprint'
+const LS_HW_KEY = 'mahjong-hw-fingerprint'
 const FP_REGEX = /^[0-9a-f]{32}$/i
 
 /** 生成中の Promise（重複生成を防ぐ） */
@@ -270,6 +312,75 @@ function _saveToStorage(fp: string): void {
     localStorage.setItem(LS_KEY, fp)
   } catch {}
 }
+
+// ─── ハードウェアFP キャッシング ────────────────────────────────────────────
+
+/** 生成中の Promise（重複生成を防ぐ） */
+let _hwFingerprintPromise: Promise<string> | null = null
+
+function _readHwFromStorage(): string | null {
+  try {
+    const v = localStorage.getItem(LS_HW_KEY)
+    if (v && FP_REGEX.test(v)) return v
+  } catch {}
+  return null
+}
+
+function _saveHwToStorage(fp: string): void {
+  try {
+    localStorage.setItem(LS_HW_KEY, fp)
+  } catch {}
+}
+
+/**
+ * ハードウェアFP（ブラウザ非依存）をバックグラウンドで事前生成する。冪等。
+ * Canvas・Audio不要なため通常FPより高速に完了する。
+ */
+export function prefetchHardwareFingerprint(): void {
+  if (_hwFingerprintPromise) return
+  if (_readHwFromStorage()) return
+
+  _hwFingerprintPromise = generateHardwareFingerprint()
+    .then((fp) => {
+      if (fp && FP_REGEX.test(fp)) {
+        _saveHwToStorage(fp)
+        console.log('🔩 HW Fingerprint generated and cached:', fp)
+      } else {
+        console.warn('⚠️ HW Fingerprint invalid format:', JSON.stringify(fp))
+      }
+      return fp
+    })
+    .catch((err) => {
+      console.warn('⚠️ HW Fingerprint pre-fetch failed:', err)
+      _hwFingerprintPromise = null
+      return ''
+    })
+}
+
+/**
+ * キャッシュ済みハードウェアフィンガープリントを返す（ブラウザ非依存版）。
+ * Chrome / Firefox / Edge / Safari で同じデバイスなら同じ値を返す。
+ */
+export async function getCachedHardwareFingerprint(): Promise<string> {
+  const stored = _readHwFromStorage()
+  if (stored) {
+    console.log('🔩 HW Fingerprint from localStorage cache:', stored)
+    return stored
+  }
+
+  if (_hwFingerprintPromise) {
+    const fp = await _hwFingerprintPromise
+    console.log('🔩 HW Fingerprint from in-flight promise:', fp)
+    return fp
+  }
+
+  console.log('🔩 HW Fingerprint not pre-fetched, generating now...')
+  prefetchHardwareFingerprint()
+  const fp = await _hwFingerprintPromise!
+  console.log('🔩 HW Fingerprint generated on-demand:', fp)
+  return fp
+}
+
 
 /**
  * ホームページ（またはログインページ）表示時にバックグラウンドで
