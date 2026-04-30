@@ -63,6 +63,7 @@ class GameRoom {
     this.hostId = null; // 部屋を最初に作成したプレイヤーのuserId
     this.spectators = new Map(); // userId -> { userId, spectatorName, ws }
     this.transparentHand = options.transparentHand || false; // 透明手牌ルール（同種3枚保有・赤ドラは透けて見える）
+    this.discardAssistEnabled = options.discardAssistEnabled === true; // 初心者向け打牌アシスト
     this.allowKuikae = options.allowKuikae || false; // 喰い替えを許可するか（デフォルト: 禁止）
     // ===== イカサマインフラ =====
     this.cheatingEnabled = options.cheatingEnabled || false;     // イカサマ機能有効フラグ（デフォルト無効）
@@ -858,6 +859,7 @@ class GameRoom {
         spectatorCount: this.spectators.size,
         hostId: this.hostId,
         rematchReadyUserIds: Array.from(this.rematchReady),
+        discardAssistEnabled: this.discardAssistEnabled,
       };
       // ゲームオーバー時は最終結果も含める
       if (this.status === 'gameOver' && this.roundHistory && this.roundHistory.length > 0) {
@@ -900,6 +902,7 @@ class GameRoom {
       hostId: this.hostId, // 部屋作成者のuserId
       rematchReadyUserIds: Array.from(this.rematchReady), // 再戦準備完了プレイヤー一覧
       transparentHand: this.transparentHand, // 透明手牌ルール
+      discardAssistEnabled: this.discardAssistEnabled, // 初心者向け打牌アシスト
       allowKuikae: this.allowKuikae, // 喰い替えを許可するか
       lastPonTile: this.gameLogic.lastPonTile ? { suit: this.gameLogic.lastPonTile.suit, number: this.gameLogic.lastPonTile.number } : null, // ポン直後の喰い替えチェック用
       cheating: this.getCheatingGameState(), // イカサマ関連情報
@@ -980,6 +983,70 @@ class GameRoom {
     }
 
     return state;
+  }
+
+  buildAIGameState(userId, hand, melds) {
+    const opponentId = this.gameLogic.getOtherPlayerId(userId);
+    const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
+    const currentScore = this.gameLogic.getPlayerScore(userId);
+    const opponentScore = opponentId ? this.gameLogic.getPlayerScore(opponentId) : 25000;
+
+    return {
+      opponentRiichi: opponentPlayer?.riichi || false,
+      opponentIppatsu: opponentPlayer?.ippatsuValid || false,
+      opponentDiscards: opponentPlayer?.discards || [],
+      ownDiscards: this.gameLogic.players[userId].discards || [],
+      ownMelds: melds,
+      opponentMelds: opponentPlayer?.melds || [],
+      doraIndicators: this.gameLogic.doraIndicators || [],
+      numMelds: melds.length,
+      melds: melds,
+      wallRemaining: this.gameLogic.wall?.length || 0,
+      ownHand: hand,
+      ownScore: currentScore,
+      opponentScore: opponentScore,
+      roundNumber: this.roundNumber || 1,
+      totalRounds: this.maxRounds || 4,
+    };
+  }
+
+  getDiscardAssist(userId) {
+    if (!this.discardAssistEnabled) {
+      return { success: true, discardAssist: null };
+    }
+    if (this.status !== 'playing' || !this.gameLogic) {
+      return { success: true, discardAssist: null };
+    }
+    if (this.gameLogic.getCurrentTurn() !== userId) {
+      return { success: true, discardAssist: null };
+    }
+
+    const hand = this.gameLogic.getPlayerHand(userId);
+    if (!Array.isArray(hand) || hand.length === 0 || hand.length % 3 !== 2) {
+      return { success: true, discardAssist: null };
+    }
+
+    const drawnTileIndex = this.gameLogic.getDrawnTileIndex(userId);
+    const isRiichi = this.gameLogic.isPlayerRiichi(userId);
+    const melds = this.gameLogic.players[userId].melds || [];
+    const effectiveDrawnIndex = drawnTileIndex >= 0 ? drawnTileIndex : hand.length - 1;
+    const aiPlayer = this.aiPlayers.get(userId) || new AIPlayer(false);
+    const gameState = this.buildAIGameState(userId, hand, melds);
+    const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
+    const tile = hand[discardIndex];
+
+    if (!tile) {
+      return { success: true, discardAssist: null };
+    }
+
+    const tileId = tile.isRed ? `${tile.suit}_${tile.number}_red` : `${tile.suit}_${tile.number}`;
+    return {
+      success: true,
+      discardAssist: {
+        tileId,
+        tileIndex: discardIndex,
+      },
+    };
   }
 
   getStatus() {
@@ -1726,27 +1793,7 @@ class GameRoom {
     const effectiveDrawnIndex = drawnTileIndex >= 0 ? drawnTileIndex : hand.length - 1;
 
     // AI に相手情報を渡す（防御・受入計算・ベタオリ・スコア判断用）
-    const opponentId = this.gameLogic.getOtherPlayerId(userId);
-    const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
-    const currentScore = this.gameLogic.getPlayerScore(userId);
-    const opponentScore = opponentId ? this.gameLogic.getPlayerScore(opponentId) : 25000;
-    const gameState = {
-      opponentRiichi: opponentPlayer?.riichi || false,
-      opponentIppatsu: opponentPlayer?.ippatsuValid || false,
-      opponentDiscards: opponentPlayer?.discards || [],
-      ownDiscards: this.gameLogic.players[userId].discards || [],
-      ownMelds: melds,
-      opponentMelds: opponentPlayer?.melds || [],
-      doraIndicators: this.gameLogic.doraIndicators || [],
-      numMelds: melds.length,
-      melds: melds,
-      wallRemaining: this.gameLogic.wall?.length || 0,
-      ownHand: hand,
-      ownScore: currentScore,
-      opponentScore: opponentScore,
-      roundNumber: this.roundNumber || 1,
-      totalRounds: this.maxRounds || 4,
-    };
+    const gameState = this.buildAIGameState(userId, hand, melds);
     const discardIndex = aiPlayer.chooseDiscard(hand, effectiveDrawnIndex, isRiichi, gameState);
     const tileToDiscard = hand[discardIndex];
 

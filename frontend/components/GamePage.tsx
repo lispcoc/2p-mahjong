@@ -200,6 +200,7 @@ export default function GamePage({
   const [handRevealedMap, setHandRevealedMap] = useState<Record<string, boolean>>({}) // プレイヤーごとの手牌公開状態（観戦者が参照）
   const spectatorListRef = useRef<HTMLDivElement>(null) // 観戦者一覧ドロップダウン用ref
   const [autoActionTimerSeconds, setAutoActionTimerSeconds] = useState(10) // ツモ切り・ポン見逃しのタイマー秒数
+  const [discardAssistSuggestion, setDiscardAssistSuggestion] = useState<{ tileId: string; tileIndex: number } | null>(null)
   const [opponentTedashiGapIdx, setOpponentTedashiGapIdx] = useState(-1) // 相手手出し時の歯抜け表示位置 (-1=なし)
   const [rematchRequested, setRematchRequested] = useState(false) // 再戦準備OK送信済み（自分）
   const [rematchReadyCount, setRematchReadyCount] = useState(0) // 再戦準備OK人数
@@ -285,6 +286,7 @@ export default function GamePage({
   const autoDiscardIntervalRef = useRef<number | null>(null)  // カウントダウンインターバルのID
   const autoDiscardTimeoutRef = useRef<number | null>(null)  // 自動ツモ切りのタイマーID
   const autoDiscardKeyRef = useRef<string | null>(null)  // 直近の自動ツモ切り対象
+  const discardAssistRequestKeyRef = useRef<string | null>(null) // 同一局面での重複リクエスト防止
   const pendingPungIntervalRef = useRef<number | null>(null)  // ポン待ち時のカウントダウンインターバルのID
   const autoDiscardDeadlineRef = useRef<number | null>(null)  // 自動ツモ切り期限時刻 (Date.now() + ms)
   const pendingPungDeadlineRef = useRef<number | null>(null)   // ポン見逃し期限時刻 (Date.now() + ms)
@@ -633,6 +635,7 @@ export default function GamePage({
           seatWinds: payload.gameState?.seatWinds,
           hostId: payload.hostId || payload.gameState?.hostId,
           rematchReadyUserIds: payload.gameState?.rematchReadyUserIds || [],
+          discardAssistEnabled: payload.gameState?.discardAssistEnabled,
         }
         debugLog(`Setting gameState to status=${initialState.status}`)
         console.log('Game state initialized:', initialState)
@@ -1256,6 +1259,10 @@ export default function GamePage({
       case 'actionResponse':
         debugLog(`✅ Action response received`)
         console.log('✅ Action response:', payload)
+        if (payload.actionType === 'discardAssist') {
+          setDiscardAssistSuggestion(payload.discardAssist ?? null)
+          break
+        }
         if (payload.success === false) {
           // エラーメッセージを表示
           showTelop(payload.message || 'アクションに失敗しました', 'error', 4000)
@@ -1708,6 +1715,43 @@ export default function GamePage({
       playDahaiSound()
     }
   }, [playDahaiSound])
+
+  React.useEffect(() => {
+    if (!gameState || isSpectator || !userId) {
+      setDiscardAssistSuggestion(null)
+      discardAssistRequestKeyRef.current = null
+      return
+    }
+
+    if (gameState.discardAssistEnabled !== true || gameState.status !== 'playing') {
+      setDiscardAssistSuggestion(null)
+      discardAssistRequestKeyRef.current = null
+      return
+    }
+
+    const isYourTurn = gameState.currentTurn === userId
+    const hand = (gameState.tiles?.[userId]?.hand as Tile[]) || []
+    const drawnTileIndex = gameState.tiles?.[userId]?.drawnTileIndex ?? -1
+    const isRiichi = gameState.riichi?.[userId] === true
+    const canDiscard = isYourTurn && hand.length % 3 === 2
+    const waitingAction = gameState.pendingPungFor === userId || gameState.ronPossibleFor === userId
+
+    if (!canDiscard || isRiichi || waitingAction) {
+      setDiscardAssistSuggestion(null)
+      discardAssistRequestKeyRef.current = null
+      return
+    }
+
+    const handKey = hand.map((tile) => getTileId(tile)).join('|')
+    const requestKey = `${userId}:${gameState.currentTurn}:${drawnTileIndex}:${handKey}`
+
+    if (discardAssistRequestKeyRef.current === requestKey) {
+      return
+    }
+
+    discardAssistRequestKeyRef.current = requestKey
+    sendAction({ type: 'discardAssist' })
+  }, [gameState, isSpectator, userId, sendAction])
 
   const handleNextRound = React.useCallback(() => {
     // バックエンドに「次の局へ」を伝える
@@ -2349,6 +2393,8 @@ export default function GamePage({
   const canRon = isYourTurn && ronPossibleFor === userId
   // ポン後で牌をまだ引いていない状態（fullHand.length % 3 === 2）では牌を引けない
   const canDraw = isYourTurn && drawnTileIndex < 0 && !canRon && !isRiichi && fullHand.length % 3 !== 2
+  const showDiscardAssist = !isSpectator && gameState.discardAssistEnabled === true && gameState.status === 'playing' && isYourTurn && !isRiichi
+  const assistTileIndex = showDiscardAssist ? discardAssistSuggestion?.tileIndex ?? null : null
 
   // Check if player can daiminkan (大明槓: 3 matching tiles + opponent's discard)
   const pendingDaiminkanFor = gameState.pendingDaiminkanFor
@@ -3072,6 +3118,11 @@ export default function GamePage({
 
       {/* Hand display with tile images and actions - unified horizontal layout */}
       <div className="w-full max-w-4xl p-2 border-white bg-[#2d5016] sm:min-h-[168px] flex flex-col shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        {showDiscardAssist && (
+          <div className="w-full mb-1 px-3 py-1 rounded border border-sky-500 bg-sky-950/50 text-sky-200 text-xs font-bold">
+            打牌アシスト: 青い枠がCPU推奨の打牌です
+          </div>
+        )}
         {/* Fixed tenpai panel - for confirm discard mode / mobile */}
         {confirmDiscardMode && selectedTileIndex !== null && gameState.status === 'playing' && (() => {
           const info = tenpaiInfoMap[selectedTileIndex];
@@ -3114,7 +3165,7 @@ export default function GamePage({
                   {displayHandIndices.map((idx: number) => (
                     <div
                       key={idx}
-                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : isKuikaeTile(fullHand[idx]) ? 'opacity-30 grayscale' : (isTransparentHandRule && isSpectator) ? 'opacity-90' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
+                      className={`relative cursor-pointer transition-transform ${selectedTileIndex === idx ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${selectedTileIndex !== idx && assistTileIndex === idx ? 'ring-2 ring-sky-400 rounded-sm' : ''} ${riichiMode && !tenpaiInfoMap[idx]?.isTenpai ? 'opacity-30 grayscale' : isKuikaeTile(fullHand[idx]) ? 'opacity-30 grayscale' : (isTransparentHandRule && isSpectator) ? 'opacity-90' : myTransparentSet.has(idx) ? 'opacity-50' : `${idx === drawnTileIndex ? 'opacity-100' : 'opacity-90'}`}`}
                     >
                       <TileImage
                         tile={fullHand[idx]}
@@ -3280,7 +3331,7 @@ export default function GamePage({
 
                   {/* Highlight drawn tile on the right - always reserve space */}
                   {isEffectiveUserTurn && drawnTileIndex >= 0 && fullHand[drawnTileIndex] && (
-                    <div className={`relative ml-4 sm:ml-8 transition-transform ${selectedTileIndex === drawnTileIndex ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(drawnTileIndex) ? 'opacity-50' : ''}`}>
+                    <div className={`relative ml-4 sm:ml-8 transition-transform ${selectedTileIndex === drawnTileIndex ? 'ring-2 ring-yellow-400 rounded-sm -translate-y-1' : ''} ${selectedTileIndex !== drawnTileIndex && assistTileIndex === drawnTileIndex ? 'ring-2 ring-sky-400 rounded-sm' : ''} ${riichiMode && !tenpaiInfoMap[drawnTileIndex]?.isTenpai ? 'opacity-30 grayscale' : myTransparentSet.has(drawnTileIndex) ? 'opacity-50' : ''}`}>
                       <TileImage
                         tile={fullHand[drawnTileIndex]}
                         scale={tileScale}

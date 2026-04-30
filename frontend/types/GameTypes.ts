@@ -64,6 +64,7 @@ export interface GameState {
   handRevealedToSpectators?: Record<string, boolean>
   hostId?: string
   rematchReadyUserIds?: string[]
+  discardAssistEnabled?: boolean
   transparentHand?: boolean
   allowKuikae?: boolean
   lastPonTile?: { suit: string; number: number } | null

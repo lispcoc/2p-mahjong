@@ -862,13 +862,16 @@ app.post('/api/rooms', (req, res) => {
   // 透明手牌ルール: 同種3枚保有で透けて見える
   const transparentHand = req.body?.transparentHand === true;
 
+  // 初心者向け打牌アシスト
+  const discardAssistEnabled = req.body?.discardAssistEnabled === true;
+
   // ===== イカサマインフラ =====
   const cheatingEnabled = req.body?.cheatingEnabled === true;
   const fixedDrawOrder = req.body?.fixedDrawOrder === true;
   const rawWallSeed = Number(req.body?.wallSeed);
   const wallSeed = Number.isFinite(rawWallSeed) ? Math.floor(rawWallSeed) : null;
 
-  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection, transparentHand, cheatingEnabled, fixedDrawOrder, wallSeed });
+  const room = new GameRoom(roomId, { initialScore, wallTiles, gameMode: finalGameMode, autoActionTimerSeconds, useRedDora, notenPenalty, riichiDepositRequired, aotenjou, kiriagemangan, ronMultiplier, dealerSelection, transparentHand, discardAssistEnabled, cheatingEnabled, fixedDrawOrder, wallSeed });
   // Store pending tsumo luck settings to be applied when players join
   room.setPendingTsumoLuckSettings(myTsumoLuck, opponentTsumoLuck);
   rooms.set(roomId, room);
@@ -1732,6 +1735,20 @@ async function handleAction(ws, payload) {
   console.log(`\n[🔵 ${requestId}] ============ INCOMING ACTION ============`);
   console.log(`[🔵 ${requestId}] [server.handleAction] Received action from userId=${userId}`);
   console.log(`[🔵 ${requestId}] Payload:`, JSON.stringify(payload));
+
+  if (payload?.type === 'discardAssist') {
+    const assistResult = room.getDiscardAssist(userId);
+    ws.send(JSON.stringify({
+      type: 'actionResponse',
+      payload: {
+        success: assistResult.success,
+        actionType: 'discardAssist',
+        discardAssist: assistResult.discardAssist || null,
+      },
+    }));
+    return;
+  }
+
   if (payload.type === 'discard') {
     console.log(`[🔵 ${requestId}] >>> Discard action with tileId='${payload.tileId}'`);
   }

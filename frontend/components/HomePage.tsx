@@ -22,6 +22,7 @@ interface RulePreset {
   ronMultiplier: number
   transparentHand: boolean
   cheatingEnabled: boolean
+  discardAssistEnabled: boolean
 }
 
 const BASE_STANDARD_RULES: Omit<RulePreset, 'name'> = {
@@ -38,6 +39,7 @@ const BASE_STANDARD_RULES: Omit<RulePreset, 'name'> = {
   ronMultiplier: 1,
   transparentHand: false,
   cheatingEnabled: false,
+  discardAssistEnabled: false,
 }
 
 const CUSTOM_PRESETS_KEY = 'mahjong-custom-presets'
@@ -157,6 +159,7 @@ export default function HomePage({
   const [ronMultiplier, setRonMultiplier] = useState<number>(savedSettings?.ronMultiplier ?? 1)
   const [transparentHand, setTransparentHand] = useState(savedSettings?.transparentHand ?? false)
   const [cheatingEnabled, setCheatingEnabled] = useState(savedSettings?.cheatingEnabled ?? false)
+  const [discardAssistEnabled, setDiscardAssistEnabled] = useState(savedSettings?.discardAssistEnabled ?? false)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false)
   const [isCustomPresetsOpen, setIsCustomPresetsOpen] = useState(false)
@@ -327,6 +330,7 @@ export default function HomePage({
           dealerSelection: 'random',
           ronMultiplier: 1,
           transparentHand: false,
+          discardAssistEnabled: false,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -365,6 +369,46 @@ export default function HomePage({
           dealerSelection: 'random',
           ronMultiplier: 1,
           transparentHand: false,
+          discardAssistEnabled: false,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      await onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateWithStandardRulesAssist = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: defaultWallTiles,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: maxAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: true,
+          aotenjou: false,
+          kiriagemangan: true,
+          dealerSelection: 'random',
+          ronMultiplier: 1,
+          transparentHand: false,
+          discardAssistEnabled: true,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -403,6 +447,46 @@ export default function HomePage({
           dealerSelection: 'random',
           ronMultiplier: 1,
           transparentHand: false,
+          discardAssistEnabled: false,
+        }),
+      })
+      if (!response.ok) throw new Error('ルーム作成に失敗しました')
+      const data = await response.json()
+      sessionStorage.setItem('mahjong-myTsumoLuck', '0')
+      sessionStorage.setItem('mahjong-opponentTsumoLuck', '0')
+      await onCreateRoom(data.roomId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ルーム作成に失敗しました')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateWithStandardRulesLongAssist = async () => {
+    setIsCreateMenuOpen(false)
+    setIsCreating(true)
+    setError('')
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL_HTTP || 'http://localhost:3001'
+      const response = await fetch(`${backendUrl}/api/rooms`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          initialScore: defaultInitialScore,
+          wallTiles: 56,
+          gameMode: 'oneRound',
+          myTsumoLuck: 0,
+          opponentTsumoLuck: 0,
+          autoActionTimerSeconds: maxAutoActionTimerSeconds,
+          useRedDora: true,
+          notenPenalty: false,
+          riichiDepositRequired: true,
+          aotenjou: false,
+          kiriagemangan: true,
+          dealerSelection: 'random',
+          ronMultiplier: 1,
+          transparentHand: false,
+          discardAssistEnabled: true,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -441,6 +525,7 @@ export default function HomePage({
           dealerSelection: 'random',
           ronMultiplier: 1,
           transparentHand: false,
+          discardAssistEnabled: false,
         }),
       })
       if (!response.ok) throw new Error('ルーム作成に失敗しました')
@@ -539,6 +624,7 @@ export default function HomePage({
           ronMultiplier: ronMultiplier,
           transparentHand: transparentHand,
           cheatingEnabled: cheatingEnabled,
+          discardAssistEnabled: discardAssistEnabled,
         }),
       })
 
@@ -568,6 +654,7 @@ export default function HomePage({
           ronMultiplier,
           transparentHand,
           cheatingEnabled,
+          discardAssistEnabled,
         }))
       } catch (e) {
         console.error('Failed to save room settings:', e)
@@ -601,6 +688,7 @@ export default function HomePage({
       setRonMultiplier(BASE_STANDARD_RULES.ronMultiplier)
       setTransparentHand(BASE_STANDARD_RULES.transparentHand)
       setCheatingEnabled(BASE_STANDARD_RULES.cheatingEnabled)
+      setDiscardAssistEnabled(BASE_STANDARD_RULES.discardAssistEnabled)
     } else {
       setInitialScore(defaultInitialScore)
       setWallTiles(defaultWallTiles)
@@ -617,6 +705,7 @@ export default function HomePage({
       setRonMultiplier(1)
       setTransparentHand(false)
       setCheatingEnabled(false)
+      setDiscardAssistEnabled(false)
     }
   }
 
@@ -647,6 +736,7 @@ export default function HomePage({
     setRonMultiplier(preset.ronMultiplier)
     setTransparentHand(preset.transparentHand)
     setCheatingEnabled(preset.cheatingEnabled)
+    setDiscardAssistEnabled(preset.discardAssistEnabled)
     setError('')
     setIsRuleModalOpen(true)
   }
@@ -669,6 +759,7 @@ export default function HomePage({
       ronMultiplier,
       transparentHand,
       cheatingEnabled,
+      discardAssistEnabled,
     }
     setCustomPresets(updatedPresets)
     savePresetsToStorage(updatedPresets)
@@ -1016,6 +1107,7 @@ export default function HomePage({
                     {preset.notenPenalty ? '・罰符あり' : ''}
                     {!preset.riichiDepositRequired ? '・供託なし' : ''}
                     {preset.aotenjou ? '・青天井' : ''}
+                    {preset.discardAssistEnabled ? '・打牌アシスト' : ''}
                   </div>
                 </button>
                 <button
@@ -1055,6 +1147,22 @@ export default function HomePage({
             >
               <div>基本ルール(牌多め)で作成</div>
               <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし)</div>
+            </button>
+            <button
+              onClick={handleCreateWithStandardRulesAssist}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+            >
+              <div>基本ルール(アシストあり)で作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし･打牌アシストあり)</div>
+            </button>
+            <button
+              onClick={handleCreateWithStandardRulesLongAssist}
+              disabled={isCreating}
+              className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
+            >
+              <div>基本ルール(牌多め・アシストあり)で作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし･打牌アシストあり)</div>
             </button>
             <button
               onClick={handleCreateWithQuickRulesLong}
@@ -1444,6 +1552,23 @@ export default function HomePage({
                     <div>・誤指摘の場合は自分が満貫支払い</div>
                   </div>
                 )}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-gray-300 text-xs">打牌アシスト（初心者向け）</label>
+                <div className="flex items-center gap-3 p-2 bg-[#1a2e0a] border border-gray-500 rounded">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={discardAssistEnabled}
+                      onChange={(e) => setDiscardAssistEnabled(e.target.checked)}
+                      className="w-4 h-4 cursor-pointer accent-[#3d6b20]"
+                    />
+                    <span className="text-gray-300 text-xs">CPUの推奨打牌を表示する</span>
+                  </label>
+                </div>
+                <div className="text-xs text-gray-400 p-2 bg-[#0f1a06] border border-gray-600 rounded">
+                  有効時、自分のターンにCPUが選ぶ推奨牌が手牌上で表示されます。
+                </div>
               </div>
             </div>
 
