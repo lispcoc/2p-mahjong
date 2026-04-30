@@ -1153,16 +1153,16 @@ export default function HomePage({
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              <div>基本ルール(アシストあり)で作成</div>
-              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし･打牌アシストあり)</div>
+              <div>基本ルール(CPUアシストあり)で作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし)</div>
             </button>
             <button
               onClick={handleCreateWithStandardRulesLongAssist}
               disabled={isCreating}
               className="px-6 py-3 border-2 border-white text-base font-bold cursor-pointer transition-all bg-[#1a2e0a] text-[#ffffff] hover:bg-[#0f1a06] disabled:opacity-70"
             >
-              <div>基本ルール(牌多め・アシストあり)で作成</div>
-              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし･打牌アシストあり)</div>
+              <div>基本ルール(牌多め・CPUアシストあり)で作成</div>
+              <div className='text-xs'>(一局勝負･立直供託あり･ノーテン罰符なし)</div>
             </button>
             <button
               onClick={handleCreateWithQuickRulesLong}
