@@ -293,6 +293,22 @@ class AIPlayer {
     return han;
   }
 
+  _isDoraTile(tile, doraIndicators = []) {
+    for (const indicator of doraIndicators) {
+      const dora = AIPlayer._doraFromIndicator(indicator);
+      if (dora && dora.suit === tile.suit && dora.number === tile.number) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  _isYakuhaiTile(tile, gameState = {}) {
+    if (!tile || tile.suit !== 'honor') return false;
+    if (tile.number >= 5) return true;
+    return tile.number === gameState.roundWind || tile.number === gameState.seatWind;
+  }
+
   // ================================================================
   //  Furiten Check   フリテン確認
   // ================================================================
@@ -445,19 +461,8 @@ class AIPlayer {
         }
 
         // --- 役志向ボーナス (±80以内のタイブレーク) ---
-        score += this._yakuBonus(hand, e.i, numMelds);
-
-        // --- 赤ドラ保持: 赤5を切るとペナルティ ---
-        if (e.tile.isRed) {
-          const hasNormalVersion = hand.some(
-            (t, j) => j !== e.i && t.suit === e.tile.suit && t.number === e.tile.number && !t.isRed
-          );
-          if (hasNormalVersion) {
-            score -= 500;
-          } else {
-            score -= 150;
-          }
-        }
+        score += this._yakuBonus(hand, e.i, numMelds, gameState);
+        score += this._tileValueAdjustment(hand, e.i, gameState);
       }
 
       e.score = score;
@@ -560,17 +565,21 @@ class AIPlayer {
   //  Yaku Bonus   役志向ボーナス（タイブレーク用）
   // ================================================================
 
-  _yakuBonus(hand, discIdx, numMelds) {
+  _yakuBonus(hand, discIdx, numMelds, gameState = {}) {
     let bonus = 0;
     const dt = hand[discIdx];
     const rest = hand.filter((_, j) => j !== discIdx);
+    const isYakuhaiHonor = this._isYakuhaiTile(dt, gameState);
 
     // 断么九志向: 么九牌・字牌を切ると加点
     const thCount = rest.filter(
       t => t.suit === 'honor' || t.number === 1 || t.number === 9
     ).length;
     if (thCount <= 2) {
-      if (dt.suit === 'honor' || dt.number === 1 || dt.number === 9) bonus += 40;
+      if ((dt.suit === 'honor' || dt.number === 1 || dt.number === 9) && !isYakuhaiHonor) {
+        bonus += 40;
+      }
+      if (isYakuhaiHonor) bonus -= 80;
     }
 
     // 混一色志向: 支配スーツ以外を切ると加点
@@ -591,6 +600,40 @@ class AIPlayer {
     }
 
     return bonus;
+  }
+
+  _tileValueAdjustment(hand, discIdx, gameState = {}) {
+    const dt = hand[discIdx];
+    const rest = hand.filter((_, j) => j !== discIdx);
+    const copiesLeft = rest.filter(t => t.suit === dt.suit && t.number === dt.number).length;
+    let adjustment = 0;
+
+    if (this._isDoraTile(dt, gameState.doraIndicators || [])) {
+      adjustment -= 600 + copiesLeft * 200;
+    }
+
+    if (dt.isRed) {
+      const hasNormalVersion = rest.some(
+        t => t.suit === dt.suit && t.number === dt.number && !t.isRed
+      );
+      adjustment -= hasNormalVersion ? 500 : 150;
+    }
+
+    if (dt.suit === 'honor') {
+      if (this._isYakuhaiTile(dt, gameState)) {
+        if (copiesLeft >= 1) {
+          adjustment -= 700 + copiesLeft * 150;
+        } else {
+          adjustment -= (gameState.wallRemaining || 0) >= 18 ? 180 : 60;
+        }
+      } else if (copiesLeft >= 1) {
+        adjustment -= 100;
+      } else {
+        adjustment += 220;
+      }
+    }
+
+    return adjustment;
   }
 
   // ================================================================

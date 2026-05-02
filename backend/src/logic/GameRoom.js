@@ -990,6 +990,7 @@ class GameRoom {
     const opponentPlayer = opponentId ? this.gameLogic.players[opponentId] : null;
     const currentScore = this.gameLogic.getPlayerScore(userId);
     const opponentScore = opponentId ? this.gameLogic.getPlayerScore(opponentId) : 25000;
+    const seatWinds = this.buildSeatWinds(this.playerOrder);
 
     return {
       opponentRiichi: opponentPlayer?.riichi || false,
@@ -1005,6 +1006,8 @@ class GameRoom {
       ownHand: hand,
       ownScore: currentScore,
       opponentScore: opponentScore,
+      roundWind: this.getRoundWindNumber(),
+      seatWind: seatWinds[userId] || null,
       roundNumber: this.roundNumber || 1,
       totalRounds: this.maxRounds || 4,
     };

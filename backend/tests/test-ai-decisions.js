@@ -39,6 +39,50 @@ section('AI: 戦略モード（孤立牌を打つ）');
   assert(idx >= 0 && idx < hand.length, '有効なインデックスを返す');
 }
 
+section('AI: 通常ドラは安易に切らない');
+{
+  const ai = new AIPlayer(false);
+  const hand = [
+    new Tile('man', 5),
+    new Tile('pin', 2), new Tile('pin', 3), new Tile('pin', 4),
+    new Tile('sou', 2), new Tile('sou', 3), new Tile('sou', 4),
+    new Tile('pin', 6), new Tile('pin', 7), new Tile('pin', 8),
+    new Tile('sou', 6), new Tile('sou', 7),
+    new Tile('man', 2),
+  ];
+  const idx = ai.chooseDiscard(hand, 12, false, {
+    doraIndicators: [new Tile('man', 4)],
+    numMelds: 0,
+    melds: [],
+    wallRemaining: 40,
+  });
+  const discarded = hand[idx];
+  assert(!(discarded.suit === 'man' && discarded.number === 5), '通常ドラを他の孤立牌より先に切らない');
+}
+
+section('AI: 非役牌の字牌を役牌より先に整理する');
+{
+  const ai = new AIPlayer(false);
+  const hand = [
+    new Tile('honor', 1),
+    new Tile('honor', 3),
+    new Tile('man', 2), new Tile('man', 3), new Tile('man', 4),
+    new Tile('pin', 3), new Tile('pin', 4), new Tile('pin', 5),
+    new Tile('sou', 6), new Tile('sou', 7), new Tile('sou', 8),
+    new Tile('man', 8), new Tile('man', 9),
+  ];
+  const idx = ai.chooseDiscard(hand, 12, false, {
+    doraIndicators: [],
+    numMelds: 0,
+    melds: [],
+    wallRemaining: 40,
+    roundWind: 1,
+    seatWind: 2,
+  });
+  const discarded = hand[idx];
+  assert(discarded.suit === 'honor' && discarded.number === 3, '役牌の東より先に非役牌の西を切る');
+}
+
 section('AI: リーチ中はツモ切り');
 {
   const ai = new AIPlayer(false);
